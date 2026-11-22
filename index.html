@@ -163,100 +163,109 @@ body .view.active>.hero h1{letter-spacing:-.04em}
 .welcome-meta-note{color:#92aebc;font-size:11px}
 @media(max-width:750px){.welcome-content{gap:9px}.welcome-meta{display:none}.command-welcome{margin-top:12px;padding:17px 16px}.command-welcome h1{font-size:31px;margin:9px 0 7px}.command-welcome p{font-size:12px}}
 
-/* v0.10: stronger workspace identities. The futuristic hues are on future-facing tabs. */
+
+/* v0.11: warm-to-cool navigation spectrum.
+   Industrial copper → Foundry rose → Signal violet → Blueprint blue → Construction teal */
 body[data-workspace]{
  --workspace-ambient:rgba(85,104,128,.38);
  --workspace-ambient2:rgba(68,91,116,.28);
- --workspace-accent:#b6cce0;
+ --workspace-accent:#c1a2f5;
  --workspace-grid:rgba(118,170,199,.07);
  background:
-   radial-gradient(ellipse 1130px 760px at 77% -140px,var(--workspace-ambient),transparent 80%),
-   radial-gradient(ellipse 950px 730px at -12% 80%,var(--workspace-ambient2),transparent 81%),
+   radial-gradient(ellipse 1130px 780px at 78% -120px,var(--workspace-ambient),transparent 78%),
+   radial-gradient(ellipse 980px 770px at -8% 85%,var(--workspace-ambient2),transparent 79%),
    linear-gradient(160deg,#0d1520 0%,#0f1a26 58%,#0b141e 100%);
  min-height:100vh
 }
 body[data-workspace="learn"]{
- --workspace-ambient:rgba(101,117,137,.40);
- --workspace-ambient2:rgba(73,91,110,.30);
- --workspace-accent:#b6cad9
+ --workspace-ambient:rgba(176,93,42,.48);
+ --workspace-ambient2:rgba(119,71,37,.40);
+ --workspace-accent:#f2b27a
 }
 body[data-workspace="setup"]{
- --workspace-ambient:rgba(171,97,48,.41);
- --workspace-ambient2:rgba(114,69,39,.34);
- --workspace-accent:#f1b179
+ --workspace-ambient:rgba(171,58,88,.48);
+ --workspace-ambient2:rgba(115,52,77,.40);
+ --workspace-accent:#f18ea4
 }
 body[data-workspace="balance"]{
- --workspace-ambient:rgba(137,113,62,.35);
- --workspace-ambient2:rgba(92,88,66,.30);
- --workspace-accent:#edcc91
+ --workspace-ambient:rgba(106,67,158,.50);
+ --workspace-ambient2:rgba(79,62,133,.38);
+ --workspace-accent:#c1a2f5
 }
 body[data-workspace="factory"]{
- --workspace-ambient:rgba(28,103,181,.52);
- --workspace-ambient2:rgba(26,90,149,.42);
- --workspace-accent:#8dcaff;
- --workspace-grid:rgba(118,186,239,.07);
+ --workspace-ambient:rgba(30,103,186,.53);
+ --workspace-ambient2:rgba(28,88,151,.44);
+ --workspace-accent:#87c7ff;
+ --workspace-grid:rgba(117,186,244,.075);
  background-image:
    linear-gradient(to right,var(--workspace-grid) 1px,transparent 1px),
    linear-gradient(to bottom,var(--workspace-grid) 1px,transparent 1px),
-   radial-gradient(ellipse 1130px 760px at 77% -140px,var(--workspace-ambient),transparent 80%),
-   radial-gradient(ellipse 950px 730px at -12% 80%,var(--workspace-ambient2),transparent 81%),
+   radial-gradient(ellipse 1130px 780px at 78% -120px,var(--workspace-ambient),transparent 78%),
+   radial-gradient(ellipse 980px 770px at -8% 85%,var(--workspace-ambient2),transparent 79%),
    linear-gradient(160deg,#0b1826 0%,#0c2133 58%,#091723 100%);
- background-size:50px 50px,50px 50px,auto,auto,auto
+ background-size:48px 48px,48px 48px,auto,auto,auto
 }
 body[data-workspace="build"]{
- --workspace-ambient:rgba(24,154,144,.48);
- --workspace-ambient2:rgba(29,111,126,.43);
- --workspace-accent:#80e9d2;
- --workspace-grid:rgba(101,220,207,.055);
+ --workspace-ambient:rgba(21,154,144,.51);
+ --workspace-ambient2:rgba(27,119,119,.42);
+ --workspace-accent:#78e4cf;
+ --workspace-grid:rgba(100,220,208,.062);
  background-image:
    linear-gradient(to right,var(--workspace-grid) 1px,transparent 1px),
    linear-gradient(to bottom,var(--workspace-grid) 1px,transparent 1px),
-   radial-gradient(ellipse 1130px 760px at 77% -140px,var(--workspace-ambient),transparent 80%),
-   radial-gradient(ellipse 950px 730px at -12% 80%,var(--workspace-ambient2),transparent 81%),
+   radial-gradient(ellipse 1130px 780px at 78% -120px,var(--workspace-ambient),transparent 78%),
+   radial-gradient(ellipse 980px 770px at -8% 85%,var(--workspace-ambient2),transparent 79%),
    linear-gradient(160deg,#0b1921 0%,#0d282d 58%,#0b1820 100%);
- background-size:50px 50px,50px 50px,auto,auto,auto
+ background-size:48px 48px,48px 48px,auto,auto,auto
 }
-/* Tie the currently selected tab, hero, and greeting to the same palette. */
+/* A small spectrum rail connects the five tabs even before opening them. */
+.nav{border-bottom:none;padding-bottom:17px}
+.nav::after{
+ content:"";position:absolute;bottom:4px;left:0;right:0;height:3px;
+ background:linear-gradient(to right,#f2b27a 0%,#f18ea4 25%,#c1a2f5 50%,#87c7ff 75%,#78e4cf 100%);
+ border-radius:12px;
+ opacity:.94
+}
 .nav button.active{
- background:color-mix(in srgb,var(--workspace-accent) 27%,#182937);
+ background:color-mix(in srgb,var(--workspace-accent) 28%,#182937);
  border-color:color-mix(in srgb,var(--workspace-accent) 68%,#304658);
  color:#f5fcfe;
- box-shadow:inset 0 -3px 0 var(--workspace-accent),0 1px 12px color-mix(in srgb,var(--workspace-accent) 12%,transparent)
+ box-shadow:inset 0 -3px 0 var(--workspace-accent),0 1px 12px color-mix(in srgb,var(--workspace-accent) 15%,transparent)
 }
-.nav button[data-view="learn"] .nav-dot{background:#b6cad9}
-.nav button[data-view="setup"] .nav-dot{background:#f1b179}
-.nav button[data-view="balance"] .nav-dot{background:#edcc91}
-.nav button[data-view="factory"] .nav-dot{background:#8dcaff}
-.nav button[data-view="build"] .nav-dot{background:#80e9d2}
-.nav button .nav-dot{opacity:.8}
+.nav button[data-view="learn"] .nav-dot{background:#f2b27a}
+.nav button[data-view="setup"] .nav-dot{background:#f18ea4}
+.nav button[data-view="balance"] .nav-dot{background:#c1a2f5}
+.nav button[data-view="factory"] .nav-dot{background:#87c7ff}
+.nav button[data-view="build"] .nav-dot{background:#78e4cf}
+.nav button .nav-dot{opacity:.85}
 .nav button.active .nav-dot{opacity:1}
 .command-welcome{
  background:linear-gradient(105deg,
   color-mix(in srgb,var(--workspace-accent) 23%,#162837),
   color-mix(in srgb,var(--workspace-accent) 9%,#152333) 67%,
   rgba(16,30,42,.95));
- border-color:color-mix(in srgb,var(--workspace-accent) 46%,#395267);
+ border-color:color-mix(in srgb,var(--workspace-accent) 47%,#395267);
  border-left-width:5px
 }
 .view.active>.hero{
- background:linear-gradient(112deg,color-mix(in srgb,var(--workspace-accent) 16%,#152636) 0%,rgba(20,34,47,.46) 76%);
- border:1px solid color-mix(in srgb,var(--workspace-accent) 28%,#385164);
+ background:linear-gradient(112deg,color-mix(in srgb,var(--workspace-accent) 17%,#152636) 0%,rgba(20,34,47,.46) 76%);
+ border:1px solid color-mix(in srgb,var(--workspace-accent) 30%,#385164);
  border-left:4px solid var(--workspace-accent);
  border-radius:13px;
  padding:22px 26px;
- margin:19px 0 22px;
+ margin:19px 0 22px
 }
 .view.active>.hero .eyebrow{color:var(--workspace-accent)}
 @media(max-width:650px){
  .view.active>.hero{padding:17px 16px;margin:12px 0 17px}
- .command-welcome{background:linear-gradient(110deg,color-mix(in srgb,var(--workspace-accent) 24%,#152839),rgba(16,30,42,.90))}
+ .command-welcome{background:linear-gradient(110deg,color-mix(in srgb,var(--workspace-accent) 25%,#152839),rgba(16,30,42,.90))}
 }
 
 </style>
 </head>
 <body data-workspace="balance">
 <div class="shell">
- <header class="top"><div class="brand">NAUVIS <strong>Command Center</strong></div><div class="version">v0.10 · Switch 2 · Desktop ready</div></header>
+ <header class="top"><div class="brand">NAUVIS <strong>Command Center</strong></div><div class="version">v0.11 · Switch 2 · Desktop ready</div></header>
  <nav class="nav" aria-label="Factory workflow: learn, inspect, plan, build"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick guide</button><button data-view="setup" type="button"><span class="nav-dot" aria-hidden="true"></span>Existing factory</button><button data-view="balance" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory balance</button><button data-view="factory" type="button"><span class="nav-dot" aria-hidden="true"></span>Future plan</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Build next</button></nav>
  <section class="command-welcome" aria-label="Welcome to your factory">
   <div class="welcome-heading"><span class="welcome-signal" aria-hidden="true"></span><span class="welcome-kicker">NAUVIS · FACTORY OPERATIONS</span></div>
@@ -347,7 +356,7 @@ body[data-workspace="build"]{
   <div class="section panel"><h2>Before upgrading a belt</h2><div style="display:grid;gap:12px"><div><div class="inline"><b>Yellow</b><b>900/min</b></div><div class="track"><div style="width:33.333%;background:#e9bd61"></div></div></div><div><div class="inline"><b>Red</b><b>1,800/min</b></div><div class="track"><div style="width:66.666%;background:#e67b78"></div></div></div><div><div class="inline"><b>Blue</b><b>2,700/min</b></div><div class="track"><div style="width:100%;background:#76b3e2"></div></div></div></div><p class="small">If your furnaces produce only 700 plates/min, any of these belts will still carry only 700. Upgrade when the belt is saturated, not just because you've researched the next color.</p></div>
  </section>
  </main>
- <footer class="footer">Nauvis Command Center v0.10 · Factorio 2.0 / Space Age · No Craft connection yet · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.11 · Factorio 2.0 / Space Age · No Craft connection yet · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script>
 'use strict';
