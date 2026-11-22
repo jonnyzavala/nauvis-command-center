@@ -92,7 +92,9 @@ begin
   insert into public.nauvis_devices (factory_id, user_id, device_name)
   values (target_id, current_user_id,
           left(coalesce(nullif(trim(p_device_name), ''), 'My device'), 60))
-  on conflict (factory_id, user_id)
+  -- Use the named primary-key constraint: RETURNS TABLE declares a PL/pgSQL
+  -- output variable named factory_id, making ON CONFLICT (factory_id, ...) ambiguous.
+  on conflict on constraint nauvis_devices_pkey
   do update set device_name = excluded.device_name;
 
   return query
