@@ -1,0 +1,28 @@
+/* NAUVIS Command Center offline shell. Does not cache private cloud API responses. */
+const VERSION='nauvis-shell-v017';
+const STATIC=['./','./index.html','./sync/cloud-sync.js'];
+self.addEventListener('install',event=>{
+ event.waitUntil(caches.open(VERSION).then(cache=>cache.addAll(STATIC)).then(()=>self.skipWaiting()));
+});
+self.addEventListener('activate',event=>{
+ event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('nauvis-shell-')&&k!==VERSION).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
+});
+self.addEventListener('fetch',event=>{
+ const req=event.request;
+ if(req.method!=='GET')return;
+ const url=new URL(req.url);
+ if(url.origin!==self.location.origin)return;
+ const scope=new URL(self.registration.scope);
+ if(!url.pathname.startsWith(scope.pathname))return;
+ if(req.mode==='navigate'){
+  event.respondWith(fetch(req).then(res=>{
+   if(res.ok){const copy=res.clone();event.waitUntil(caches.open(VERSION).then(cache=>cache.put('./index.html',copy)));}
+   return res;
+  }).catch(()=>caches.match('./index.html').then(x=>x||Response.error())));
+ }else{
+  event.respondWith(caches.match(req).then(hit=>hit||fetch(req).then(res=>{
+   if(res.ok){const copy=res.clone();event.waitUntil(caches.open(VERSION).then(cache=>cache.put(req,copy)));}
+   return res;
+  })));
+ }
+});
