@@ -90,8 +90,9 @@ function queuePush(){
 async function upload(){
  if(!id||busy||conflict)return;
  const data=pending();
- if(!data){showStatus('saved','Changes confirmed by the cloud database.');return}
- if(offline()){showStatus('offline','Changes are stored locally and waiting for internet.');return}
+ if(!data){showStatus('saved','Changes confirmed by the cloud database.');return true}
+ if(offline()){showStatus('offline','Changes are stored locally and waiting for internet.');return false}
+ let success=false;
  busy=true;showStatus('syncing','Uploading local changes...');
  try{
   await authorize();
@@ -99,6 +100,7 @@ async function upload(){
   if(typeof result?.revision!=='number')throw Error('No save confirmation received.');
   setRevision(result.revision);
   synced=JSON.stringify(data);
+  success=true;
   if(JSON.stringify(pending())===JSON.stringify(data))drop(storage.pending);
   showStatus('saved',pending()?'Latest save confirmed; more changes are queued.':'Your factory is synchronized.');
  }catch(e){
@@ -108,8 +110,11 @@ async function upload(){
   else showStatus('error',t);
  }finally{
   busy=false;
-  if(pending()&&!conflict&&!offline())queuePush();
+  // Retry only after a confirmed save, or after an explicit edit/reconnect.
+  // A persistent auth/server failure must not cause an endless upload loop.
+  if(success&&pending()&&!conflict&&!offline())queuePush();
  }
+ return success;
 }
 function changed(){
  if(window.NauvisCloudApplying||!id)return;
@@ -137,6 +142,8 @@ async function refresh(){
 async function pair(ev){
  ev.preventDefault();
  const button=$('cloudConnect');button.disabled=true;
+ const previousConfig=settings(),previousId=id,previousRevision=rev;
+ let paired=false;
  showStatus('connecting','Pairing this device...');
  try{
   const url=$('cloudUrl').value.trim(),key=$('cloudKey').value.trim();
@@ -152,9 +159,17 @@ async function pair(ev){
   $('cloudRecovery').value='';
   if(rev===0){put(storage.pending,JSON.stringify(local()));queuePush();}
   else restore(d);
+  paired=true;
   say('Paired successfully. The recovery key was not stored in your browser.');
   $('cloudPairedInfo').textContent='This browser is paired. All changes will sync automatically.';
- }catch(e){showStatus(offline()?'offline':'error',errText(e));say(errText(e),true)}
+ }catch(e){
+  if(!paired){
+   // A mistyped key or an unavailable server must not silently unpair a working device.
+   put(storage.cfg,JSON.stringify(previousConfig));id=previousId;rev=previousRevision;client=null;
+   if(id){put(storage.id,id);put(storage.rev,String(rev));}else{drop(storage.id);drop(storage.rev);}
+  }
+  showStatus(offline()?'offline':'error',errText(e));say(errText(e),true);
+ }
  finally{button.disabled=false;}
 }
 async function resolve(useCloud){
@@ -165,8 +180,8 @@ async function resolve(useCloud){
   if(useCloud){restore(remote);say('Restored the cloud copy. Your previous local data was backed up.');}
   else{setRevision(remote.revision);conflict=false;
    if(!pending())put(storage.pending,JSON.stringify(local()));
-   await upload();
-   say('Your local changes were selected for upload.');
+   const uploaded=await upload();
+   say(uploaded?'Your local changes are now synchronized.':'The local copy is preserved. Upload has not been confirmed yet.',!uploaded);
   }
  }catch(e){conflict=true;showStatus('conflict',errText(e));say(errText(e),true)}
  finally{$('cloudKeepCloud').disabled=false;$('cloudKeepLocal').disabled=false;}
