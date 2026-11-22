@@ -293,19 +293,86 @@ body[data-workspace="build"]{
  .header-welcome{font-size:25px}
 }
 
+
+/* v0.14: compact command masthead, sticky navigation, persistent tab briefing. */
+:root{--chrome-height:116px}
+.command-chrome{
+ position:sticky;top:0;z-index:110;
+ background:linear-gradient(180deg,
+   color-mix(in srgb,#0d1520 93%,var(--workspace-accent) 7%) 0%,
+   color-mix(in srgb,#0d1520 89%,var(--workspace-accent) 11%) 89%,
+   rgba(13,21,32,.91) 100%);
+ backdrop-filter:blur(18px);
+ -webkit-backdrop-filter:blur(18px);
+ border-bottom:1px solid color-mix(in srgb,var(--workspace-accent) 22%,transparent);
+ padding:0 3px 4px;
+}
+.command-top{padding:16px 0 10px;align-items:center;gap:16px}
+.command-identity{flex:1;min-width:0;display:block}
+.command-identity .brand{display:block;min-width:0}
+.brand-kicker{font-size:10px;font-weight:850;letter-spacing:.17em;color:var(--gold);line-height:1.2}
+.brand-kicker .operations-label{font-size:10px;letter-spacing:.15em;color:#9eb6c5;font-weight:800;padding:0}
+.identity-main{display:flex;align-items:baseline;flex-wrap:wrap;column-gap:clamp(14px,2.3vw,32px);row-gap:2px;margin-top:4px}
+.command-identity .brand .identity-main strong{display:inline;font-size:clamp(25px,2.35vw,35px);font-weight:850;letter-spacing:-.045em;line-height:1.12;margin:0;color:var(--text)}
+.identity-main .header-welcome{font-size:clamp(22px,2.06vw,30px);font-weight:760;letter-spacing:-.035em;line-height:1.14;color:var(--workspace-accent);padding:0;margin:0}
+.command-top .version{margin:0;align-self:center;flex-shrink:0}
+.command-chrome .nav{margin:0;padding-top:2px;position:relative;top:auto;z-index:1;background:transparent!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.command-chrome .nav::after{bottom:2px}
+.view.active>.hero{
+ position:sticky;
+ top:calc(var(--chrome-height) + 2px);
+ z-index:65;
+ box-shadow:0 12px 22px rgba(4,11,20,.19);
+}
+body.command-scrolled .view.active>.hero{
+ padding:11px 19px;
+ margin:5px 0 12px;
+ background:linear-gradient(110deg,color-mix(in srgb,var(--workspace-accent) 23%,#142432),color-mix(in srgb,var(--workspace-accent) 10%,#142432));
+ box-shadow:0 9px 20px rgba(0,0,0,.33)
+}
+body.command-scrolled .view.active>.hero .eyebrow{display:none}
+body.command-scrolled .view.active>.hero h1{font-size:clamp(20px,2vw,27px);line-height:1.11;margin:0 0 3px}
+body.command-scrolled .view.active>.hero p{max-width:100%;font-size:12px;line-height:1.4;color:#d1e0e8}
+@media(max-width:780px){
+ .command-top{padding:13px 0 9px;align-items:flex-start}
+ .command-identity{flex:1 1 auto}
+ .command-identity .brand{flex-basis:auto}
+ .brand-kicker,.brand-kicker .operations-label{font-size:9px}
+ .identity-main{gap:2px 11px;margin-top:4px}
+ .command-identity .brand .identity-main strong{font-size:clamp(23px,4.8vw,29px)}
+ .identity-main .header-welcome{order:0;flex-basis:auto;font-size:clamp(21px,4.6vw,27px);margin:0;padding:0}
+ .command-top .version{align-self:flex-start;margin:0}
+ .version-detail{display:none}
+ body.command-scrolled .view.active>.hero{padding:9px 13px;margin:4px 0 8px}
+ body.command-scrolled .view.active>.hero h1{font-size:21px;margin-bottom:4px}
+ body.command-scrolled .view.active>.hero p{font-size:12px;line-height:1.33}
+}
+@media(max-width:480px){
+ .command-identity .brand .identity-main strong{font-size:24px}
+ .identity-main .header-welcome{font-size:22px}
+ .command-chrome .nav{padding-bottom:15px}
+}
+@media(max-height:540px){
+ .view.active>.hero{position:relative;top:auto}
+}
+@media(prefers-reduced-motion:reduce){.command-chrome,.view.active>.hero{transition:none}}
+
 </style>
 </head>
 <body data-workspace="balance">
 <div class="shell">
+ <div class="command-chrome">
  <header class="top command-top" aria-label="Nauvis Command Center">
   <div class="command-identity">
-   <div class="brand">NAUVIS <strong>Command Center</strong></div>
-   <span class="operations-label">FACTORY OPERATIONS</span>
-   <div class="header-welcome">Welcome, Engineer.</div>
+   <div class="brand">
+    <div class="brand-kicker">NAUVIS <span class="operations-label">· FACTORY OPERATIONS</span></div>
+    <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
+   </div>
   </div>
-  <div class="version">v0.13 · Switch 2 · Desktop ready</div>
+  <div class="version">v0.14 <span class="version-detail">· Switch 2 · Desktop ready</span></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, inspect, plan, build"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick guide</button><button data-view="setup" type="button"><span class="nav-dot" aria-hidden="true"></span>Existing factory</button><button data-view="balance" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory balance</button><button data-view="factory" type="button"><span class="nav-dot" aria-hidden="true"></span>Future plan</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Build next</button></nav>
+ </div>
  <main>
  <section class="view" id="build">
   <div class="hero"><div class="eyebrow">STEP-BY-STEP PRODUCTION PLANNER</div><h1>What are we building next?</h1><p>Choose an item. I'll calculate the machine counts, the supporting intermediates, and whether your belts can carry everything. Start with the suggested scale. No ratios required.</p></div>
@@ -391,7 +458,7 @@ body[data-workspace="build"]{
   <div class="section panel"><h2>Before upgrading a belt</h2><div style="display:grid;gap:12px"><div><div class="inline"><b>Yellow</b><b>900/min</b></div><div class="track"><div style="width:33.333%;background:#e9bd61"></div></div></div><div><div class="inline"><b>Red</b><b>1,800/min</b></div><div class="track"><div style="width:66.666%;background:#e67b78"></div></div></div><div><div class="inline"><b>Blue</b><b>2,700/min</b></div><div class="track"><div style="width:100%;background:#76b3e2"></div></div></div></div><p class="small">If your furnaces produce only 700 plates/min, any of these belts will still carry only 700. Upgrade when the belt is saturated, not just because you've researched the next color.</p></div>
  </section>
  </main>
- <footer class="footer">Nauvis Command Center v0.13 · Factorio 2.0 / Space Age · No Craft connection yet · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.14 · Factorio 2.0 / Space Age · No Craft connection yet · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script>
 'use strict';
@@ -691,6 +758,16 @@ function renderBalance(){
  el('balanceAllocations').innerHTML=dedicated.length?`<div class="balance-routes">${dedicated.map(x=>`<div class="balance-route"><span>${escapeHTML(nameOf(x.item))} → ${escapeHTML(x.destination)}</span><b>${f(x.rate)}/min</b></div>`).join('')}</div><p class="small">These outputs are reserved by their recorded destination. A positive global balance does not make them available to the main bus.</p>`:'<p class="small">No dedicated production destinations entered yet. Add lines under Existing factory.</p>';
  el('balanceTransport').innerHTML=setup.feeds.length?`<div class="balance-routes">${setup.feeds.filter(x=>(Number(x.count)||0)>0).map(x=>`<div class="balance-route"><span>${escapeHTML(nameOf(x.recipe))} → ${escapeHTML(x.destination)}</span><b>${f((Number(x.count)||0)*beltSpeed(x.tier))}/min maximum</b></div>`).join('')}</div><p class="small">Transport capacities are not added to production supply. Avoid entering the same belt twice as separate sources.</p>`:'<p class="small">No transport lines recorded. Belts never generate items on their own.</p>';
 }
+function initStickyCommand(){
+ const chrome=document.querySelector('.command-chrome');
+ const updateHeight=()=>{if(chrome)document.documentElement.style.setProperty('--chrome-height',Math.ceil(chrome.getBoundingClientRect().height)+'px')};
+ const updateScroll=()=>document.body.classList.toggle('command-scrolled',window.scrollY>110);
+ window.addEventListener('scroll',updateScroll,{passive:true});
+ window.addEventListener('resize',updateHeight,{passive:true});
+ if(typeof ResizeObserver!=='undefined'&&chrome)new ResizeObserver(updateHeight).observe(chrome);
+ updateHeight();updateScroll();
+}
+
 function activateWorkspace(view,scrollPage=false){
  const allowed=new Set(['learn','setup','balance','factory','build']);
  if(!allowed.has(view))view='balance';
@@ -707,10 +784,11 @@ function activateWorkspace(view,scrollPage=false){
  const bar=document.querySelector('.nav'),active=document.querySelector('.nav button.active');
  if(bar&&active){bar.scrollLeft=Math.max(0,active.offsetLeft-bar.offsetLeft-(bar.clientWidth-active.offsetWidth)/2)}
  if(scrollPage)window.scrollTo({top:0,behavior:'instant'});
+ if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>{const c=document.querySelector('.command-chrome');if(c)document.documentElement.style.setProperty('--chrome-height',Math.ceil(c.getBoundingClientRect().height)+'px')});
 }
 function init(){el('balanceIncludeGoal').addEventListener('change',e=>{balancePrefs.includeGoal=e.target.checked;try{localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs))}catch(_e){}renderBalance()});el('balanceEditSetup').addEventListener('click',()=>document.querySelector('.nav button[data-view="setup"]').click());el('allRecipes').innerHTML=[...new Set(allOrder.filter(x=>R[x]))].map(k=>`<option value="${k}">${R[k][0]}</option>`).join('');el('allRecipes').addEventListener('change',e=>setGoal(e.target.value));el('goalNumber').addEventListener('change',e=>{guide.rate=Math.min(25000,Math.max(0,Number(e.target.value)||0));renderGuide()});for(const [id,key] of [['assemblyTier','machine'],['sourceMode','source'],['beltTier','belt']])el(id).addEventListener('change',e=>{guide[key]=key==='source'?e.target.value:Number(e.target.value);renderGuide()});document.querySelectorAll('.nav button').forEach(btn=>btn.addEventListener('click',()=>activateWorkspace(btn.dataset.view,true)));
  el('exportButton').addEventListener('click',()=>{const data=JSON.stringify({version:6,plan:factory,guide,setup},null,2),u=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='nauvis-plan.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)});el('importButton').addEventListener('click',()=>el('importFile').click());el('importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const r=JSON.parse(await file.text());if(r.plan&&typeof r.plan.redBlocks==='number'){Object.assign(factory,fd,r.plan,{checked:{...(r.plan.checked||{})}});if(r.guide&&R[r.guide.goal])Object.assign(guide,r.guide);if(r.setup){Object.assign(setup.smelt,setupSeed.smelt,r.setup.smelt||{});Object.assign(setup.oil,setupSeed.oil,r.setup.oil||{});setup.machines=r.setup.machines||[];setup.feeds=r.setup.feeds||[];saveSetup();renderSetup();}}else if(typeof r.redBlocks==='number'){Object.assign(factory,fd,r,{checked:{...(r.checked||{})}})}else throw Error('Not a dashboard backup');save();renderGuide();renderFactory();alert('Your plan was imported.')}catch(err){alert('Could not import plan: '+err.message)}e.target.value=''});el('resetButton').addEventListener('click',handleFactorySettingsReset);
- renderGuide();renderFactory();initSetup();activateWorkspace("balance");}
+ renderGuide();renderFactory();initSetup();activateWorkspace("balance");initStickyCommand();}
 window.nauvisTest=(id,target,source='bus')=>{const prev=guide.source;guide.source=source;const output=calculate(id,target);guide.source=prev;return output};
 init();
 </script>
