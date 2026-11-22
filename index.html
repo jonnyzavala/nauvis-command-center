@@ -4,6 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#0d1722" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="manifest" href="./manifest.webmanifest" />
 <title>Nauvis Command Center · Welcome, Engineer</title>
 <style>
 :root{color-scheme:dark;--bg:#0d1520;--panel:#182533;--panel2:#1d3040;--border:#32495c;--text:#ecf5f5;--muted:#a7bbc8;--gold:#ebbf79;--red:#f18b86;--blue:#82bdf0;--green:#79d0ad;--purple:#bba5e5;--amber:#eec277;--danger:#ff8986;--radius:16px}
@@ -473,6 +476,50 @@ body[data-workspace="build"]{
  .brand-kicker::before{height:6px;width:6px;margin-right:7px}
 }
 
+
+/* v0.17: Cloud sync status and configuration. */
+.command-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.cloud-status{position:relative;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;border-radius:11px;border:1px solid #456175;color:var(--text);padding:7px 11px;background:linear-gradient(135deg,#2b4356,#192d3b);box-shadow:inset 0 1px 0 #ffffff12,0 3px 9px #0003;font-size:11px;font-weight:800;overflow:hidden;isolation:isolate;min-height:34px}
+.cloud-status:hover{background:#334f60}
+.cloud-indicator{position:relative;display:grid;place-items:center;width:19px;height:19px;flex:0 0 19px}
+.cloud-indicator::before{content:"";position:absolute;inset:1px;border:2px solid transparent;border-radius:50%;opacity:.65}
+.cloud-led{position:relative;height:8px;width:8px;border-radius:50%;background:var(--red);box-shadow:0 0 0 3px #f18b8626,0 0 8px #f18b8666;transition:background-color .18s,box-shadow .18s}
+.cloud-status[data-state="saved"] .cloud-led{background:var(--green);box-shadow:0 0 0 3px #79d0ad28,0 0 10px #79d0ad80}
+.cloud-status[data-state="saved"] .cloud-indicator::before{border-color:#79d0ad50}
+.cloud-status[data-state="syncing"] .cloud-led{background:var(--gold);box-shadow:0 0 0 3px #eec27722,0 0 9px #eec27780;animation:cloud-led-breathe 2.4s ease-in-out infinite}
+.cloud-status[data-state="syncing"] .cloud-indicator::before{border-color:#eec27738;border-top-color:var(--gold);border-right-color:var(--gold);animation:cloud-ring-turn 1.9s linear infinite}
+.cloud-status[data-state="connecting"] .cloud-led{background:var(--blue);box-shadow:0 0 0 3px #82bdf024,0 0 10px #82bdf080}
+.cloud-status[data-state="connecting"] .cloud-indicator::before{border-color:#82bdf044;border-top-color:var(--blue);animation:cloud-ring-turn 2.4s linear infinite}
+.cloud-status[data-state="local"] .cloud-led,.cloud-status[data-state="offline"] .cloud-led,.cloud-status[data-state="error"] .cloud-led,.cloud-status[data-state="conflict"] .cloud-led{background:var(--red);box-shadow:0 0 0 3px #f18b8626,0 0 8px #f18b8666}
+
+.cloud-status[data-state="local"] .cloud-indicator::before,.cloud-status[data-state="offline"] .cloud-indicator::before,.cloud-status[data-state="error"] .cloud-indicator::before,.cloud-status[data-state="conflict"] .cloud-indicator::before{border:2px solid #f18b8655}
+.cloud-progress-track{position:absolute;bottom:0;left:0;right:0;height:2px;overflow:hidden;pointer-events:none}
+.cloud-progress-fill{display:block;height:100%;width:42%;transform:translateX(-110%);opacity:0}
+.cloud-status[data-state="syncing"] .cloud-progress-fill{background:var(--gold);opacity:1;animation:cloud-progress-sweep 2.4s ease-in-out infinite}
+.cloud-status[data-state="connecting"] .cloud-progress-fill{background:var(--blue);opacity:1;animation:cloud-progress-sweep 2.7s ease-in-out infinite}
+@keyframes cloud-led-breathe{0%,100%{opacity:.55;box-shadow:0 0 0 3px #eec27715,0 0 4px #eec27745}50%{opacity:1;box-shadow:0 0 0 4px #eec27735,0 0 13px #eec277af}}
+@keyframes cloud-ring-turn{to{transform:rotate(360deg)}}
+@keyframes cloud-progress-sweep{0%{transform:translateX(-110%)}100%{transform:translateX(260%)}}
+@media(prefers-reduced-motion:reduce){.cloud-status .cloud-led,.cloud-status .cloud-indicator::before,.cloud-status .cloud-progress-fill{animation:none!important}.cloud-status[data-state="syncing"] .cloud-progress-fill,.cloud-status[data-state="connecting"] .cloud-progress-fill{transform:translateX(0);width:100%;opacity:.65}}
+.cloud-dialog{width:min(540px,calc(100vw - 24px));max-height:min(88vh,810px);margin:auto;border:1px solid #587086;border-radius:18px;padding:0;background:linear-gradient(145deg,#1d3444,#101f2d);color:var(--text);box-shadow:0 20px 80px #000b,inset 0 1px 0 #fff1;overflow:auto}
+.cloud-dialog::backdrop{background:#050c17bd;backdrop-filter:blur(5px)}
+.cloud-dialog-inner{padding:22px;display:grid;gap:15px}
+.cloud-dialog-top{display:flex;justify-content:space-between;align-items:start;gap:12px}
+.cloud-dialog-top h2{margin:2px 0 0;font-size:23px;letter-spacing:-.035em}
+.cloud-dialog-top .btn{padding:6px 10px}
+.cloud-dialog form{display:grid;gap:12px}
+.cloud-dialog form label{display:grid;gap:5px;color:#cadce5;font-size:12px;font-weight:750}
+.cloud-dialog form input{width:100%;min-width:0;padding:11px 12px;border:1px solid #55748b;border-radius:9px;background:#0f2030;color:var(--text);font-size:14px}
+.cloud-dialog .cloud-dialog-actions{display:flex;gap:9px;flex-wrap:wrap}
+.cloud-dialog .cloud-dialog-actions .btn{font-size:12px}
+.cloud-dialog-message{margin:0;color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.cloud-dialog-message[data-error="true"]{color:#ffb6af}
+.cloud-conflict{border:1px solid #835b55;border-left:3px solid var(--red);background:#4f343a77;padding:13px;border-radius:10px;display:grid;gap:9px}
+.cloud-conflict[hidden]{display:none!important}
+.cloud-dialog .small{line-height:1.5}
+@media(max-width:780px){.command-actions{flex-wrap:wrap;justify-content:flex-end;max-width:46%}.cloud-status{padding:7px 9px}.command-top .version{padding:4px 7px;font-size:9px}.cloud-dialog-inner{padding:16px}}
+@media(max-width:440px){.command-actions{max-width:43%}.cloud-status{font-size:10px}.command-top .version-detail{display:none}}
+
 </style>
 </head>
 <body data-workspace="balance">
@@ -485,7 +532,7 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="version">v0.16 <span class="version-detail">· Switch 2 · Desktop ready</span></div>
+  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.17 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, inspect, plan, build"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick guide</button><button data-view="setup" type="button"><span class="nav-dot" aria-hidden="true"></span>Existing factory</button><button data-view="balance" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory balance</button><button data-view="factory" type="button"><span class="nav-dot" aria-hidden="true"></span>Future plan</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Build next</button></nav>
  </div>
@@ -566,7 +613,7 @@ body[data-workspace="build"]{
   <div class="section panel"><div class="section-head"><h2>Master machine inventory</h2><span class="small">All recipes, all blocks, once each</span></div><div id="districtInventory" class="tablewrap"></div></div>
   <div class="section panel"><div class="section-head"><h2>Construction checklist</h2><span id="progressCaption" class="tag">0 complete</span></div><div class="progress"><span id="progressFill" style="width:0%"></span></div><div id="districtChecklist"></div></div>
   <details class="advanced section"><summary>Customize long-term factory targets (optional)</summary><p class="small">These sliders change the generous district plan, not your immediate one-item build. Existing progress checkboxes remain saved.</p><div class="settings" id="factorySettings"></div><div class="notice warn" id="factoryCapacityWarning" style="margin-top:14px"></div></details>
-  <div class="section panel"><div class="section-head"><h2>Save your factory plan</h2></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="exportButton">Export backup</button><button class="btn" id="importButton">Import backup</button><button class="btn ghost" id="resetButton">Reset settings</button></div><input type="file" id="importFile" accept=".json,application/json" hidden/><p class="small">Saved in this browser on this device. Not yet synchronized with Craft, GitHub or other devices. Back up important progress with Export.</p></div>
+  <div class="section panel"><div class="section-head"><h2>Save your factory plan</h2></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="exportButton">Export backup</button><button class="btn" id="importButton">Import backup</button><button class="btn ghost" id="resetButton">Reset settings</button></div><input type="file" id="importFile" accept=".json,application/json" hidden/><p class="small">Changes are saved locally, even offline. Pair your devices using the header sync indicator to share your factory. Export remains your manual backup.</p></div>
  </section>
  <section class="view" id="learn"><div class="hero"><div class="eyebrow">THE THREE NUMBERS THAT MATTER</div><h1>How do I use this?</h1><p>You only need the goal. The computer should do the recipe accounting.</p></div>
   <div class="rulegrid section"><div class="rule"><b style="color:var(--gold)">30/min</b><strong>Production goal</strong><p class="small">How much finished product the factory makes each minute. For science, 30/min is a reasonable starting baseline, not an obligation.</p></div><div class="rule"><b style="color:var(--purple)">19</b><strong>Machine count</strong><p class="small">How many machines are needed to make the item and its local ingredients. 90 red circuits/min takes 19 Assembler 2s in the self-contained block.</p></div><div class="rule"><b style="color:var(--green)">900/min</b><strong>Yellow belt capacity</strong><p class="small">The most items one full yellow belt carries per minute, both lanes combined. Red is 1,800/min. Faster belts don't increase machine output.</p></div></div>
@@ -586,7 +633,28 @@ body[data-workspace="build"]{
   <p id="contextHelpTakeaway" class="context-help-takeaway"></p>
  </div>
 </aside>
- <footer class="footer">Nauvis Command Center v0.16 · Factorio 2.0 / Space Age · No Craft connection yet · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+
+<dialog id="cloudDialog" class="cloud-dialog" aria-label="Factory cloud sync settings">
+ <div class="cloud-dialog-inner">
+  <div class="cloud-dialog-top"><div><div class="eyebrow">FACTORY DATA · CONNECTION</div><h2>Cloud synchronization</h2></div><button type="button" id="cloudClose" class="btn ghost">Close</button></div>
+  <div class="notice"><b>Local-first:</b> the planner works offline. Changes sync after you reconnect. Only paired devices can access your shared factory.</div>
+  <p class="small" id="cloudPairedInfo">Your factory currently saves on this device.</p>
+  <p class="small" id="cloudStatusDetail" aria-live="polite"></p>
+  <form id="cloudConnectForm" autocomplete="off">
+   <label for="cloudUrl">Supabase project URL<input id="cloudUrl" type="url" inputmode="url" placeholder="https://your-project.supabase.co" autocapitalize="off" spellcheck="false" required></label>
+   <label for="cloudKey">Supabase publishable / anon key (never a secret key)<input id="cloudKey" type="text" autocapitalize="off" spellcheck="false" autocomplete="off" required></label>
+   <label for="cloudRecovery">Private 64-character recovery key<input id="cloudRecovery" type="password" minlength="64" maxlength="64" pattern="[0-9a-fA-F]{64}" autocomplete="off" autocapitalize="off" spellcheck="false" required></label>
+   <label for="cloudDeviceName">Name this device<input id="cloudDeviceName" type="text" maxlength="60" placeholder="MacBook or iPhone" autocomplete="off"></label>
+   <p class="small">Pair once per device. Pairing to an existing factory replaces this device's current local plan. Export a backup first if it has unique progress. Keep your recovery key private.</p>
+   <button id="cloudConnect" class="btn primary" type="submit">Pair this device</button>
+  </form>
+  <div id="cloudConflictActions" class="cloud-conflict" hidden><strong>Two versions need your decision</strong><p class="small" style="margin:0">Export a backup first. Cloud copy replaces local edits; local copy overwrites the newer cloud version.</p><div class="cloud-dialog-actions"><button class="btn" id="cloudKeepCloud" type="button">Use cloud copy</button><button class="btn" id="cloudKeepLocal" type="button">Use local copy</button></div></div>
+  <div class="cloud-dialog-actions"><button id="cloudRetry" class="btn" type="button">Check for updates</button><button id="cloudExport" class="btn" type="button">Download backup</button><button id="cloudDisconnect" class="btn ghost" type="button">Unpair this browser</button></div>
+  <p class="cloud-dialog-message" id="cloudMessage" aria-live="polite"></p>
+  <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
+ </div>
+</dialog>
+ <footer class="footer">Nauvis Command Center v0.17 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script>
 'use strict';
@@ -651,7 +719,7 @@ const factory={...fd,...(load(fkey)||{})};factory.checked={...((load(fkey)||{}).
 const el=id=>document.getElementById(id);
 const fmt=n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:1});
 const csscolor=(id,kind)=>id==='advanced-circuit'?c.red:id==='electronic-circuit'?c.green:id==='processing-unit'?c.blue:/(science|structure)/.test(id)?c.gold:kind==='chem'?c.chem:kind==='furnace'?c.furnace:c.other;
-const save=()=>{try{localStorage.setItem(gkey,JSON.stringify(guide));localStorage.setItem(fkey,JSON.stringify(factory))}catch(e){}};
+const save=()=>{try{localStorage.setItem(gkey,JSON.stringify(guide));localStorage.setItem(fkey,JSON.stringify(factory))}catch(e){};if(!window.NauvisCloudApplying)window.NauvisCloud?.changed()};
 function rateOf(id){const r=R[id];return 60*r[2]*(r[3]==='asm'?Number(guide.machine):r[3]==='furnace'?2:1)/r[1]}
 function calculate(id,target){const need={},external={};const stop=guide.source==='bus'?STOP_BUS:STOP_RAW;
  function add(x,rate,root){if(rate<=1e-9)return;if(!R[x]||(!root&&stop.has(x))){external[x]=(external[x]||0)+rate;return}need[x]=(need[x]||0)+rate;const r=R[x];for(const [ing,qty] of Object.entries(r[4]))add(ing,rate/r[2]*qty,false)}
@@ -803,7 +871,7 @@ function renderSetupCompare(){const x=calculate(guide.goal,guide.rate),available
  ${scarce.length?`<div class="notice warn">Smelting supply warnings for this single build: ${scarce.map(escapeHTML).join('; ')}. Other factory consumption is additional.</div>`:'<div class="notice good">No modeled iron/copper/steel/brick shortage for this one selected build. Other running factories are not included.</div>'}`;
 }
 function renderSetupSummaryOnly(){renderSetupSmelting();renderSetupOil();renderSetupMachineSummary();renderSetupFeedSummary();renderSetupCompare();renderBalance()}
-function saveSetup(){try{localStorage.setItem(setupKey,JSON.stringify(setup))}catch(e){}}
+function saveSetup(){try{localStorage.setItem(setupKey,JSON.stringify(setup))}catch(e){};if(!window.NauvisCloudApplying)window.NauvisCloud?.changed()}
 function renderSetup(){renderSetupInputs();renderSetupMachines();renderSetupFeeds();renderSetupSummaryOnly()}
 function initSetup(){
  document.querySelectorAll('#setup [data-smelt], #setup [data-oil]').forEach(inp=>inp.addEventListener('change',e=>{
@@ -898,7 +966,7 @@ const HELP_DATA={
  s2:["Record the machines you own","One row describes one recipe, machine count, tier, and destination.","This is how the balance screen learns what is built.",["Separate identical recipes if their output is dedicated to different destinations.","The machine count determines potential items per minute.","No ingredient supply means no real output, regardless of the rated machine count."],"Enter only physically built machines here; future designs belong under Future plan."],
  s3:["Belts move items; they do not make them","Four red belts can carry up to 7,200 items/min, not produce them.","Belt throughput is a transport ceiling.",["Yellow: 900/min. Red: 1,800/min. Blue: 2,700/min, both lanes without stacking.","A half-empty or mixed belt carries less of an individual item.","Do not count a feeder belt as a second source of the same material."],"Enter the resource, number of belts, type, and destination."],
  s4:["Compare existing and needed machines","Machines busy elsewhere are not spare machines.","This compares your next build with machinery explicitly marked available.",["Only Available for new build rows count as reusable.","Matching recipes and assembler speeds matter.","This does not yet prove the required belts actually connect."],"Look at the Build column for additional machines to place."],
- s5:["Saving your factory inventory","Your dashboard currently saves data in this browser only.","Automatic cross-device sync is not implemented yet.",["Export backup makes a JSON copy of the current dashboard state.","Import backup restores that state on another browser or device.","The six-belt example is hypothetical and overwrites the smelting inputs."],"Keep an export before experimenting or changing devices."],
+ s5:["Saving your factory inventory","Your factory saves locally first, even when cloud sync is enabled.","Pair devices from the sync control in the header to share changes.",["Export backup makes a JSON copy of the current dashboard state.","Import backup restores that state on another browser or device.","The six-belt example is hypothetical and overwrites the smelting inputs."],"Keep an export before experimenting or changing devices."],
  n0:["Choose what you want to make","Pick a finished item; the planner works backward.","No need to calculate ingredient ratios first.",["Choose the next item you actually want to build.","The selected source mode determines which intermediate factories are included.","This is one planned goal, not your base's measured total consumption."],"Start with a suggested item such as red circuits or science."],
  n1:["Choose a useful production size","Items per minute is a production target, not machine count.","The three preset sizes are starting points.",["Bigger rates require more assemblers and more ingredients.","The middle preset is a reasonable first calculation.","You can change the target at any time."],"Check that the planned demand can fit your available materials and belts."],
  n2:["Why those machine counts?","Build the input makers first, then the final assemblers.","The planner divides required output by each recipe's machine rate.",["Machines are rounded up to whole numbers.","The model assumes normal quality, no modules, and continuously supplied ingredients.","More final machines cannot fix a missing upstream resource."],"Review the intermediate machines before constructing the final line."],
@@ -909,7 +977,7 @@ const HELP_DATA={
  f2:["Planned machine inventory","Count each planned assembler once.","A recipe may appear in multiple blocks, but should not be double-counted.",["The inventory is a design estimate.","The totals assume the selected long-term block sizes.","It does not automatically add machines to Existing factory."],"Compare against what you have already built before placing new machines."],
  f3:["Construction progress","Check a box when the work is finished in the game.","Checklist progress is separate from production capacity.",["A checked box documents progress only.","It will not change the actual-factory machine ledger.","You can modify the future design if your needs change."],"Record finished blocks under Existing factory as well."],
  f4:["Adjust your future plan","Sliders change your design, not your current factory.","Scale planned circuits and other products to suit your goals.",["Changing a future target changes calculated needs.","Watch for increased iron, copper, and plastic demand.","Do not assume your current bus can fill every planned input."],"Build enough upstream supply before scaling the final output."],
- f5:["Back up your plans","Export data before switching browsers or resetting.","The dashboard still uses device-local browser storage.",["The JSON export includes planned and existing factory settings.","Import that file on another device to continue from the same snapshot.","Cloud synchronization is planned but not active."],"Keep backups when making large changes."],
+ f5:["Back up your plans","Export data before switching browsers or resetting.","Your dashboard uses local storage and can optionally sync to your private cloud database.",["The JSON export includes planned and existing factory settings.","Import that file on another device to continue from the same snapshot.","Cloud synchronization is planned but not active."],"Keep backups when making large changes."],
  g0:["What the three numbers mean","Rate, machines, and transport answer different questions.","These basics apply across the whole command center.",["Items/minute means the speed of production.","Machine count means how many recipe machines are required.","Belt capacity means how many items transport can move."],"Try a Build next goal to see the numbers in action."],
  g1:["Read a production example","Recipe chains work from ingredients toward output.","Supporting machines are part of a complete build.",["Red circuits require green circuits, copper cable, and plastic.","Intermediate machines may be dedicated to one block.","Total count refers to all included recipes, not only final assemblers."],"Watch how the plan changes as you raise the production target."],
  g2:["When does a faster belt help?","Upgrade when transport is the limit, not merely when unlocked.","An empty or underfed belt cannot move imaginary items.",["Yellow carries 900/min; red 1,800/min; blue 2,700/min across both lanes.","700 plates/min remains 700 on any belt color.","Mixed lanes have less capacity available to a specific item."],"Use bottleneck calculations before upgrading your whole bus."]
@@ -1009,11 +1077,35 @@ function activateWorkspace(view,scrollPage=false){
  if(scrollPage)window.scrollTo({top:0,behavior:'instant'});
  if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>{const c=document.querySelector('.command-chrome');if(c)document.documentElement.style.setProperty('--chrome-height',Math.ceil(c.getBoundingClientRect().height)+'px')});
 }
-function init(){el('balanceIncludeGoal').addEventListener('change',e=>{balancePrefs.includeGoal=e.target.checked;try{localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs))}catch(_e){}renderBalance()});el('balanceEditSetup').addEventListener('click',()=>document.querySelector('.nav button[data-view="setup"]').click());el('allRecipes').innerHTML=[...new Set(allOrder.filter(x=>R[x]))].map(k=>`<option value="${k}">${R[k][0]}</option>`).join('');el('allRecipes').addEventListener('change',e=>setGoal(e.target.value));el('goalNumber').addEventListener('change',e=>{guide.rate=Math.min(25000,Math.max(0,Number(e.target.value)||0));renderGuide()});for(const [id,key] of [['assemblyTier','machine'],['sourceMode','source'],['beltTier','belt']])el(id).addEventListener('change',e=>{guide[key]=key==='source'?e.target.value:Number(e.target.value);renderGuide()});document.querySelectorAll('.nav button').forEach(btn=>btn.addEventListener('click',()=>activateWorkspace(btn.dataset.view,true)));
- el('exportButton').addEventListener('click',()=>{const data=JSON.stringify({version:6,plan:factory,guide,setup},null,2),u=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='nauvis-plan.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)});el('importButton').addEventListener('click',()=>el('importFile').click());el('importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const r=JSON.parse(await file.text());if(r.plan&&typeof r.plan.redBlocks==='number'){Object.assign(factory,fd,r.plan,{checked:{...(r.plan.checked||{})}});if(r.guide&&R[r.guide.goal])Object.assign(guide,r.guide);if(r.setup){Object.assign(setup.smelt,setupSeed.smelt,r.setup.smelt||{});Object.assign(setup.oil,setupSeed.oil,r.setup.oil||{});setup.machines=r.setup.machines||[];setup.feeds=r.setup.feeds||[];saveSetup();renderSetup();}}else if(typeof r.redBlocks==='number'){Object.assign(factory,fd,r,{checked:{...(r.checked||{})}})}else throw Error('Not a dashboard backup');save();renderGuide();renderFactory();alert('Your plan was imported.')}catch(err){alert('Could not import plan: '+err.message)}e.target.value=''});el('resetButton').addEventListener('click',handleFactorySettingsReset);
+function init(){el('balanceIncludeGoal').addEventListener('change',e=>{balancePrefs.includeGoal=e.target.checked;try{localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs))}catch(_e){}window.NauvisCloud?.changed();renderBalance()});el('balanceEditSetup').addEventListener('click',()=>document.querySelector('.nav button[data-view="setup"]').click());el('allRecipes').innerHTML=[...new Set(allOrder.filter(x=>R[x]))].map(k=>`<option value="${k}">${R[k][0]}</option>`).join('');el('allRecipes').addEventListener('change',e=>setGoal(e.target.value));el('goalNumber').addEventListener('change',e=>{guide.rate=Math.min(25000,Math.max(0,Number(e.target.value)||0));renderGuide()});for(const [id,key] of [['assemblyTier','machine'],['sourceMode','source'],['beltTier','belt']])el(id).addEventListener('change',e=>{guide[key]=key==='source'?e.target.value:Number(e.target.value);renderGuide()});document.querySelectorAll('.nav button').forEach(btn=>btn.addEventListener('click',()=>activateWorkspace(btn.dataset.view,true)));
+ el('exportButton').addEventListener('click',()=>{const data=JSON.stringify({version:7,plan:factory,guide,setup,balancePrefs},null,2),u=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='nauvis-plan.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)});el('importButton').addEventListener('click',()=>el('importFile').click());el('importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const r=JSON.parse(await file.text());if(r.plan&&typeof r.plan.redBlocks==='number'){Object.assign(factory,fd,r.plan,{checked:{...(r.plan.checked||{})}});if(r.guide&&R[r.guide.goal])Object.assign(guide,r.guide);if(r.setup){Object.assign(setup.smelt,setupSeed.smelt,r.setup.smelt||{});Object.assign(setup.oil,setupSeed.oil,r.setup.oil||{});setup.machines=r.setup.machines||[];setup.feeds=r.setup.feeds||[];if(r.balancePrefs){balancePrefs.includeGoal=!!r.balancePrefs.includeGoal;localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs));el('balanceIncludeGoal').checked=balancePrefs.includeGoal}saveSetup();renderSetup();}}else if(typeof r.redBlocks==='number'){Object.assign(factory,fd,r,{checked:{...(r.checked||{})}})}else throw Error('Not a dashboard backup');save();renderGuide();renderFactory();alert('Your plan was imported.')}catch(err){alert('Could not import plan: '+err.message)}e.target.value=''});el('resetButton').addEventListener('click',handleFactorySettingsReset);
  renderGuide();renderFactory();initSetup();activateWorkspace("balance");initStickyCommand();initGuide();}
 window.nauvisTest=(id,target,source='bus')=>{const prev=guide.source;guide.source=source;const output=calculate(id,target);guide.source=prev;return output};
 init();
+// The main UI owns all factory data. The cloud module only reads snapshots and applies updates.
+window.NauvisLocal={
+ snapshot(){return JSON.parse(JSON.stringify({version:7,plan:factory,guide,setup,balancePrefs}))},
+ apply(data){
+  if(!data||typeof data!=='object'||!data.plan||!data.guide||!data.setup)throw Error('Invalid shared factory snapshot.');
+  window.NauvisCloudApplying=true;
+  try{
+   Object.assign(factory,fd,data.plan,{checked:{...(data.plan.checked||{})}});
+   Object.assign(guide,data.guide);
+   if(!R[guide.goal])guide.goal='advanced-circuit';
+   Object.assign(setup.smelt,setupSeed.smelt,data.setup.smelt||{});
+   Object.assign(setup.oil,setupSeed.oil,data.setup.oil||{});
+   setup.machines=Array.isArray(data.setup.machines)?data.setup.machines:[];
+   setup.feeds=Array.isArray(data.setup.feeds)?data.setup.feeds:[];
+   balancePrefs.includeGoal=!!data.balancePrefs?.includeGoal;
+   el('balanceIncludeGoal').checked=balancePrefs.includeGoal;
+   localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs));
+   saveSetup();save();renderGuide();renderFactory();renderSetup();renderBalance();
+  }finally{window.NauvisCloudApplying=false}
+ }
+};
+
 </script>
+<script src="sync/cloud-sync.js" defer></script>
+<script>if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));</script>
 </body>
 </html>
