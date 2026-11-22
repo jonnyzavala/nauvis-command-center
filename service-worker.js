@@ -20,9 +20,10 @@ self.addEventListener('fetch',event=>{
    return res;
   }).catch(()=>caches.match('./index.html').then(x=>x||Response.error())));
  }else{
-  event.respondWith(caches.match(req).then(hit=>hit||fetch(req).then(res=>{
+  // Network first for code and manifest: users must not be stuck with old JS.
+  event.respondWith(fetch(req).then(res=>{
    if(res.ok){const copy=res.clone();event.waitUntil(caches.open(VERSION).then(cache=>cache.put(req,copy)));}
    return res;
-  })));
+  }).catch(()=>caches.match(req).then(hit=>hit||Response.error())));
  }
 });
