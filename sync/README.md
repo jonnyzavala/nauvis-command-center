@@ -24,7 +24,9 @@ NAUVIS Command Center remains fully usable without a cloud connection. This opti
 
 - Every edit saves immediately in browser localStorage. Local changes are queued for upload if the network is down.
 - Connected browsers check for updates when the page is activated, after reconnecting, and periodically while open.
-- A green **Saved** indicator means the cloud acknowledged the current revision; **Syncing**, **Offline**, **Sync error**, and **Sync conflict** are distinct states.
+- The header's status indicator shows **Local only** (gray), **Checking** (blue spinning ring), **Syncing** (slowly pulsing amber LED, spinning circular ring, and an indeterminate mini progress strip), **Synced** (solid green after server confirmation), **Offline** (solid amber), or **Sync error / Sync conflict** (red). On reduced-motion devices animations are disabled but state colors and text remain visible.
+- The activity ring and moving line are **indeterminate**. Supabase sends each snapshot as a single database request, so there is no truthful percentage complete. The interface never invents upload progress.
+- Routine background polling keeps the green Synced indicator steady unless a change, actual reconnection, or error requires attention.
 - Both devices can work offline. When both edit the same factory from different revisions, one device will encounter a conflict. Open the sync panel and choose the **cloud** or **local** copy. Keep a JSON backup before overwriting either version.
 - Local and remote snapshots are backed up locally before replacements where possible. Use **Export backup** for a portable recovery file; browser storage can be cleared by browser settings or system cleanup.
 - Supabase is optional: do not pair if you only want local browser saves.
