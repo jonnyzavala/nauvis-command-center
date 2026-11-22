@@ -2,6 +2,10 @@
 
 NAUVIS Command Center remains fully usable without a cloud connection. This optional feature synchronizes a single factory between your iPhone and MacBook using Supabase (a hosted PostgreSQL database and authentication service).
 
+## Fix for earlier pairing installs: ambiguous `factory_id`
+
+If pairing says `column reference "factory_id" is ambiguous`, the original `nauvis_pair` function needs a one-time correction. In your existing Supabase project, open **SQL Editor**, paste and run **[hotfix-pair-ambiguous.sql](hotfix-pair-ambiguous.sql)**. The patch uses `ON CONFLICT ON CONSTRAINT nauvis_devices_pkey` instead of an ambiguous column list. It **replaces one function only**; it does not create, delete, or reset the factory, recovery key, or saved plan. Then retry **Pair this device** in NAUVIS without changing your project credentials. **Do not re-run `nauvis_provision()`.**
+
 ## One-time Supabase setup
 
 1. At [supabase.com/dashboard](https://supabase.com/dashboard), create a personal project. Its database is separate from the public GitHub Pages site.
