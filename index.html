@@ -325,16 +325,27 @@ body[data-workspace="build"]{
 :root{--chrome-height:116px}
 .command-chrome{
  position:sticky;top:0;z-index:110;
- /* The same opaque workspace canvas masks scrolled content without a dark box. */
- background-color:var(--workspace-bg-start);
- background-image:var(--workspace-canvas);
- background-size:48px 48px,48px 48px,auto,auto,auto;
- background-position:0 0,0 0,center top,center center,center center;
- background-attachment:fixed;
+ /* Full-screen viewport-sized occlusion, clipped to header height, avoids
+    the misaligned rectangle caused by separately sized background paints. */
+ background:transparent;
+ isolation:isolate;
  backdrop-filter:none;
  -webkit-backdrop-filter:none;
  border:0;
  padding:0 3px 0;
+}
+.command-chrome::before{
+ content:"";
+ position:fixed;
+ inset:0;
+ z-index:-1;
+ pointer-events:none;
+ background-image:var(--workspace-canvas);
+ background-size:48px 48px,48px 48px,auto,auto,auto;
+ background-position:0 0,0 0,center top,center center,center center;
+ /* Both backgrounds share exact viewport geometry; only the header strip
+    is painted in front of scrolling content. */
+ clip-path:polygon(0 0,100% 0,100% var(--chrome-height),0 var(--chrome-height));
 }
 .command-top{padding:16px 0 10px;align-items:center;gap:16px}
 .command-identity{flex:1;min-width:0;display:block}
@@ -426,12 +437,22 @@ body[data-workspace]{
    radial-gradient(ellipse 1130px 780px at 78% -120px,var(--workspace-ambient),transparent 78%),
    radial-gradient(ellipse 980px 770px at -8% 85%,var(--workspace-ambient2),transparent 79%),
    linear-gradient(160deg,var(--workspace-bg-start),var(--workspace-bg-mid) 58%,var(--workspace-bg-end));
- background-color:#0d1520;
+ background-color:var(--workspace-bg-start);
+ /* The visible canvas is drawn by a fixed full-viewport layer below all content.
+    Avoid background-attachment:fixed on mobile Safari, where it can misalign. */
+ background-image:none;
+}
+body[data-workspace]::before{
+ content:"";
+ position:fixed;
+ inset:0;
+ z-index:0;
+ pointer-events:none;
  background-image:var(--workspace-canvas);
  background-size:48px 48px,48px 48px,auto,auto,auto;
  background-position:0 0,0 0,center top,center center,center center;
- background-attachment:fixed;
 }
+.shell{position:relative;z-index:1}
 body[data-workspace="learn"]{
  --workspace-bg-start:#19191f;--workspace-bg-mid:#241d23;--workspace-bg-end:#141923;
 }
