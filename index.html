@@ -266,16 +266,46 @@ body[data-workspace="build"]{
 .command-welcome{margin-top:4px;margin-bottom:15px}
 .nav{margin-top:0}
 @media(max-width:750px){.command-welcome{margin-top:2px;margin-bottom:12px}}
+
+/* v0.13: one clean command header and transparent navigation rail. */
+.command-top{align-items:flex-start;padding:27px 0 19px;gap:18px}
+.command-identity{display:flex;flex-wrap:wrap;align-items:flex-end;gap:13px 22px;min-width:0}
+.command-identity .brand{display:flex;flex-direction:column}
+.command-identity .brand strong{font-size:clamp(26px,2.7vw,38px);line-height:1.1;margin-top:2px}
+.operations-label{font-size:10px;letter-spacing:.18em;font-weight:800;color:#a7bdc9;padding-bottom:5px}
+.header-welcome{font-size:clamp(22px,2.3vw,31px);font-weight:800;line-height:1.2;letter-spacing:-.045em;color:var(--workspace-accent);padding-bottom:1px}
+.command-top .version{white-space:nowrap;margin-top:4px}
+.nav{background:transparent!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;position:relative;top:auto;border-bottom:none;z-index:10}
+.nav button:not(.active){background:transparent;border-color:transparent;color:#c0d1dc}
+.nav button:not(.active):hover{background:color-mix(in srgb,var(--workspace-accent) 10%,transparent);color:#f5faff}
+.nav::after{bottom:3px}
+@media(max-width:780px){
+ .command-top{align-items:flex-start;padding:18px 0 14px}
+ .command-identity{gap:5px 12px}
+ .command-identity .brand{flex-basis:100%}
+ .operations-label{order:2;padding:0}
+ .header-welcome{order:3;flex-basis:100%;font-size:26px;margin-top:4px}
+ .command-top .version{font-size:10px;padding:6px 8px}
+}
+@media(max-width:480px){
+ .command-top .version{align-self:flex-start;margin-top:1px;font-size:9px}
+ .command-identity .brand strong{font-size:26px}
+ .header-welcome{font-size:25px}
+}
+
 </style>
 </head>
 <body data-workspace="balance">
 <div class="shell">
- <header class="top"><div class="brand">NAUVIS <strong>Command Center</strong></div><div class="version">v0.12 · Switch 2 · Desktop ready</div></header>
- <section class="command-welcome" aria-label="Welcome to your factory">
-  <div class="welcome-heading"><span class="welcome-signal" aria-hidden="true"></span><span class="welcome-kicker">NAUVIS · FACTORY OPERATIONS</span></div>
-  <div class="welcome-content"><div><h1>Welcome, Engineer.</h1><p>Here's your factory. See what's working, what needs attention, and what to build next.</p></div><div class="welcome-meta"><span class="welcome-meta-label">CURRENT WORKSPACE</span><strong id="welcomeWorkspace">Factory balance</strong><span class="welcome-meta-note">Change tabs to explore your factory</span></div></div>
- </section>
- <nav class="nav" aria-label="Factory workflow: learn, inspect, plan, build"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick guide</button><button data-view="setup" type="button"><span class="nav-dot" aria-hidden="true"></span>Existing factory</button><button data-view="balance" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory balance</button><button data-view="factory" type="button"><span class="nav-dot" aria-hidden="true"></span>Future plan</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Build next</button></nav>
+ <header class="top command-top" aria-label="Nauvis Command Center">
+  <div class="command-identity">
+   <div class="brand">NAUVIS <strong>Command Center</strong></div>
+   <span class="operations-label">FACTORY OPERATIONS</span>
+   <div class="header-welcome">Welcome, Engineer.</div>
+  </div>
+  <div class="version">v0.13 · Switch 2 · Desktop ready</div>
+ </header>
+  <nav class="nav" aria-label="Factory workflow: learn, inspect, plan, build"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick guide</button><button data-view="setup" type="button"><span class="nav-dot" aria-hidden="true"></span>Existing factory</button><button data-view="balance" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory balance</button><button data-view="factory" type="button"><span class="nav-dot" aria-hidden="true"></span>Future plan</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Build next</button></nav>
  <main>
  <section class="view" id="build">
   <div class="hero"><div class="eyebrow">STEP-BY-STEP PRODUCTION PLANNER</div><h1>What are we building next?</h1><p>Choose an item. I'll calculate the machine counts, the supporting intermediates, and whether your belts can carry everything. Start with the suggested scale. No ratios required.</p></div>
@@ -361,7 +391,7 @@ body[data-workspace="build"]{
   <div class="section panel"><h2>Before upgrading a belt</h2><div style="display:grid;gap:12px"><div><div class="inline"><b>Yellow</b><b>900/min</b></div><div class="track"><div style="width:33.333%;background:#e9bd61"></div></div></div><div><div class="inline"><b>Red</b><b>1,800/min</b></div><div class="track"><div style="width:66.666%;background:#e67b78"></div></div></div><div><div class="inline"><b>Blue</b><b>2,700/min</b></div><div class="track"><div style="width:100%;background:#76b3e2"></div></div></div></div><p class="small">If your furnaces produce only 700 plates/min, any of these belts will still carry only 700. Upgrade when the belt is saturated, not just because you've researched the next color.</p></div>
  </section>
  </main>
- <footer class="footer">Nauvis Command Center v0.12 · Factorio 2.0 / Space Age · No Craft connection yet · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.13 · Factorio 2.0 / Space Age · No Craft connection yet · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script>
 'use strict';
