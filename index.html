@@ -195,7 +195,7 @@
   <div class="section panel"><h2>Before upgrading a belt</h2><div style="display:grid;gap:12px"><div><div class="inline"><b>Yellow</b><b>900/min</b></div><div class="track"><div style="width:33.333%;background:#e9bd61"></div></div></div><div><div class="inline"><b>Red</b><b>1,800/min</b></div><div class="track"><div style="width:66.666%;background:#e67b78"></div></div></div><div><div class="inline"><b>Blue</b><b>2,700/min</b></div><div class="track"><div style="width:100%;background:#76b3e2"></div></div></div></div><p class="small">If your furnaces produce only 700 plates/min, any of these belts will still carry only 700. Upgrade when the belt is saturated, not just because you've researched the next color.</p></div>
  </section>
  </main>
- <footer class="footer">Nauvis Command Center v0.7 · Factorio 2.0 / Space Age · No Craft connection yet · Calculations exclude quality, modules, beacons, inserter limits and factory-wide resource sharing.</footer>
+ <footer class="footer">Nauvis Command Center v0.7 · Factorio 2.0 / Space Age · No Craft connection yet · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script>
 'use strict';
@@ -476,7 +476,7 @@ function renderBalance(){
    {number:includeGoal?R[guide.goal][0]:'Existing production',label:includeGoal?f(guide.rate)+'/min scenario included':'No hypothetical build included',col:c.purple}
   ].map(x=>`<div class="balance-kpi" style="--accent:${x.col}"><b>${escapeHTML(String(x.number))}</b><span>${escapeHTML(x.label)}</span></div>`).join('');
  const statuses={short:['SHORT',c.red],tight:['TIGHT',c.gold],unknown:['UNRECORDED',c.gold],ok:['OK',c.green]};
- el('balanceLedger').innerHTML=`<div class="tablewrap"><table class="balance-ledger"><thead><tr><th>Material</th><th>Known output</th><th>Existing use</th><th>New goal</th><th>Potential balance</th></tr></thead><tbody>${result.rows.map(r=>{
+ el('balanceLedger').innerHTML=`<div class="tablewrap"><table class="balance-ledger"><thead><tr><th>Material</th><th>Potential output</th><th>Existing use</th><th>New goal</th><th>Potential balance</th></tr></thead><tbody>${result.rows.map(r=>{
    const [label,color]=statuses[r.status];
    const text=r.hasSource?`${r.margin>=0?'+':''}${f(r.margin)}`:'Unknown source';
    const bar=r.hasSource&&r.produced>0?Math.min(100,r.total/r.produced*100):0;
