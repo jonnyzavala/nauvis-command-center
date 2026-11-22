@@ -8,6 +8,8 @@ const get=k=>{try{return localStorage.getItem(k)}catch(_){return null}};
 const put=(k,v)=>{try{localStorage.setItem(k,v)}catch(_){return false}return true};
 const drop=k=>{try{localStorage.removeItem(k)}catch(_){}};
 const json=(s,d)=>{try{return JSON.parse(s)}catch(_){return d}};
+const stable=value=>JSON.stringify(value,(_key,v)=>v&&typeof v==='object'&&!Array.isArray(v)
+ ?Object.fromEntries(Object.entries(v).sort(([a],[b])=>a.localeCompare(b))):v);
 const settings=()=>json(get(storage.cfg),{})||{};
 const offline=()=>navigator.onLine===false;
 const errText=e=>String(e&&e.message||e||'Unknown error').slice(0,260);
@@ -52,7 +54,7 @@ async function connect(){
  if(offline())throw Error('No internet connection.');
  await getSDK();
  if(!client)client=window.supabase.createClient(cfg.url.replace(/\/$/,''),cfg.key,{
-  auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'nauvis-auth-device-v1'}
+  auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,storageKey:'nauvis-auth-'+cfg.url.replace(/[^a-z0-9]/gi,'').slice(-42)}
  });
  return client;
 }
@@ -78,7 +80,7 @@ function restore(remote){
  saveBackup();
  window.NauvisLocal.apply(remote.snapshot);
  setRevision(remote.revision);
- synced=JSON.stringify(remote.snapshot);
+ synced=stable(remote.snapshot);
  drop(storage.pending);
  conflict=false;
  showStatus('saved','This device has the latest shared factory.');
@@ -99,9 +101,9 @@ async function upload(){
   const result=await call('nauvis_push',{p_factory_id:id,p_expected_revision:rev,p_snapshot:data});
   if(typeof result?.revision!=='number')throw Error('No save confirmation received.');
   setRevision(result.revision);
-  synced=JSON.stringify(data);
+  synced=stable(data);
   success=true;
-  if(JSON.stringify(pending())===JSON.stringify(data))drop(storage.pending);
+  if(stable(pending())===stable(data))drop(storage.pending);
   showStatus('saved',pending()?'Latest save confirmed; more changes are queued.':'Your factory is synchronized.');
  }catch(e){
   const t=errText(e);
@@ -119,7 +121,7 @@ async function upload(){
 function changed(){
  if(window.NauvisCloudApplying||!id)return;
  const data=local();if(!data)return;
- if(JSON.stringify(data)===synced&&!pending())return;
+ if(stable(data)===synced&&!pending())return;
  put(storage.pending,JSON.stringify(data));
  if(offline())showStatus('offline','Changes are stored locally. They will upload when online.');
  else{showStatus('syncing','Saving changes to the cloud...');queuePush();}
@@ -135,7 +137,7 @@ async function refresh(){
    if(Number(remote.revision)!==rev){conflict=true;showStatus('conflict','Changes exist on both devices. Pick which copy to keep.');}
    else showStatus('syncing','Local edits are queued for upload.');
   }else if(Number(remote.revision)>rev)restore(remote);
-  else {setRevision(remote.revision);synced=JSON.stringify(remote.snapshot);showStatus('saved','Up to date with the cloud.');}
+  else {setRevision(remote.revision);synced=stable(remote.snapshot);showStatus('saved','Up to date with the cloud.');}
  }catch(e){const t=errText(e);showStatus(offline()||/fetch|network/i.test(t)?'offline':'error',t)}
  finally{busy=false;lastPoll=Date.now();if(pending()&&!conflict&&!offline())queuePush();}
 }
@@ -163,6 +165,7 @@ async function pair(ev){
   say('Paired successfully. The recovery key was not stored in your browser.');
   $('cloudPairedInfo').textContent='This browser is paired. All changes will sync automatically.';
  }catch(e){
+  $('cloudRecovery').value='';
   if(!paired){
    // A mistyped key or an unavailable server must not silently unpair a working device.
    put(storage.cfg,JSON.stringify(previousConfig));id=previousId;rev=previousRevision;client=null;
@@ -178,7 +181,7 @@ async function resolve(useCloud){
  try{
   await authorize();const remote=await pull();
   if(useCloud){restore(remote);say('Restored the cloud copy. Your previous local data was backed up.');}
-  else{setRevision(remote.revision);conflict=false;
+  else{put('nauvis-cloud-remote-backup-'+Date.now(),JSON.stringify(remote.snapshot));setRevision(remote.revision);conflict=false;
    if(!pending())put(storage.pending,JSON.stringify(local()));
    const uploaded=await upload();
    say(uploaded?'Your local changes are now synchronized.':'The local copy is preserved. Upload has not been confirmed yet.',!uploaded);
