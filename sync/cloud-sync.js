@@ -17,8 +17,8 @@ let client=null,id='',rev=0,busy=false,conflict=false,open=false,pushTimer=null,
 const pending=()=>json(get(storage.pending),null);
 const local=()=>window.NauvisLocal&&window.NauvisLocal.snapshot();
 function showStatus(kind,note){
- const labels={local:'Local only',connecting:'Connecting',saved:'Saved',syncing:'Syncing',offline:'Offline',error:'Sync error',conflict:'Sync conflict'};
- const el=$('cloudStatus');if(el){el.dataset.state=kind;el.title=note||labels[kind]||'';}
+ const labels={local:'Local only',connecting:'Checking',saved:'Synced',syncing:'Syncing',offline:'Offline',error:'Sync error',conflict:'Sync conflict'};
+ const el=$('cloudStatus');if(el){el.dataset.state=kind;el.title=note||labels[kind]||'';el.setAttribute('aria-label','Cloud synchronization: '+(labels[kind]||kind)+'. '+(note||'')+' Open settings.');}
  if($('cloudStatusText'))$('cloudStatusText').textContent=labels[kind]||kind;
  if($('cloudStatusDetail'))$('cloudStatusDetail').textContent=note||'';
  if($('cloudConflictActions'))$('cloudConflictActions').hidden=kind!=='conflict';
@@ -137,7 +137,8 @@ function changed(){
 async function refresh(){
  if(!id||busy||conflict)return;
  if(offline()){showStatus('offline','Offline; changes remain saved locally.');return}
- busy=true;showStatus('connecting','Checking for updates...');
+ const quiet=!pending()&&!!synced;
+ busy=true;if(!quiet)showStatus('connecting','Checking for updates...');
  try{
   await authorize();
   const remote=await pull();if(!remote)throw Error('Cloud save was not returned.');
