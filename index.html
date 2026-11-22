@@ -649,7 +649,7 @@ body[data-workspace="build"]{
    <button id="cloudConnect" class="btn primary" type="submit">Pair this device</button>
   </form>
   <div id="cloudConflictActions" class="cloud-conflict" hidden><strong>Two versions need your decision</strong><p class="small" style="margin:0">Export a backup first. Cloud copy replaces local edits; local copy overwrites the newer cloud version.</p><div class="cloud-dialog-actions"><button class="btn" id="cloudKeepCloud" type="button">Use cloud copy</button><button class="btn" id="cloudKeepLocal" type="button">Use local copy</button></div></div>
-  <div class="cloud-dialog-actions"><button id="cloudRetry" class="btn" type="button">Check for updates</button><button id="cloudDisconnect" class="btn ghost" type="button">Unpair this browser</button></div>
+  <div class="cloud-dialog-actions"><button id="cloudRetry" class="btn" type="button">Check for updates</button><button id="cloudExport" class="btn" type="button">Download backup</button><button id="cloudDisconnect" class="btn ghost" type="button">Unpair this browser</button></div>
   <p class="cloud-dialog-message" id="cloudMessage" aria-live="polite"></p>
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
