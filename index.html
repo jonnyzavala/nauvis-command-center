@@ -223,7 +223,7 @@ body[data-workspace="build"]{
 }
 /* A small spectrum rail connects the five tabs even before opening them. */
 .nav{border-bottom:none;padding-bottom:17px}
-.nav::after{
+.nav-track::after{
  content:"";position:absolute;bottom:4px;left:0;right:0;height:3px;
  background:linear-gradient(to right,#f2b27a 0%,#f18ea4 25%,#c1a2f5 50%,#87c7ff 75%,#78e4cf 100%);
  border-radius:12px;
@@ -281,7 +281,7 @@ body[data-workspace="build"]{
 .nav{background:transparent!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;position:relative;top:auto;border-bottom:none;z-index:10}
 .nav button:not(.active){background:transparent;border-color:transparent;color:#c0d1dc}
 .nav button:not(.active):hover{background:color-mix(in srgb,var(--workspace-accent) 10%,transparent);color:#f5faff}
-.nav::after{bottom:3px}
+.nav-track::after{bottom:3px}
 @media(max-width:780px){
  .command-top{align-items:flex-start;padding:18px 0 14px}
  .command-identity{gap:5px 12px}
@@ -301,14 +301,12 @@ body[data-workspace="build"]{
 :root{--chrome-height:116px}
 .command-chrome{
  position:sticky;top:0;z-index:110;
- background:linear-gradient(180deg,
-   color-mix(in srgb,#0d1520 93%,var(--workspace-accent) 7%) 0%,
-   color-mix(in srgb,#0d1520 89%,var(--workspace-accent) 11%) 89%,
-   rgba(13,21,32,.91) 100%);
- backdrop-filter:blur(18px);
- -webkit-backdrop-filter:blur(18px);
- border-bottom:1px solid color-mix(in srgb,var(--workspace-accent) 22%,transparent);
- padding:0 3px 4px;
+ /* No rectangular backing: only the inset masthead and individual tabs have surfaces. */
+ background:transparent;
+ backdrop-filter:none;
+ -webkit-backdrop-filter:none;
+ border:0;
+ padding:0 3px 0;
 }
 .command-top{padding:16px 0 10px;align-items:center;gap:16px}
 .command-identity{flex:1;min-width:0;display:block}
@@ -320,7 +318,7 @@ body[data-workspace="build"]{
 .identity-main .header-welcome{font-size:clamp(22px,2.06vw,30px);font-weight:760;letter-spacing:-.035em;line-height:1.14;color:var(--workspace-accent);padding:0;margin:0}
 .command-top .version{margin:0;align-self:center;flex-shrink:0}
 .command-chrome .nav{margin:0;padding-top:2px;position:relative;top:auto;z-index:1;background:transparent!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
-.command-chrome .nav::after{bottom:2px}
+.command-chrome .nav-track::after{bottom:2px}
 .view.active>.hero{
  position:sticky;
  top:calc(var(--chrome-height) + 2px);
@@ -353,7 +351,7 @@ body.command-scrolled .view.active>.hero p{max-width:100%;font-size:12px;line-he
 @media(max-width:480px){
  .command-identity .brand .identity-main strong{font-size:24px}
  .identity-main .header-welcome{font-size:22px}
- .command-chrome .nav{padding-bottom:15px}
+ /* Nav rail bottom spacing lives inside .nav-track so the full spectrum scrolls. */
 }
 @media(max-height:540px){
  .view.active>.hero{position:relative;top:auto}
@@ -477,6 +475,34 @@ body[data-workspace="build"]{
 }
 
 
+/* The gradient belongs to the full five-tab content, not the scrolling viewport.
+   The inner track ensures it reaches Build next on narrow screens. */
+.command-chrome .nav{
+ overflow-x:auto;
+ scrollbar-width:none;
+ justify-content:flex-start;
+ padding-bottom:0;
+}
+.command-chrome .nav::-webkit-scrollbar{display:none}
+.command-chrome .nav-track{
+ position:relative;
+ display:flex;
+ align-items:stretch;
+ gap:inherit;
+ flex:0 0 auto;
+ width:max-content;
+ min-width:100%;
+ padding:2px 0 17px;
+ justify-content:center;
+}
+.command-chrome .nav-track::after{bottom:2px}
+@media(max-width:650px){
+ .command-chrome .nav-track{justify-content:flex-start}
+}
+@media(max-width:480px){
+ .command-chrome .nav-track{padding-bottom:15px}
+}
+
 /* v0.17: Cloud sync status and configuration. */
 .command-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .cloud-status{position:relative;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;border-radius:11px;border:1px solid #456175;color:var(--text);padding:7px 11px;background:linear-gradient(135deg,#2b4356,#192d3b);box-shadow:inset 0 1px 0 #ffffff12,0 3px 9px #0003;font-size:11px;font-weight:800;overflow:hidden;isolation:isolate;min-height:34px}
@@ -534,7 +560,7 @@ body[data-workspace="build"]{
   </div>
   <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.17 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
-  <nav class="nav" aria-label="Factory workflow: learn, inspect, plan, build"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick guide</button><button data-view="setup" type="button"><span class="nav-dot" aria-hidden="true"></span>Existing factory</button><button data-view="balance" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory balance</button><button data-view="factory" type="button"><span class="nav-dot" aria-hidden="true"></span>Future plan</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Build next</button></nav>
+  <nav class="nav" aria-label="Factory workflow: learn, inspect, plan, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick guide</button><button data-view="setup" type="button"><span class="nav-dot" aria-hidden="true"></span>Existing factory</button><button data-view="balance" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory balance</button><button data-view="factory" type="button"><span class="nav-dot" aria-hidden="true"></span>Future plan</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Build next</button></div></nav>
  </div>
  <main>
  <section class="view" id="build">
@@ -1073,7 +1099,7 @@ function activateWorkspace(view,scrollPage=false){
  if(view==='balance')renderBalance();
  guideFocus=null;guideTopic='';if(document.getElementById('contextHelp'))updateGuideContext();
  const bar=document.querySelector('.nav'),active=document.querySelector('.nav button.active');
- if(bar&&active){bar.scrollLeft=Math.max(0,active.offsetLeft-bar.offsetLeft-(bar.clientWidth-active.offsetWidth)/2)}
+ if(bar&&active){const barRect=bar.getBoundingClientRect(),tabRect=active.getBoundingClientRect();const target=bar.scrollLeft+(tabRect.left-barRect.left)-(bar.clientWidth-tabRect.width)/2;bar.scrollLeft=Math.max(0,Math.min(bar.scrollWidth-bar.clientWidth,target))}
  if(scrollPage)window.scrollTo({top:0,behavior:'instant'});
  if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>{const c=document.querySelector('.command-chrome');if(c)document.documentElement.style.setProperty('--chrome-height',Math.ceil(c.getBoundingClientRect().height)+'px')});
 }
