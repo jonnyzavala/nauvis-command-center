@@ -38,7 +38,7 @@ async function getSDK(){
  if(window.supabase&&window.supabase.createClient)return;
  if(!sdkLoading)sdkLoading=new Promise((resolve,reject)=>{
   const tag=document.createElement('script');
-  tag.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.10/dist/umd/supabase.min.js';
+  tag.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.50.0/dist/umd/supabase.js';
   tag.id='nauvisSupabaseLibrary';
   tag.onload=resolve;tag.onerror=()=>reject(Error('Could not load the Supabase library.'));
   document.head.appendChild(tag);
