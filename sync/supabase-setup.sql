@@ -210,6 +210,24 @@ begin
 end
 $$;
 
+-- A user may unpair their own current session; the local browser also signs out.
+create or replace function public.nauvis_unpair(p_factory_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $
+begin
+  if auth.uid() is null then raise exception 'AUTH_REQUIRED'; end if;
+  delete from public.nauvis_devices d
+  where d.factory_id = p_factory_id and d.user_id = auth.uid();
+  return found;
+end
+$;
+
+revoke all on function public.nauvis_unpair(uuid) from public, anon, authenticated;
+grant execute on function public.nauvis_unpair(uuid) to authenticated;
+
 revoke all on function public.nauvis_pair(text,text) from public, anon, authenticated;
 revoke all on function public.nauvis_pull(uuid) from public, anon, authenticated;
 revoke all on function public.nauvis_push(uuid,bigint,jsonb) from public, anon, authenticated;
