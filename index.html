@@ -301,8 +301,12 @@ body[data-workspace="build"]{
 :root{--chrome-height:116px}
 .command-chrome{
  position:sticky;top:0;z-index:110;
- /* No rectangular backing: only the inset masthead and individual tabs have surfaces. */
- background:transparent;
+ /* The same opaque workspace canvas masks scrolled content without a dark box. */
+ background-color:var(--workspace-bg-start);
+ background-image:var(--workspace-canvas);
+ background-size:48px 48px,48px 48px,auto,auto,auto;
+ background-position:0 0,0 0,center top,center center,center center;
+ background-attachment:fixed;
  backdrop-filter:none;
  -webkit-backdrop-filter:none;
  border:0;
@@ -391,15 +395,18 @@ body[data-workspace]{
  --workspace-bg-start:#0d1823;
  --workspace-bg-mid:#121d29;
  --workspace-bg-end:#0c1622;
- background-color:#0d1520;
- background-image:
+ /* Shared canvas: opaque underneath translucent grid lines and ambient colors. */
+ --workspace-canvas:
    linear-gradient(to right,var(--workspace-grid) 1px,transparent 1px),
    linear-gradient(to bottom,var(--workspace-grid) 1px,transparent 1px),
    radial-gradient(ellipse 1130px 780px at 78% -120px,var(--workspace-ambient),transparent 78%),
    radial-gradient(ellipse 980px 770px at -8% 85%,var(--workspace-ambient2),transparent 79%),
    linear-gradient(160deg,var(--workspace-bg-start),var(--workspace-bg-mid) 58%,var(--workspace-bg-end));
+ background-color:#0d1520;
+ background-image:var(--workspace-canvas);
  background-size:48px 48px,48px 48px,auto,auto,auto;
  background-position:0 0,0 0,center top,center center,center center;
+ background-attachment:fixed;
 }
 body[data-workspace="learn"]{
  --workspace-bg-start:#19191f;--workspace-bg-mid:#241d23;--workspace-bg-end:#141923;
