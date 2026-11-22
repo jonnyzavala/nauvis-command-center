@@ -357,6 +357,30 @@ body.command-scrolled .view.active>.hero p{max-width:100%;font-size:12px;line-he
 }
 @media(prefers-reduced-motion:reduce){.command-chrome,.view.active>.hero{transition:none}}
 
+
+/* v0.15 contextual help: a persistent compact lesson that follows the workspace. */
+.context-help{position:fixed;right:clamp(10px,2vw,28px);bottom:max(13px,env(safe-area-inset-bottom,0px));width:min(335px,calc(100vw - 20px));z-index:180;border:1px solid color-mix(in srgb,var(--workspace-accent) 53%,#365063);border-left:4px solid var(--workspace-accent);border-radius:14px;background:linear-gradient(145deg,#1b3041,#10202e);box-shadow:0 10px 38px rgba(0,0,0,.42);overflow:hidden}
+.context-help-toggle{border:0;background:transparent;color:#edf7fa;display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:11px 12px}
+.context-help-toggle:hover{background:color-mix(in srgb,var(--workspace-accent) 9%,transparent)}
+.context-help-icon{flex-shrink:0;height:31px;width:31px;border-radius:50%;display:grid;place-items:center;font-size:18px;font-weight:850;color:var(--workspace-accent);background:color-mix(in srgb,var(--workspace-accent) 15%,#162b3b);border:1px solid color-mix(in srgb,var(--workspace-accent) 60%,#45637a)}
+.context-help-peek{display:grid;gap:2px;flex:1;min-width:0}
+.context-help-kicker{color:var(--workspace-accent);font-size:9px;font-weight:900;letter-spacing:.12em}
+.context-help-peek strong{font-size:13px;line-height:1.2}
+.context-help-peek small{font-size:11px;line-height:1.3;color:#bad0da}
+.context-help-arrow{color:var(--workspace-accent);font-size:19px;font-weight:800}
+.context-help[data-open=true] .context-help-arrow{transform:rotate(180deg)}
+.context-help-detail{padding:13px 16px 16px;border-top:1px solid #3d5265;max-height:min(53vh,430px);overflow:auto;overscroll-behavior:contain}
+.context-help-detail[hidden]{display:none!important}
+.context-help-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.context-help-close{font-size:22px;background:#23384a;border:1px solid #4c6678;border-radius:8px;color:white;padding:1px 9px;line-height:1.2}
+.context-help-detail h2{font-size:19px;line-height:1.2;margin:10px 0 7px}
+.context-help-detail p{color:#d2e1e9;line-height:1.48;font-size:13px;margin:0}
+.context-help-detail ul{padding-left:19px;color:#cadce5;font-size:12px;line-height:1.48;margin:10px 0}
+.context-help-detail li{margin:7px 0}
+.context-help-detail .context-help-takeaway{font-size:12px;border:1px solid #385469;background:color-mix(in srgb,var(--workspace-accent) 9%,#182a39);padding:9px 11px;border-radius:9px}
+@media(max-width:650px){.context-help{right:9px;bottom:max(9px,env(safe-area-inset-bottom,0px));width:min(320px,calc(100vw - 18px))}.context-help-toggle{padding:9px 10px}.context-help-icon{height:27px;width:27px;font-size:16px}.context-help-peek strong{font-size:12px}.context-help-peek small{font-size:10px}.context-help[data-open=true]{width:calc(100vw - 18px);max-width:430px}.context-help-detail{max-height:min(55dvh,440px)}}
+@media(max-height:530px){.context-help-detail{max-height:35vh}}
+
 </style>
 </head>
 <body data-workspace="balance">
@@ -369,7 +393,7 @@ body.command-scrolled .view.active>.hero p{max-width:100%;font-size:12px;line-he
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="version">v0.14 <span class="version-detail">· Switch 2 · Desktop ready</span></div>
+  <div class="version">v0.15 <span class="version-detail">· Switch 2 · Desktop ready</span></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, inspect, plan, build"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick guide</button><button data-view="setup" type="button"><span class="nav-dot" aria-hidden="true"></span>Existing factory</button><button data-view="balance" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory balance</button><button data-view="factory" type="button"><span class="nav-dot" aria-hidden="true"></span>Future plan</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Build next</button></nav>
  </div>
@@ -458,7 +482,19 @@ body.command-scrolled .view.active>.hero p{max-width:100%;font-size:12px;line-he
   <div class="section panel"><h2>Before upgrading a belt</h2><div style="display:grid;gap:12px"><div><div class="inline"><b>Yellow</b><b>900/min</b></div><div class="track"><div style="width:33.333%;background:#e9bd61"></div></div></div><div><div class="inline"><b>Red</b><b>1,800/min</b></div><div class="track"><div style="width:66.666%;background:#e67b78"></div></div></div><div><div class="inline"><b>Blue</b><b>2,700/min</b></div><div class="track"><div style="width:100%;background:#76b3e2"></div></div></div></div><p class="small">If your furnaces produce only 700 plates/min, any of these belts will still carry only 700. Upgrade when the belt is saturated, not just because you've researched the next color.</p></div>
  </section>
  </main>
- <footer class="footer">Nauvis Command Center v0.14 · Factorio 2.0 / Space Age · No Craft connection yet · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+<aside id="contextHelp" class="context-help" aria-label="Context-sensitive quick guide" data-open="false">
+ <button type="button" class="context-help-toggle" id="contextHelpToggle" aria-expanded="false" aria-controls="contextHelpDetail">
+  <span class="context-help-icon" aria-hidden="true">?</span>
+  <span class="context-help-peek"><span class="context-help-kicker">QUICK GUIDE · IN CONTEXT</span><strong id="contextHelpShortTitle">Help with this section</strong><small id="contextHelpShortTip">Tap to see the explanation.</small></span>
+  <span class="context-help-arrow" aria-hidden="true">⌃</span>
+ </button>
+ <div class="context-help-detail" id="contextHelpDetail" hidden role="region" aria-labelledby="contextHelpTitle">
+  <div class="context-help-top"><span class="context-help-kicker">YOUR CURRENT SECTION, EXPLAINED</span><button type="button" class="context-help-close" id="contextHelpClose" aria-label="Close quick guide">×</button></div>
+  <h2 id="contextHelpTitle"></h2><p id="contextHelpIntro"></p><ul id="contextHelpPoints"></ul>
+  <p id="contextHelpTakeaway" class="context-help-takeaway"></p>
+ </div>
+</aside>
+ <footer class="footer">Nauvis Command Center v0.15 · Factorio 2.0 / Space Age · No Craft connection yet · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script>
 'use strict';
@@ -758,6 +794,100 @@ function renderBalance(){
  el('balanceAllocations').innerHTML=dedicated.length?`<div class="balance-routes">${dedicated.map(x=>`<div class="balance-route"><span>${escapeHTML(nameOf(x.item))} → ${escapeHTML(x.destination)}</span><b>${f(x.rate)}/min</b></div>`).join('')}</div><p class="small">These outputs are reserved by their recorded destination. A positive global balance does not make them available to the main bus.</p>`:'<p class="small">No dedicated production destinations entered yet. Add lines under Existing factory.</p>';
  el('balanceTransport').innerHTML=setup.feeds.length?`<div class="balance-routes">${setup.feeds.filter(x=>(Number(x.count)||0)>0).map(x=>`<div class="balance-route"><span>${escapeHTML(nameOf(x.recipe))} → ${escapeHTML(x.destination)}</span><b>${f((Number(x.count)||0)*beltSpeed(x.tier))}/min maximum</b></div>`).join('')}</div><p class="small">Transport capacities are not added to production supply. Avoid entering the same belt twice as separate sources.</p>`:'<p class="small">No transport lines recorded. Belts never generate items on their own.</p>';
 }
+
+/* Each entry: title, always-visible tip, explanation, teaching points, and practical next step. */
+const HELP_DATA={
+ b0:["How to read the factory balance","Output minus demand shows potential headroom.","This is an estimate based on the machinery you have recorded.",["Output assumes full-speed operation and adequate ingredients.","Existing use adds what each recorded production line would consume.","A positive balance does not prove all belts and pipes physically connect."],"Start by looking for SHORT or UNRECORDED materials."],
+ b1:["Read the supply-and-demand table","Compare potential production with total recorded consumption.","Each material gets one row in the combined ledger.",["Potential output is what your entered producers could make per minute.","Existing use includes the ingredient demands of all recorded lines.","New goal is optional extra demand from the Build next tab."],"SHORT means demand exceeds recorded capacity. UNRECORDED means a source is missing from your inputs."],
+ b2:["Understand shortage warnings","Fix an upstream shortage before adding more downstream assemblers.","The biggest machines are not always the bottleneck.",["SHORT: recorded demand exceeds potential supply.","UNRECORDED: demand exists, but you have not entered a known producer.","TIGHT: recorded demand would use most of available capacity."],"Check the producing line under Existing factory."],
+ b3:["What this calculation cannot see","It cannot read your Switch 2 factory in real time.","The ledger is a planning model, not an in-game sensor.",["It does not automatically know actual train deliveries or circuit pump settings.","A belt's capacity is not proof that the belt is full.","A machine may idle if storage fills or ingredients run out."],"Compare with Factorio's production statistics when exact throughput matters."],
+ s0:["Iron and steel allocation","Iron sent to steel cannot also be on the iron bus.","Your furnaces and belts jointly limit how many plates reach each destination.",["One steel plate consumes five iron plates.","A steel/electric furnace at crafting speed 2 makes up to 37.5 iron plates per minute.","A full red belt carries 1,800 items per minute across both lanes."],"Record iron output belts and how many are dedicated to steel."],
+ s1:["Refineries and cracking","Cracking converts oil types; it does not create more crude.","Advanced oil refining supplies heavy oil, light oil, and petroleum gas.",["Heavy cracking makes light oil; light cracking makes petroleum gas.","Lubricant, solid fuel, and rocket fuel can compete for the same oils.","The current estimate cannot model real pump or circuit-controlled cracking."],"Enter refinery and cracker counts, then check your oil consumers."],
+ s2:["Record the machines you own","One row describes one recipe, machine count, tier, and destination.","This is how the balance screen learns what is built.",["Separate identical recipes if their output is dedicated to different destinations.","The machine count determines potential items per minute.","No ingredient supply means no real output, regardless of the rated machine count."],"Enter only physically built machines here; future designs belong under Future plan."],
+ s3:["Belts move items; they do not make them","Four red belts can carry up to 7,200 items/min, not produce them.","Belt throughput is a transport ceiling.",["Yellow: 900/min. Red: 1,800/min. Blue: 2,700/min, both lanes without stacking.","A half-empty or mixed belt carries less of an individual item.","Do not count a feeder belt as a second source of the same material."],"Enter the resource, number of belts, type, and destination."],
+ s4:["Compare existing and needed machines","Machines busy elsewhere are not spare machines.","This compares your next build with machinery explicitly marked available.",["Only Available for new build rows count as reusable.","Matching recipes and assembler speeds matter.","This does not yet prove the required belts actually connect."],"Look at the Build column for additional machines to place."],
+ s5:["Saving your factory inventory","Your dashboard currently saves data in this browser only.","Automatic cross-device sync is not implemented yet.",["Export backup makes a JSON copy of the current dashboard state.","Import backup restores that state on another browser or device.","The six-belt example is hypothetical and overwrites the smelting inputs."],"Keep an export before experimenting or changing devices."],
+ n0:["Choose what you want to make","Pick a finished item; the planner works backward.","No need to calculate ingredient ratios first.",["Choose the next item you actually want to build.","The selected source mode determines which intermediate factories are included.","This is one planned goal, not your base's measured total consumption."],"Start with a suggested item such as red circuits or science."],
+ n1:["Choose a useful production size","Items per minute is a production target, not machine count.","The three preset sizes are starting points.",["Bigger rates require more assemblers and more ingredients.","The middle preset is a reasonable first calculation.","You can change the target at any time."],"Check that the planned demand can fit your available materials and belts."],
+ n2:["Why those machine counts?","Build the input makers first, then the final assemblers.","The planner divides required output by each recipe's machine rate.",["Machines are rounded up to whole numbers.","The model assumes normal quality, no modules, and continuously supplied ingredients.","More final machines cannot fix a missing upstream resource."],"Review the intermediate machines before constructing the final line."],
+ n3:["Check inputs before building","Every assembler needs both enough ingredients and enough transport.","Read the supply list and belt check together.",["A single yellow belt carries at most 900 items/min without stacking.","A faster belt does not make slow furnaces or assemblers produce more.","Existing factories may already consume part of your shared bus."],"Compare this new build against Factory balance."],
+ n4:["Planning vs actual output","A rated factory may run slower in the real game.","These numbers describe potential production.",["Starved assemblers stop even with correct ratios.","Slow inserters, mixed belts, and storage backups reduce throughput.","Build in stages and measure what actually runs."],"Revisit the plan after you observe your factory."],
+ f0:["Future capacity is not built capacity","These are proposed assemblers, not your existing inventory.","Future plan helps you budget a larger circuit district.",["The displayed rates assume steady ingredient supply.","Reserved bus output is an allocation goal, not automatic routing.","Current machines belong under Existing factory."],"Decide which blocks to construct before recording them as built."],
+ f1:["Production blocks","A block groups recipes that work toward one output.","This turns a large factory expansion into manageable chunks.",["Red circuits need supporting green circuits and copper cable.","Inputs need to arrive before final assemblers run.","A partially built block may not reach its planned output."],"Finish and test one block before copying it."],
+ f2:["Planned machine inventory","Count each planned assembler once.","A recipe may appear in multiple blocks, but should not be double-counted.",["The inventory is a design estimate.","The totals assume the selected long-term block sizes.","It does not automatically add machines to Existing factory."],"Compare against what you have already built before placing new machines."],
+ f3:["Construction progress","Check a box when the work is finished in the game.","Checklist progress is separate from production capacity.",["A checked box documents progress only.","It will not change the actual-factory machine ledger.","You can modify the future design if your needs change."],"Record finished blocks under Existing factory as well."],
+ f4:["Adjust your future plan","Sliders change your design, not your current factory.","Scale planned circuits and other products to suit your goals.",["Changing a future target changes calculated needs.","Watch for increased iron, copper, and plastic demand.","Do not assume your current bus can fill every planned input."],"Build enough upstream supply before scaling the final output."],
+ f5:["Back up your plans","Export data before switching browsers or resetting.","The dashboard still uses device-local browser storage.",["The JSON export includes planned and existing factory settings.","Import that file on another device to continue from the same snapshot.","Cloud synchronization is planned but not active."],"Keep backups when making large changes."],
+ g0:["What the three numbers mean","Rate, machines, and transport answer different questions.","These basics apply across the whole command center.",["Items/minute means the speed of production.","Machine count means how many recipe machines are required.","Belt capacity means how many items transport can move."],"Try a Build next goal to see the numbers in action."],
+ g1:["Read a production example","Recipe chains work from ingredients toward output.","Supporting machines are part of a complete build.",["Red circuits require green circuits, copper cable, and plastic.","Intermediate machines may be dedicated to one block.","Total count refers to all included recipes, not only final assemblers."],"Watch how the plan changes as you raise the production target."],
+ g2:["When does a faster belt help?","Upgrade when transport is the limit, not merely when unlocked.","An empty or underfed belt cannot move imaginary items.",["Yellow carries 900/min; red 1,800/min; blue 2,700/min across both lanes.","700 plates/min remains 700 on any belt color.","Mixed lanes have less capacity available to a specific item."],"Use bottleneck calculations before upgrading your whole bus."]
+};
+const HELP_MAP={
+ balance:['.balance-overview','b0','.balance-ledger-panel','b1','.balance-insights','b2','> .section.panel','b3'],
+ setup:['#setupSmeltingPanel','s0','#setupOilPanel','s1','#setupMachinesPanel','s2','#setupBeltsPanel','s3','#setupComparePanel','s4','#setupStorePanel','s5'],
+ build:['> .section','n0','n1','n2','n3','n4'],
+ factory:['> .section','f0','f1','f2','f3','f4','f5'],
+ learn:['> .section','g0','g1','g2']
+};
+const HELP_DEFAULT={balance:'b0',setup:'s0',build:'n0',factory:'f0',learn:'g0'};
+let guideOpen=false, guideTopic='',guideFocus=null,guideScroll=0;
+function mountGuideTargets(){
+ for(const id of ['build','factory','learn']){
+  const view=document.getElementById(id);
+  [...view.querySelectorAll(':scope > .section')].forEach((node,i)=>{
+   const key=HELP_MAP[id][i+1];if(HELP_DATA[key])node.dataset.guideTopic=key;
+  });
+ }
+ for(const id of ['setup','balance']){
+  const a=HELP_MAP[id],view=document.getElementById(id);
+  for(let i=0;i<a.length;i+=2){const selector=a[i],key=a[i+1];
+   const node=selector.startsWith('>')?view.querySelector(':scope '+selector):view.querySelector(selector);
+   if(node&&HELP_DATA[key])node.dataset.guideTopic=key;
+  }
+ }
+}
+function showGuideTopic(key){
+ if(!HELP_DATA[key]||key===guideTopic)return;
+ guideTopic=key;const [title,tip,intro,points,next]=HELP_DATA[key];
+ document.getElementById('contextHelpShortTitle').textContent=title;
+ document.getElementById('contextHelpShortTip').textContent=tip;
+ document.getElementById('contextHelpTitle').textContent=title;
+ document.getElementById('contextHelpIntro').textContent=intro;
+ document.getElementById('contextHelpTakeaway').textContent=next;
+ const ul=document.getElementById('contextHelpPoints');ul.textContent='';
+ for(const t of points){const li=document.createElement('li');li.textContent=t;ul.append(li)}
+}
+function updateGuideContext(){
+ const view=document.querySelector('.view.active');if(!view)return;
+ const defaults=HELP_DEFAULT[view.id]||'g0';
+ if(guideFocus&&HELP_DATA[guideFocus]){showGuideTopic(guideFocus);return}
+ const sections=[...view.querySelectorAll('[data-guide-topic]')];
+ if(!sections.length){showGuideTopic(defaults);return}
+ const threshold=(view.querySelector('.hero')?.getBoundingClientRect().bottom||0)+24;
+ let selected=defaults;
+ for(const node of sections){const rect=node.getBoundingClientRect();if(rect.top<=threshold&&rect.bottom>=threshold-10)selected=node.dataset.guideTopic}
+ showGuideTopic(selected);
+}
+function toggleGuide(open){
+ guideOpen=!!open;const panel=document.getElementById('contextHelp'),detail=document.getElementById('contextHelpDetail');
+ panel.dataset.open=String(guideOpen);detail.hidden=!guideOpen;
+ document.getElementById('contextHelpToggle').setAttribute('aria-expanded',String(guideOpen));
+ if(guideOpen)detail.scrollTop=0;
+}
+function initGuide(){
+ mountGuideTargets();
+ const btn=document.getElementById('contextHelpToggle');
+ btn.addEventListener('click',()=>toggleGuide(!guideOpen));
+ document.getElementById('contextHelpClose').addEventListener('click',()=>{toggleGuide(false);btn.focus()});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&guideOpen){toggleGuide(false);btn.focus()}});
+ document.addEventListener('pointerdown',e=>{const el=e.target.closest?.('[data-guide-topic]');if(el?.closest('.view.active')){guideFocus=el.dataset.guideTopic;showGuideTopic(guideFocus)}});
+ document.addEventListener('focusin',e=>{const el=e.target.closest?.('[data-guide-topic]');if(el?.closest('.view.active')){guideFocus=el.dataset.guideTopic;showGuideTopic(guideFocus)}});
+ let queued=false;
+ window.addEventListener('scroll',()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;const y=window.scrollY;if(Math.abs(y-guideScroll)>14)guideFocus=null;guideScroll=y;updateGuideContext()})},{passive:true});
+ window.addEventListener('resize',updateGuideContext,{passive:true});
+ updateGuideContext();
+}
+
 function initStickyCommand(){
  const chrome=document.querySelector('.command-chrome');
  const updateHeight=()=>{if(chrome)document.documentElement.style.setProperty('--chrome-height',Math.ceil(chrome.getBoundingClientRect().height)+'px')};
@@ -781,6 +911,7 @@ function activateWorkspace(view,scrollPage=false){
  });
  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===view));
  if(view==='balance')renderBalance();
+ guideFocus=null;guideTopic='';if(document.getElementById('contextHelp'))updateGuideContext();
  const bar=document.querySelector('.nav'),active=document.querySelector('.nav button.active');
  if(bar&&active){bar.scrollLeft=Math.max(0,active.offsetLeft-bar.offsetLeft-(bar.clientWidth-active.offsetWidth)/2)}
  if(scrollPage)window.scrollTo({top:0,behavior:'instant'});
@@ -788,7 +919,7 @@ function activateWorkspace(view,scrollPage=false){
 }
 function init(){el('balanceIncludeGoal').addEventListener('change',e=>{balancePrefs.includeGoal=e.target.checked;try{localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs))}catch(_e){}renderBalance()});el('balanceEditSetup').addEventListener('click',()=>document.querySelector('.nav button[data-view="setup"]').click());el('allRecipes').innerHTML=[...new Set(allOrder.filter(x=>R[x]))].map(k=>`<option value="${k}">${R[k][0]}</option>`).join('');el('allRecipes').addEventListener('change',e=>setGoal(e.target.value));el('goalNumber').addEventListener('change',e=>{guide.rate=Math.min(25000,Math.max(0,Number(e.target.value)||0));renderGuide()});for(const [id,key] of [['assemblyTier','machine'],['sourceMode','source'],['beltTier','belt']])el(id).addEventListener('change',e=>{guide[key]=key==='source'?e.target.value:Number(e.target.value);renderGuide()});document.querySelectorAll('.nav button').forEach(btn=>btn.addEventListener('click',()=>activateWorkspace(btn.dataset.view,true)));
  el('exportButton').addEventListener('click',()=>{const data=JSON.stringify({version:6,plan:factory,guide,setup},null,2),u=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='nauvis-plan.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)});el('importButton').addEventListener('click',()=>el('importFile').click());el('importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const r=JSON.parse(await file.text());if(r.plan&&typeof r.plan.redBlocks==='number'){Object.assign(factory,fd,r.plan,{checked:{...(r.plan.checked||{})}});if(r.guide&&R[r.guide.goal])Object.assign(guide,r.guide);if(r.setup){Object.assign(setup.smelt,setupSeed.smelt,r.setup.smelt||{});Object.assign(setup.oil,setupSeed.oil,r.setup.oil||{});setup.machines=r.setup.machines||[];setup.feeds=r.setup.feeds||[];saveSetup();renderSetup();}}else if(typeof r.redBlocks==='number'){Object.assign(factory,fd,r,{checked:{...(r.checked||{})}})}else throw Error('Not a dashboard backup');save();renderGuide();renderFactory();alert('Your plan was imported.')}catch(err){alert('Could not import plan: '+err.message)}e.target.value=''});el('resetButton').addEventListener('click',handleFactorySettingsReset);
- renderGuide();renderFactory();initSetup();activateWorkspace("balance");initStickyCommand();}
+ renderGuide();renderFactory();initSetup();activateWorkspace("balance");initStickyCommand();initGuide();}
 window.nauvisTest=(id,target,source='bus')=>{const prev=guide.source;guide.source=source;const output=calculate(id,target);guide.source=prev;return output};
 init();
 </script>
