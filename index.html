@@ -95,7 +95,8 @@
  .rulegrid{grid-template-columns:repeat(3,1fr)}
 }
 @media(max-width:1179px){
- .balance-intro,.balance-columns{grid-template-columns:1fr}
+ /* 1fr can keep a wide table's intrinsic minimum and stretch the entire page. */
+ .balance-intro,.balance-columns{grid-template-columns:minmax(0,1fr)}
  .balance-overview{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:650px){
@@ -106,6 +107,29 @@
  .balance-columns{gap:11px}
  .nav{overflow-x:auto;justify-content:flex-start}
  .nav button{flex:0 0 auto}
+}
+
+/* Factory balance: contain wide data inside its own panel on narrow screens. */
+#balance,.balance-intro,.balance-columns,.balance-overview{min-width:0;max-width:100%}
+.balance-columns > .panel,.balance-intro > *{min-width:0;max-width:100%}
+.balance-ledger-panel #balanceLedger{width:100%;min-width:0;max-width:100%}
+.balance-ledger-panel .tablewrap{
+ width:100%;max-width:100%;min-width:0;
+ overflow-x:auto;overflow-y:hidden;
+ -webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;
+}
+/* Preserve readable ledger columns, but scroll these columns, never the document. */
+.balance-ledger-panel .balance-ledger{min-width:660px}
+.balance-insights,.balance-insights #balanceAlerts,.balance-insights details{min-width:0;max-width:100%}
+.balance-insights .balance-alert,.balance-insights .balance-alert p,
+.balance-insights details summary,.balance-insights .balance-route span{
+ min-width:0;overflow-wrap:anywhere;
+}
+.balance-insights .balance-routes,.balance-insights .balance-route{min-width:0;max-width:100%}
+.balance-insights .balance-route b{flex:0 0 auto;text-align:right}
+@media(max-width:650px){
+ .balance-ledger-panel .tablewrap{touch-action:pan-x pan-y}
+ .balance-insights .balance-route{align-items:flex-start}
 }
 
 /* v0.8 workflow navigation. Dark Dyson Sphere-style palette is preserved;
