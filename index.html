@@ -381,6 +381,98 @@ body.command-scrolled .view.active>.hero p{max-width:100%;font-size:12px;line-he
 @media(max-width:650px){.context-help{right:9px;bottom:max(9px,env(safe-area-inset-bottom,0px));width:min(320px,calc(100vw - 18px))}.context-help-toggle{padding:9px 10px}.context-help-icon{height:27px;width:27px;font-size:16px}.context-help-peek strong{font-size:12px}.context-help-peek small{font-size:10px}.context-help[data-open=true]{width:calc(100vw - 18px);max-width:430px}.context-help-detail{max-height:min(55dvh,440px)}}
 @media(max-height:530px){.context-help-detail{max-height:35vh}}
 
+
+/* v0.16: coherent blueprint grids and a layered machine-console masthead. */
+/* Each workspace uses the SAME 48px engineering-grid geometry. The tint follows
+   its own hue; these backplates retain the warm-to-cool navigation spectrum. */
+body[data-workspace]{
+ --workspace-grid:color-mix(in srgb,var(--workspace-accent) 10%,transparent);
+ --workspace-bg-start:#0d1823;
+ --workspace-bg-mid:#121d29;
+ --workspace-bg-end:#0c1622;
+ background-color:#0d1520;
+ background-image:
+   linear-gradient(to right,var(--workspace-grid) 1px,transparent 1px),
+   linear-gradient(to bottom,var(--workspace-grid) 1px,transparent 1px),
+   radial-gradient(ellipse 1130px 780px at 78% -120px,var(--workspace-ambient),transparent 78%),
+   radial-gradient(ellipse 980px 770px at -8% 85%,var(--workspace-ambient2),transparent 79%),
+   linear-gradient(160deg,var(--workspace-bg-start),var(--workspace-bg-mid) 58%,var(--workspace-bg-end));
+ background-size:48px 48px,48px 48px,auto,auto,auto;
+ background-position:0 0,0 0,center top,center center,center center;
+}
+body[data-workspace="learn"]{
+ --workspace-bg-start:#19191f;--workspace-bg-mid:#241d23;--workspace-bg-end:#141923;
+}
+body[data-workspace="setup"]{
+ --workspace-bg-start:#1b1721;--workspace-bg-mid:#261b29;--workspace-bg-end:#141821;
+}
+body[data-workspace="balance"]{
+ --workspace-bg-start:#151728;--workspace-bg-mid:#201d32;--workspace-bg-end:#101726;
+}
+body[data-workspace="factory"]{
+ --workspace-bg-start:#0b1826;--workspace-bg-mid:#0c2133;--workspace-bg-end:#091723;
+}
+body[data-workspace="build"]{
+ --workspace-bg-start:#0b1921;--workspace-bg-mid:#0d282d;--workspace-bg-end:#0b1820;
+}
+/* The masthead is a curved inset console, not another plain row. */
+.command-top{
+ position:relative;
+ isolation:isolate;
+ margin:8px 0 8px;
+ padding:13px clamp(14px,1.5vw,22px) 13px clamp(18px,1.8vw,26px);
+ border-radius:var(--radius);
+ border:1px solid color-mix(in srgb,var(--workspace-accent) 35%,#405466);
+ border-top-color:color-mix(in srgb,var(--workspace-accent) 49%,#607283);
+ background:
+   linear-gradient(112deg,
+     color-mix(in srgb,var(--workspace-accent) 15%,#1b3040),
+     color-mix(in srgb,var(--workspace-accent) 7%,#182b3b) 45%,
+     #132332 100%);
+ box-shadow:
+   0 9px 20px rgba(2,9,16,.24),
+   inset 0 1px 0 rgba(233,247,255,.08),
+   inset 0 -1px 0 rgba(0,0,0,.2);
+ overflow:hidden;
+}
+/* Recessed glowing status strip on the left edge, plus an individual status LED. */
+.command-top::before{
+ content:"";
+ position:absolute;
+ inset:19% auto 19% 0;
+ width:3px;
+ border-radius:0 5px 5px 0;
+ background:var(--workspace-accent);
+ box-shadow:0 0 15px color-mix(in srgb,var(--workspace-accent) 55%,transparent);
+ pointer-events:none;
+}
+.brand-kicker::before{
+ content:"";
+ display:inline-block;
+ width:7px;height:7px;margin-right:9px;
+ border-radius:50%;
+ background:var(--workspace-accent);
+ box-shadow:0 0 0 3px color-mix(in srgb,var(--workspace-accent) 16%,transparent),
+            0 0 12px color-mix(in srgb,var(--workspace-accent) 36%,transparent);
+ vertical-align:1px;
+}
+.command-top .version{
+ border-color:color-mix(in srgb,var(--workspace-accent) 27%,#455c6b);
+ background:color-mix(in srgb,var(--workspace-accent) 7%,#132737);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+}
+/* The gradient remains a flat rail beneath the tabs. */
+.command-chrome .nav{
+ background:transparent!important;
+ border:0;
+ box-shadow:none;
+}
+@media(max-width:780px){
+ .command-top{margin:5px 0 7px;padding:11px 12px 11px 17px;border-radius:13px}
+ .command-top::before{inset:16% auto 16% 0}
+ .brand-kicker::before{height:6px;width:6px;margin-right:7px}
+}
+
 </style>
 </head>
 <body data-workspace="balance">
@@ -393,7 +485,7 @@ body.command-scrolled .view.active>.hero p{max-width:100%;font-size:12px;line-he
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="version">v0.15 <span class="version-detail">· Switch 2 · Desktop ready</span></div>
+  <div class="version">v0.16 <span class="version-detail">· Switch 2 · Desktop ready</span></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, inspect, plan, build"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick guide</button><button data-view="setup" type="button"><span class="nav-dot" aria-hidden="true"></span>Existing factory</button><button data-view="balance" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory balance</button><button data-view="factory" type="button"><span class="nav-dot" aria-hidden="true"></span>Future plan</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Build next</button></nav>
  </div>
@@ -494,7 +586,7 @@ body.command-scrolled .view.active>.hero p{max-width:100%;font-size:12px;line-he
   <p id="contextHelpTakeaway" class="context-help-takeaway"></p>
  </div>
 </aside>
- <footer class="footer">Nauvis Command Center v0.15 · Factorio 2.0 / Space Age · No Craft connection yet · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.16 · Factorio 2.0 / Space Age · No Craft connection yet · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script>
 'use strict';
