@@ -143,7 +143,14 @@ async function refresh(){
   await authorize();
   const remote=await pull();if(!remote)throw Error('Cloud save was not returned.');
   if(pending()){
-   if(Number(remote.revision)!==rev){conflict=true;showStatus('conflict','Changes exist on both devices. Pick which copy to keep.');}
+   if(Number(remote.revision)!==rev){
+    if(stable(remote.snapshot)===stable(pending())){
+     // Server may have accepted a previous upload whose confirmation got lost.
+     // Identical snapshots are already in sync, not a user-facing conflict.
+     setRevision(remote.revision);synced=stable(remote.snapshot);drop(storage.pending);
+     showStatus('saved','Cloud already contains your most recent edits.');
+    }else{conflict=true;showStatus('conflict','Changes exist on both devices. Pick which copy to keep.');}
+   }
    else showStatus('syncing','Local edits are queued for upload.');
   }else if(Number(remote.revision)>rev)restore(remote);
   else {setRevision(remote.revision);synced=stable(remote.snapshot);showStatus('saved','Up to date with the cloud.');}
