@@ -479,13 +479,28 @@ body[data-workspace="build"]{
 
 /* v0.17: Cloud sync status and configuration. */
 .command-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.cloud-status{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;border-radius:11px;border:1px solid #456175;color:var(--text);padding:8px 11px;background:linear-gradient(135deg,#2b4356,#192d3b);box-shadow:inset 0 1px 0 #ffffff12,0 3px 9px #0003;font-size:11px;font-weight:800}
+.cloud-status{position:relative;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;border-radius:11px;border:1px solid #456175;color:var(--text);padding:7px 11px;background:linear-gradient(135deg,#2b4356,#192d3b);box-shadow:inset 0 1px 0 #ffffff12,0 3px 9px #0003;font-size:11px;font-weight:800;overflow:hidden;isolation:isolate;min-height:34px}
 .cloud-status:hover{background:#334f60}
-.cloud-led{height:8px;width:8px;flex-shrink:0;border-radius:50%;background:#a0b3bd;box-shadow:0 0 0 3px #a0b3bd23,0 0 8px #a0b3bd60}
+.cloud-indicator{position:relative;display:grid;place-items:center;width:19px;height:19px;flex:0 0 19px}
+.cloud-indicator::before{content:"";position:absolute;inset:1px;border:2px solid transparent;border-radius:50%;opacity:.65}
+.cloud-led{position:relative;height:8px;width:8px;border-radius:50%;background:#a0b3bd;box-shadow:0 0 0 3px #a0b3bd23,0 0 8px #a0b3bd60;transition:background-color .18s,box-shadow .18s}
 .cloud-status[data-state="saved"] .cloud-led{background:var(--green);box-shadow:0 0 0 3px #79d0ad28,0 0 10px #79d0ad80}
-.cloud-status[data-state="syncing"] .cloud-led,.cloud-status[data-state="connecting"] .cloud-led{background:var(--blue);box-shadow:0 0 0 3px #82bdf028,0 0 10px #82bdf080}
-.cloud-status[data-state="offline"] .cloud-led{background:var(--gold)}
-.cloud-status[data-state="error"] .cloud-led,.cloud-status[data-state="conflict"] .cloud-led{background:var(--red)}
+.cloud-status[data-state="saved"] .cloud-indicator::before{border-color:#79d0ad50}
+.cloud-status[data-state="syncing"] .cloud-led{background:var(--gold);box-shadow:0 0 0 3px #eec27722,0 0 9px #eec27780;animation:cloud-led-breathe 2.4s ease-in-out infinite}
+.cloud-status[data-state="syncing"] .cloud-indicator::before{border-color:#eec27738;border-top-color:var(--gold);border-right-color:var(--gold);animation:cloud-ring-turn 1.9s linear infinite}
+.cloud-status[data-state="connecting"] .cloud-led{background:var(--blue);box-shadow:0 0 0 3px #82bdf024,0 0 10px #82bdf080}
+.cloud-status[data-state="connecting"] .cloud-indicator::before{border-color:#82bdf044;border-top-color:var(--blue);animation:cloud-ring-turn 2.4s linear infinite}
+.cloud-status[data-state="offline"] .cloud-led{background:var(--gold);box-shadow:0 0 0 3px #eec27728,0 0 9px #eec27766}
+.cloud-status[data-state="error"] .cloud-led,.cloud-status[data-state="conflict"] .cloud-led{background:var(--red);box-shadow:0 0 0 3px #f18b8626,0 0 8px #f18b8666}
+.cloud-status[data-state="conflict"] .cloud-indicator::before{border:2px solid #f18b8655}
+.cloud-progress-track{position:absolute;bottom:0;left:0;right:0;height:2px;overflow:hidden;pointer-events:none}
+.cloud-progress-fill{display:block;height:100%;width:42%;transform:translateX(-110%);opacity:0}
+.cloud-status[data-state="syncing"] .cloud-progress-fill{background:var(--gold);opacity:1;animation:cloud-progress-sweep 2.4s ease-in-out infinite}
+.cloud-status[data-state="connecting"] .cloud-progress-fill{background:var(--blue);opacity:1;animation:cloud-progress-sweep 2.7s ease-in-out infinite}
+@keyframes cloud-led-breathe{0%,100%{opacity:.55;box-shadow:0 0 0 3px #eec27715,0 0 4px #eec27745}50%{opacity:1;box-shadow:0 0 0 4px #eec27735,0 0 13px #eec277af}}
+@keyframes cloud-ring-turn{to{transform:rotate(360deg)}}
+@keyframes cloud-progress-sweep{0%{transform:translateX(-110%)}100%{transform:translateX(260%)}}
+@media(prefers-reduced-motion:reduce){.cloud-status .cloud-led,.cloud-status .cloud-indicator::before,.cloud-status .cloud-progress-fill{animation:none!important}.cloud-status[data-state="syncing"] .cloud-progress-fill,.cloud-status[data-state="connecting"] .cloud-progress-fill{transform:translateX(0);width:100%;opacity:.65}}
 .cloud-dialog{width:min(540px,calc(100vw - 24px));max-height:min(88vh,810px);margin:auto;border:1px solid #587086;border-radius:18px;padding:0;background:linear-gradient(145deg,#1d3444,#101f2d);color:var(--text);box-shadow:0 20px 80px #000b,inset 0 1px 0 #fff1;overflow:auto}
 .cloud-dialog::backdrop{background:#050c17bd;backdrop-filter:blur(5px)}
 .cloud-dialog-inner{padding:22px;display:grid;gap:15px}
@@ -517,7 +532,7 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud sync settings" aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-led" aria-hidden="true"></span><span id="cloudStatusText">Local only</span></button><div class="version">v0.17 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.17 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, inspect, plan, build"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick guide</button><button data-view="setup" type="button"><span class="nav-dot" aria-hidden="true"></span>Existing factory</button><button data-view="balance" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory balance</button><button data-view="factory" type="button"><span class="nav-dot" aria-hidden="true"></span>Future plan</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Build next</button></nav>
  </div>
