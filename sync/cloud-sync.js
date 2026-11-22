@@ -24,9 +24,17 @@ function showStatus(kind,note){
  if($('cloudConflictActions'))$('cloudConflictActions').hidden=kind!=='conflict';
 }
 function say(t,isError){const el=$('cloudMessage');if(el){el.textContent=t;el.dataset.error=String(!!isError)}}
-function saveBackup(){
- const v=local();if(v)put('nauvis-cloud-backup-'+Date.now(),JSON.stringify(v));
+function backup(kind,data){
+ if(!data)return;
+ const prefix=kind==='local'?'nauvis-cloud-backup-':'nauvis-cloud-remote-backup-';
+ try{
+  const keys=[];
+  for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k.startsWith(prefix))keys.push(k)}
+  keys.sort().slice(0,-4).forEach(drop);
+ }catch(_){}
+ put(prefix+Date.now(),JSON.stringify(data));
 }
+function saveBackup(){backup('local',local())}
 function showDialog(){
  const cfg=settings();$('cloudUrl').value=cfg.url||'';$('cloudKey').value=cfg.key||'';
  if(!$('cloudDeviceName').value)$('cloudDeviceName').value=/iPhone|iPad/i.test(navigator.userAgent)?'iPhone':/Macintosh|Mac OS/i.test(navigator.userAgent)?'MacBook':'My device';
@@ -104,7 +112,7 @@ async function upload(){
   synced=stable(data);
   success=true;
   if(stable(pending())===stable(data))drop(storage.pending);
-  showStatus('saved',pending()?'Latest save confirmed; more changes are queued.':'Your factory is synchronized.');
+  showStatus(pending()?'syncing':'saved',pending()?'Latest save confirmed; more changes are queued.':'Your factory is synchronized.');
  }catch(e){
   const t=errText(e);
   if(/REVISION_CONFLICT/i.test(t)){conflict=true;showStatus('conflict','Another device saved a different version. Choose which copy to keep.');}
@@ -181,7 +189,7 @@ async function resolve(useCloud){
  try{
   await authorize();const remote=await pull();
   if(useCloud){restore(remote);say('Restored the cloud copy. Your previous local data was backed up.');}
-  else{put('nauvis-cloud-remote-backup-'+Date.now(),JSON.stringify(remote.snapshot));setRevision(remote.revision);conflict=false;
+  else{backup('remote',remote.snapshot);setRevision(remote.revision);conflict=false;
    if(!pending())put(storage.pending,JSON.stringify(local()));
    const uploaded=await upload();
    say(uploaded?'Your local changes are now synchronized.':'The local copy is preserved. Upload has not been confirmed yet.',!uploaded);
