@@ -216,14 +216,14 @@ returns boolean
 language plpgsql
 security definer
 set search_path = ''
-as $
+as $$
 begin
   if auth.uid() is null then raise exception 'AUTH_REQUIRED'; end if;
   delete from public.nauvis_devices d
   where d.factory_id = p_factory_id and d.user_id = auth.uid();
   return found;
 end
-$;
+$$;
 
 revoke all on function public.nauvis_unpair(uuid) from public, anon, authenticated;
 grant execute on function public.nauvis_unpair(uuid) to authenticated;
