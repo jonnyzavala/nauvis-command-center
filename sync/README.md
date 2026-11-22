@@ -28,7 +28,8 @@ NAUVIS Command Center remains fully usable without a cloud connection. This opti
 - The activity ring and moving line are **indeterminate**. Supabase sends each snapshot as a single database request, so there is no truthful percentage complete. The interface never invents upload progress.
 - Routine background polling keeps the green Synced indicator steady unless a change, actual reconnection, or error requires attention.
 - Both devices can work offline. When both edit the same factory from different revisions, one device will encounter a conflict. Open the sync panel and choose the **cloud** or **local** copy. Keep a JSON backup before overwriting either version.
-- Local and remote snapshots are backed up locally before replacements where possible. Use **Export backup** for a portable recovery file; browser storage can be cleared by browser settings or system cleanup.
+- Local and remote snapshots are backed up locally before replacements where possible. Use **Download backup** from the sync dialog (or **Export backup** in Future Plan) for a portable recovery file; browser storage can be cleared by browser settings or system cleanup.
+- **Unpair** requires an internet connection so the device authorization can be revoked on the server; offline edits must be uploaded or resolved first.
 - Supabase is optional: do not pair if you only want local browser saves.
 - This site does **not** read the actual factory running on Nintendo Switch 2; it synchronizes the plans you enter.
 
