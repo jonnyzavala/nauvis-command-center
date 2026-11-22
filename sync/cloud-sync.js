@@ -206,10 +206,12 @@ async function resolve(useCloud){
  finally{$('cloudKeepCloud').disabled=false;$('cloudKeepLocal').disabled=false;}
 }
 async function detach(){
+ if(!id){say('This browser is already local only.');return;}
+ if(offline()){showStatus('offline','Reconnect to revoke device authorization securely.');say('Reconnect before unpairing so this device can be revoked on the server.',true);return;}
  if(!window.confirm('Unpair this browser? Its current factory information will stay saved locally.'))return;
  if(pending()){say('There are unsynced changes. Resolve them before unpairing.',true);return;}
  try{
-  if(id&&!offline()){await authorize();await call('nauvis_unpair',{p_factory_id:id});}
+  await authorize();await call('nauvis_unpair',{p_factory_id:id});
   if(client)await client.auth.signOut();
  }catch(e){say('Unable to unpair securely: '+errText(e),true);return;}
  id='';rev=0;conflict=false;drop(storage.id);drop(storage.rev);
@@ -225,6 +227,7 @@ async function start(){
  $('cloudKeepCloud')?.addEventListener('click',()=>resolve(true));
  $('cloudKeepLocal')?.addEventListener('click',()=>resolve(false));
  $('cloudRetry')?.addEventListener('click',refresh);
+ $('cloudExport')?.addEventListener('click',()=>document.getElementById('exportButton')?.click());
  $('cloudDisconnect')?.addEventListener('click',detach);
  window.addEventListener('online',()=>{if(id)refresh()},{passive:true});
  window.addEventListener('offline',()=>{if(id)showStatus('offline','Changes will be stored here until connected.')},{passive:true});
