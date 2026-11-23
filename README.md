@@ -63,6 +63,20 @@ Under the counts, a color-coded production flow shows upstream supplies, machine
 
 Input examples are labeled correctly: *copper cable assemblers* are different from *copper plate furnaces*. Numbers in the flowchart are theoretical requirements at the selected rate and speed, not live telemetry.
 
+## Projects & Build Queue (v0.23)
+
+NAUVIS now has five color-coordinated workspaces in order: **Quick Guide** (slate), **Factory** (gold), **Balance** (green), **Planner** (Factorio blueprint blue), and **Projects** (purple). The contextual Quick Guide stays in the persistent footer.
+
+**Planner → Projects:** Choose a recipe and production rate in the visual planner and select **Save this build to Projects**. Save and name multiple projects, track machine counts, archive projects, and reopen saved goals in Planner. Projects begin with zero machines built. The original circuit district's full long-term plan and checklist stay preserved in a separate expandable legacy panel.
+
+**Mark Built in one step:** Tapping **+** in a project's machine checklist increments the built count AND the corresponding linked row in Existing Factory, with no second recording action. Tapping **−** reverses both if the linked Factory row has not been independently edited. Newly recorded machines default to destination **Other** so the user can later assign their output. Factory Balance measures rated capacity, not necessarily actual output. An unpowered or underfed machine may be built but not producing.
+
+**Duplicate safeguards:** Linked Factory rows store projectId and projectTask metadata. The update refuses operations when the linked recipe, tier, count, or number of related rows differs from the project. Existing manually entered machines remain untouched. Only mark truly new construction in Projects: machines already manually entered into Factory must not be counted again.
+
+**Scope:** Project recording currently supports bus-fed assembler and chemical-plant chains. The visual graph can still explore raw-material chains, but these cannot yet be saved as projects, because the separate smelting inventory needs a proper project-allocation design for safe furnace handling.
+
+**Sync and backups:** Projects are stored as an optional array in the existing plan JSON. The cloud snapshot protocol, Supabase tables, RLS, revision handling and conflict protection are unchanged. Old backups without projects remain valid.
+
 ## Sync and safety
 
 See [Cloud Sync Setup](sync/README.md). Pair devices using a private recovery key and a public Supabase project URL and publishable key. **Never commit the private recovery key, service_role key, database password, or other secrets.** JSON backups are available in Future Plan.
