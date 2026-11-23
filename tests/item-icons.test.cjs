@@ -55,7 +55,9 @@ test('original circuit colors, plates, fluids, machinery, science and belts have
 });
 
 test('icons are local, copyright-safe vector drawings, not copied game art or network requests',()=>{
- assert.doesNotMatch(icons,/(?:<img\b|https?:\/\/|fetch\(|\.png\b|\.webp\b|\.jpg\b|@import\b)/i);
+ // The standard SVG XML namespace is an identifier, not an image fetch.
+ const outOfBand=icons.replaceAll('http://www.w3.org/2000/svg','');
+ assert.doesNotMatch(outOfBand,/(?:<img\b|https?:\/\/|fetch\(|\.png\b|\.webp\b|\.jpg\b|@import\b)/i);
  assert.match(icons,/original industrial item icon illustrations/);
  assert.match(icons,/not Wube\/Factorio game sprites/);
  const svg=item('advanced-circuit',32);
