@@ -130,3 +130,42 @@ body[data-workspace="factory"]{
 .ratio-save-project:hover{filter:brightness(1.1)}
 .ratio-save-project:focus-visible{outline:2px solid var(--workspace-accent);outline-offset:3px}
 @media(max-width:650px){.ratio-save-project{width:100%}}
+
+
+/* v0.24: One source of truth for every tab's dot, background accent and spectrum.
+   Stops follow actual navigation order: Guide → Factory → Balance → Planner → Projects. */
+:root{
+ --nauvis-guide:#9ab0c1;
+ --nauvis-factory:#eec277;
+ --nauvis-balance:#79d0ad;
+ --nauvis-planner:#65b5ff;
+ --nauvis-projects:#bba5e5;
+}
+body[data-workspace="learn"]{--workspace-accent:var(--nauvis-guide)}
+body[data-workspace="setup"]{--workspace-accent:var(--nauvis-factory)}
+body[data-workspace="balance"]{--workspace-accent:var(--nauvis-balance)}
+body[data-workspace="build"]{--workspace-accent:var(--nauvis-planner)}
+body[data-workspace="factory"]{--workspace-accent:var(--nauvis-projects)}
+.nav button[data-view="learn"]{--tab-color:var(--nauvis-guide)}
+.nav button[data-view="setup"]{--tab-color:var(--nauvis-factory)}
+.nav button[data-view="balance"]{--tab-color:var(--nauvis-balance)}
+.nav button[data-view="build"]{--tab-color:var(--nauvis-planner)}
+.nav button[data-view="factory"]{--tab-color:var(--nauvis-projects)}
+.nav button .nav-dot{background:var(--tab-color,var(--workspace-accent))}
+.nav button.active .nav-dot{
+ background:var(--tab-color,var(--workspace-accent));
+ box-shadow:0 0 0 3px color-mix(in srgb,var(--tab-color,var(--workspace-accent)) 16%,transparent),
+ 0 0 11px color-mix(in srgb,var(--tab-color,var(--workspace-accent)) 55%,transparent);
+}
+.nav-track::after,.command-chrome .nav-track::after{
+ /* Centers of each of the five equal-order segments are 10/30/50/70/90%. */
+ background:linear-gradient(90deg,
+  var(--nauvis-guide) 0%,var(--nauvis-guide) 10%,
+  var(--nauvis-factory) 30%,
+  var(--nauvis-balance) 50%,
+  var(--nauvis-planner) 70%,
+  var(--nauvis-projects) 90%,var(--nauvis-projects) 100%);
+ opacity:1;
+ height:4px;
+ box-shadow:0 0 8px color-mix(in srgb,var(--workspace-accent) 22%,transparent);
+}
