@@ -122,3 +122,11 @@ body[data-workspace="factory"]{
  .project-card-status{font-size:8px}
  #legacyDistrict .legacy-district-content{padding:4px 10px 10px}
 }
+
+/* Primary action for turning a visual production ratio into a construction project. */
+.ratio-save-strip{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:13px;margin:11px 0 6px;border:1px solid color-mix(in srgb,var(--workspace-accent) 40%,#3c6178);border-radius:12px;background:linear-gradient(120deg,color-mix(in srgb,var(--workspace-accent) 10%,#172e3f),#152838)}
+.ratio-save-strip>span{color:#b8d2e2;font-size:11px;line-height:1.4;flex:1 1 210px}
+.ratio-save-project{min-height:46px;border:1px solid color-mix(in srgb,var(--workspace-accent) 77%,#53768e);border-radius:11px;background:linear-gradient(120deg,color-mix(in srgb,var(--workspace-accent) 30%,#1e4e73),#183c59);color:#f7fbff;padding:12px 15px;font-size:13px;font-weight:900;box-shadow:inset 0 1px 0 #ffffff20,0 5px 15px #060d1b70}
+.ratio-save-project:hover{filter:brightness(1.1)}
+.ratio-save-project:focus-visible{outline:2px solid var(--workspace-accent);outline-offset:3px}
+@media(max-width:650px){.ratio-save-project{width:100%}}
