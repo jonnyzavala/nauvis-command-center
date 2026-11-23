@@ -98,42 +98,36 @@ test('Factory, Balance and recipe picker show text alongside decorative icons',(
  assert.match(html,/id="setupMachineRows"/);
 });
 
-test('the five palette variables exactly match the tab order and drive gradient stops',()=>{
- const colors=[
-  ['guide','#9ab0c1','learn','10%'],
-  ['factory','#eec277','setup','30%'],
-  ['balance','#79d0ad','balance','50%'],
-  ['planner','#65b5ff','build','70%'],
-  ['projects','#bba5e5','factory','90%']
+test('four tabs have a warm-to-purple-to-blue spectrum and teal Construction mode',()=>{
+ const uiCSS=read('workspace-v025.css');
+ const nav=html.match(/<nav class="nav"[\s\S]*?<\/nav>/)?.[0]||'';
+ assert.deepEqual([...nav.matchAll(/<button data-view="([^"]+)"/g)].map(x=>x[1]),
+  ['learn','setup','balance','build']);
+ const expected=[
+  ['guide','#eec277','learn'],['factory','#ed91aa','setup'],
+  ['balance','#bba5e5','balance'],['planner','#65b5ff','build'],
+  ['projects','#6ce0d1','factory']
  ];
- for(const [key,color,view,stop] of colors){
-  assert.ok(projectsCSS.includes('--nauvis-'+key+':'+color),key+' palette token');
-  assert.ok(projectsCSS.includes('body[data-workspace="'+view+'"]{--workspace-accent:var(--nauvis-'+key+')'),key+' workspace');
-  assert.ok(projectsCSS.includes('.nav button[data-view="'+view+'"]{--tab-color:var(--nauvis-'+key+')'),key+' navigation');
-  assert.ok(projectsCSS.includes('var(--nauvis-'+key+') '+stop),key+' gradient stop');
+ for(const [name,color,view] of expected){
+  assert.ok(uiCSS.includes('--nauvis-'+name+':'+color),name+' palette token');
+  assert.ok(uiCSS.includes('body[data-workspace="'+view+'"]{'),name+' workspace');
  }
- assert.match(projectsCSS,/\.nav-track::after,\.command-chrome \.nav-track::after/);
- assert.match(projectsCSS,/\.nav button\[data-view="learn"\] \.nav-dot\{background:var\(--nauvis-guide\)/);
- assert.ok(html.indexOf('href="./projects.css"')<html.indexOf('href="./item-icons.css"'));
+ assert.match(uiCSS,/body\[data-workspace="factory"\] \.nav button\[data-view="build"\]/);
+ assert.match(uiCSS,/--tab-next:var\(--nauvis-projects\)/);
+ assert.match(uiCSS,/\.plan-build-switch/);
+ assert.match(uiCSS,/button\[data-plan-target="build"\] \.plan-switch-light/);
+ assert.match(uiCSS,/button\[data-plan-target="factory"\] \.plan-switch-light/);
+ assert.match(projectsCSS,/\.command-chrome \.nav-track>button::after/);
+ assert.ok(html.indexOf('href="./projects.css"')<html.indexOf('href="./workspace-v025.css"'));
 });
 
-test('gradient segments are aligned to actual tab widths instead of a stale full-track order',()=>{
+test('responsive gradient paints each real navigation segment',()=>{
+ const uiCSS=read('workspace-v025.css');
+ for(const name of ['learn','setup','balance','build'])
+  assert.ok(uiCSS.includes('.nav button[data-view="'+name+'"]'),name);
+ assert.match(uiCSS,/\.command-chrome \.nav-track>button/);
+ assert.match(uiCSS,/@media\(max-width:430px\)/);
  assert.match(projectsCSS,/\.command-chrome \.nav-track::after\{display:none\}/);
- assert.match(projectsCSS,/\.command-chrome \.nav-track>button::after\{/);
- assert.match(projectsCSS,/--tab-color\) 50%,var\(--tab-prev\)/);
- assert.match(projectsCSS,/--tab-color\) 50%,var\(--tab-next\)/);
- const chain=[
-  ['learn','guide','factory'],
-  ['setup','guide','balance'],
-  ['balance','factory','planner'],
-  ['build','balance','projects'],
-  ['factory','planner','projects']
- ];
- for(const [view,prev,next] of chain){
-  assert.ok(projectsCSS.includes('.command-chrome .nav-track>button[data-view="'+view+'"]'),view);
-  assert.ok(projectsCSS.includes('--tab-prev:var(--nauvis-'+prev+');--tab-next:var(--nauvis-'+next+')'),view+' neighbors');
- }
- assert.match(projectsCSS,/@media\(max-width:480px\)\{[\s\S]*?nav-track>button::after/);
 });
 
 test('gradient and icons still share the same iPhone-responsive background strategy',()=>{
@@ -148,8 +142,8 @@ test('gradient and icons still share the same iPhone-responsive background strat
 test('first render loads icon system before inline rendering and caches both files offline',()=>{
  assert.ok(html.indexOf('src="./item-icons.js"')<html.indexOf('/* Verified standard recipes.'));
  assert.match(html,/href="\.\/item-icons\.css"/);
- assert.match(sw,/nauvis-shell-v024/);
+ assert.match(sw,/nauvis-shell-v025/);
  assert.match(sw,/'\.\/item-icons\.js','\.\/item-icons\.css'/);
- assert.match(html,/Nauvis Command Center v0\.24/);
- assert.equal((html.match(/<button data-view=/g)||[]).length,5);
+ assert.match(html,/Nauvis Command Center v0\.25/);
+ assert.equal((html.match(/<button data-view=/g)||[]).length,4);
 });
