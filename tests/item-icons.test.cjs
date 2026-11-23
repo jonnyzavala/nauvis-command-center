@@ -111,8 +111,27 @@ test('the five palette variables exactly match the tab order and drive gradient 
   assert.ok(projectsCSS.includes('var(--nauvis-'+key+') '+stop),key+' gradient stop');
  }
  assert.match(projectsCSS,/\.nav-track::after,\.command-chrome \.nav-track::after/);
- assert.match(projectsCSS,/\.nav button \.nav-dot\{background:var\(--tab-color/);
+ assert.match(projectsCSS,/\.nav button\[data-view="learn"\] \.nav-dot\{background:var\(--nauvis-guide\)/);
  assert.ok(html.indexOf('href="./projects.css"')<html.indexOf('href="./item-icons.css"'));
+});
+
+test('gradient segments are aligned to actual tab widths instead of a stale full-track order',()=>{
+ assert.match(projectsCSS,/\.command-chrome \.nav-track::after\{display:none\}/);
+ assert.match(projectsCSS,/\.command-chrome \.nav-track>button::after\{/);
+ assert.match(projectsCSS,/--tab-color\) 50%,var\(--tab-prev\)/);
+ assert.match(projectsCSS,/--tab-color\) 50%,var\(--tab-next\)/);
+ const chain=[
+  ['learn','guide','factory'],
+  ['setup','guide','balance'],
+  ['balance','factory','planner'],
+  ['build','balance','projects'],
+  ['factory','planner','projects']
+ ];
+ for(const [view,prev,next] of chain){
+  assert.ok(projectsCSS.includes('.command-chrome .nav-track>button[data-view="'+view+'"]'),view);
+  assert.ok(projectsCSS.includes('--tab-prev:var(--nauvis-'+prev+');--tab-next:var(--nauvis-'+next+')'),view+' neighbors');
+ }
+ assert.match(projectsCSS,/@media\(max-width:480px\)\{[\s\S]*?nav-track>button::after/);
 });
 
 test('gradient and icons still share the same iPhone-responsive background strategy',()=>{
