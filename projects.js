@@ -18,6 +18,8 @@ function buildProject(name,analysis,id,createdAt){
  if(!analysis||!analysis.id||!Number.isFinite(analysis.rate)||!Array.isArray(analysis.entries)||!analysis.entries.length)
   throw Error('Choose a production goal above zero before saving a project.');
  if(!id||typeof id!=='string')throw Error('Project ID is required.');
+ if(analysis.entries.some(row=>row.kind==='furnace'))
+  throw Error('Select Bus-fed inputs before saving a construction project. Raw-smelting projects are not supported yet.');
  const tasks=analysis.entries.map(row=>{
   if(!row.key||!VALID_KINDS.has(row.kind)||!Number.isSafeInteger(row.count)||row.count<1)
    throw Error('Invalid recipe machine count.');
@@ -42,30 +44,32 @@ function recordedForTask(project,task,rows){
   (task.kind==='asm'&&Math.abs(Number(row.tier)-Number(project.goal.machine))>1e-8));
  return {count,mismatch};
 }
-function changeBuilt(project,recipe,nextBuilt,rows){
+function applyBuildDelta(project,recipe,delta,rows){
+ if(delta!==1&&delta!==-1)throw Error('Build adjustment must be one machine.');
  const task=project?.tasks?.find(t=>t.recipe===recipe);
  if(!task)throw Error('Project task not found.');
- const target=Number(nextBuilt);
- if(!Number.isSafeInteger(target)||target<0||target>task.planned)throw Error('Built count must be between zero and the planned amount.');
- const recorded=recordedForTask(project,task,rows);
- if(recorded.mismatch)throw Error('A linked factory line has a different recipe or tier. Review it before changing this task.');
- if(target<recorded.count)throw Error('Cannot mark fewer machines built than have already been recorded in Existing Factory.');
- return {...project,tasks:project.tasks.map(t=>t.recipe===recipe?{...t,built:target}:t)};
-}
-function prepareRecording(project,recipe,rows){
- const task=project?.tasks?.find(t=>t.recipe===recipe);
- if(!task)throw Error('Project task not found.');
- if(task.kind==='furnace')throw Error('Furnaces must be added through Existing Factory smelting controls.');
- if(!['asm','chem'].includes(task.kind))throw Error('This machine type cannot be recorded here.');
- const prev=recordedForTask(project,task,rows);
- if(prev.mismatch)throw Error('A linked factory line was modified. Review the Existing Factory entry to avoid double-counting.');
- const amount=clampInt(task.built)-prev.count;
- if(amount<=0)throw Error('No newly built, unrecorded machines remain for this task.');
- if(prev.count+amount>clampInt(task.planned))throw Error('Recorded count exceeds the project plan.');
- return {amount,line:{
-  recipe:task.recipe,count:amount,tier:task.kind==='asm'?Number(project.goal.machine):1,
-  destination:'Other',projectId:project.id,projectTask:task.recipe
- }};
+ if(!['asm','chem'].includes(task.kind))throw Error('This recipe needs a different inventory category. Switch to bus-fed planning.');
+ const count=clampInt(task.built),next=count+delta;
+ if(next<0||next>task.planned)throw Error('Built count must stay between zero and the planned amount.');
+ const source=Array.isArray(rows)?rows:[];
+ const related=source.filter(row=>row?.projectId===project.id&&row?.projectTask===recipe);
+ if(related.length>1)throw Error('Multiple Factory lines are linked to this task. Review them before editing.');
+ const previous=recordedForTask(project,task,source);
+ if(previous.mismatch||previous.count!==count)
+  throw Error('Project and Factory counts differ. Review the linked Factory row before changing progress.');
+ const tier=task.kind==='asm'?Number(project.goal.machine):1;
+ const line=related[0];
+ if(line&&(!Number.isSafeInteger(Number(line.count))||Number(line.count)<0))
+  throw Error('Linked Factory line has an invalid machine count.');
+ const nextRows=source.map(row=>({...row}));
+ const index=source.findIndex(row=>row?.projectId===project.id&&row?.projectTask===recipe);
+ if(index>=0){
+  if(next===0)nextRows.splice(index,1);
+  else nextRows[index]={...nextRows[index],count:next};
+ }else if(next>0){
+  nextRows.push({recipe,count:next,tier,destination:'Other',projectId:project.id,projectTask:recipe});
+ }
+ return {project:{...project,tasks:project.tasks.map(t=>t.recipe===recipe?{...t,built:next}:t)},rows:nextRows};
 }
 function normalizeProjects(value){
  if(!Array.isArray(value))return [];
@@ -76,7 +80,7 @@ function normalizeProjects(value){
  });
 }
 if(typeof module==='object'&&module.exports)
- module.exports={buildProject,projectProgress,recordedForTask,changeBuilt,prepareRecording,validateProjectName,normalizeProjects};
+ module.exports={buildProject,projectProgress,recordedForTask,applyBuildDelta,validateProjectName,normalizeProjects};
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id);
 const escape=s=>String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
@@ -113,20 +117,18 @@ function projectHTML(p){
  const progress=projectProgress(p),pct=progress.planned?Math.round(100*progress.built/progress.planned):0;
  const archived=p.status==='archived';
  const lineItems=p.tasks.map(task=>{
-  const saved=recordedForTask(p,task,setup.machines),remaining=Math.max(0,task.built-saved.count);
+  const saved=recordedForTask(p,task,setup.machines);
   const color=colorFor(task.recipe,task.kind);
-  const mismatch=saved.mismatch;
+  const mismatch=saved.mismatch||saved.count!==task.built;
   const cannotRecord=task.kind==='furnace';
   return '<div class="project-task" style="--project-task-accent:'+color+'">'+
    '<div class="project-task-identity"><span class="project-task-led" aria-hidden="true"></span><div><strong>'+escape(R[task.recipe]?.[0]||task.recipe)+'</strong><small>'+escape(noun(task.kind))+' · '+task.planned+' planned'+(task.kind==='asm'?' · Assembler '+(p.goal.machine===1.25?'3':'2'):'')+'</small></div></div>'+
-   '<div class="project-task-controls"><button type="button" data-project-minus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Mark one fewer '+escape(task.recipe)+' built" '+(archived||task.built<=saved.count?'disabled':'')+'>−</button>'+
+   '<div class="project-task-controls"><button type="button" data-project-minus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Mark one fewer '+escape(task.recipe)+' built" '+(archived||task.built<=0||mismatch?'disabled':'')+'>−</button>'+
    '<span class="project-task-counter"><b>'+task.built+'</b><small>/ '+task.planned+' built</small></span>'+
-   '<button type="button" data-project-plus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Mark one more '+escape(task.recipe)+' built" '+(archived||task.built>=task.planned?'disabled':'')+'>+</button></div>'+
-   '<div class="project-task-foot"><span class="project-task-recorded">'+saved.count+' already recorded in Factory</span>'+
-    (mismatch?'<span class="project-task-warning">Linked factory line differs; check Existing Factory.</span>':
-    cannotRecord?'<span class="project-task-warning">Record furnaces under Factory → Smelting.</span>':
-    !archived&&remaining>0?
-     '<button type="button" class="project-record-btn" data-project-record="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'">Record '+remaining+' in Factory</button>':'')+
+   '<button type="button" data-project-plus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Mark one more '+escape(task.recipe)+' built" '+(archived||task.built>=task.planned||mismatch||cannotRecord?'disabled':'')+'>+</button></div>'+
+   '<div class="project-task-foot"><span class="project-task-recorded">'+saved.count+' in Factory · linked to this project</span>'+
+   (mismatch?'<span class="project-task-warning">Factory and project counts differ. Review the linked line in Factory.</span>':
+    cannotRecord?'<span class="project-task-warning">Save a bus-fed project to record machines automatically.</span>':'')+
    '</div></div>';
  }).join('');
  return '<article class="project-card" data-project-card="'+escape(p.id)+'" style="--project-card-accent:'+colorFor(p.goal.id,'asm')+'">'+
@@ -187,34 +189,22 @@ function saveDialog(event){
   $('projectsDialogError').textContent=err.message;$('projectsDialogError').hidden=false;
  }
 }
-function updateBuilt(id,recipe,change){
+function updateBuilt(id,recipe,delta){
  const project=selectedProject(id);if(!project)return;
- const task=project.tasks.find(t=>t.recipe===recipe);if(!task)return;
  try{
-  const next=changeBuilt(project,recipe,task.built+change,setup.machines);
-  const openCard=$('projectsList')?.querySelector('[data-project-card="'+id+'"] .project-task-details');
-  const shouldOpen=!!openCard?.open;
-  setProjects(allProjects().map(p=>p.id===id?next:p));
-  if(shouldOpen){
-   const card=document.querySelector('#projectsList [data-project-card="'+id+'"] .project-task-details');
-   if(card)card.open=true;
+  const change=applyBuildDelta(project,recipe,delta,setup.machines);
+  const expanded=!!$('projectsList')?.querySelector('[data-project-card="'+id+'"] .project-task-details')?.open;
+  // Update the paired plan and the actual factory ledger before either save notification.
+  // Cloud snapshots will therefore always see both sides of the same adjustment.
+  factory.projects=allProjects().map(p=>p.id===id?change.project:p);
+  setup.machines=change.rows;
+  saveSetup();save();renderSetup();render();
+  if(expanded){
+   const detail=$('projectsList')?.querySelector('[data-project-card="'+id+'"] .project-task-details');
+   if(detail)detail.open=true;
   }
- }catch(err){notice=err.message;render()}
-}
-function record(id,recipe){
- const project=selectedProject(id);
- if(!project)return;
- try{
-  const change=prepareRecording(project,recipe,setup.machines);
-  const label=R[recipe]?.[0]||recipe;
-  const message='Record '+change.amount+' newly built '+label+' machine(s) in Existing Factory?\n\nOnly confirm if you physically built these machines and have NOT already entered them manually. They will be linked to this project and assigned to "Other" until you choose their output destination.';
-  if(!root.confirm(message))return;
-  // Re-verify against current rows before any write; the plan is not a second machine inventory.
-  const latest=prepareRecording(project,recipe,setup.machines);
-  if(latest.amount!==change.amount)throw Error('Factory data changed. Review the project before recording.');
-  setup.machines.push(latest.line);
-  saveSetup();renderSetup();render();
-  notice='Recorded '+latest.amount+' '+label+' machine(s) in Existing Factory. Set their destination in Factory.';
+  notice=delta>0?'Built 1 machine and recorded it in Factory. Assign its destination there if needed.':
+   'Reversed 1 built machine and updated Factory.';
   render();
  }catch(err){notice=err.message;render()}
 }
@@ -240,13 +230,12 @@ function attachEvents(){
  $('factory')?.addEventListener('click',event=>{
   const b=event.target.closest('button');if(!b)return;
   if(b.matches('[data-project-go-planner]')){activateWorkspace('build',true);return}
-  const id=b.dataset.projectPlus||b.dataset.projectMinus||b.dataset.projectRecord||b.dataset.projectVisit||b.dataset.projectRename||b.dataset.projectArchive;
+  const id=b.dataset.projectPlus||b.dataset.projectMinus||b.dataset.projectVisit||b.dataset.projectRename||b.dataset.projectArchive;
   if(!id)return;
   const project=selectedProject(id);
   if(!project)return;
   if(b.hasAttribute('data-project-plus'))updateBuilt(id,b.dataset.taskRecipe,1);
   else if(b.hasAttribute('data-project-minus'))updateBuilt(id,b.dataset.taskRecipe,-1);
-  else if(b.hasAttribute('data-project-record'))record(id,b.dataset.taskRecipe);
   else if(b.hasAttribute('data-project-visit'))navigateToPlan(id);
   else if(b.hasAttribute('data-project-rename')){ $('projectsDialogError').hidden=true;openDialog('rename',project)}
   else if(b.hasAttribute('data-project-archive')){
