@@ -31,6 +31,22 @@ Changes are saved locally first, including offline. Paired devices synchronize c
 
 Quick Change and Quick Guide share one bottom dock on laptop and iPhone. The compact **+** Quick Change icon on iPhone retains an accessible name. The bottom rail is transparent so dashboard content can scroll through without an abrupt horizontal cutoff; each control retains its own opaque surface and shadow. The sticky header still uses its matching blueprint background to mask content. Quick Guide's explanation opens above the footer instead of resizing it. Only one expanded panel is shown at a time, and Escape or the Close control closes it.
 
+## Recipe Ratio Explorer (v0.20)
+
+Open the **Recipe ratios** expander inside **Build Next**, **Existing Factory**, or **Factory Balance**. It does not add a sixth tab.
+
+- Choose any of the **33 modeled base Nauvis recipes**, an output rate/minute, Assembler 1/2/3, and a belt type.
+- **Bus-fed:** counts the supporting recipes back to your assumed bus / chemical supply boundary.
+- **Raw-material expansion:** additionally models included smelting and chemical recipes back toward ore, crude-related fluids, and other external ingredients. This is **not** a model of mining drills, refineries, cracking circuits or pipe networks.
+- See each supporting step's needed items/min, per-machine capacity, **exact machine equivalents**, and **rounded whole machine counts**. The compact ratio shorthand shows rounded build counts, not a mathematically universal fixed ratio.
+- Review external supplies and the minimum dedicated full-belt counts for solids. Pipe throughput is not modeled; fluids appear as fluid units/minute.
+- Expand **Why this ratio?** for recipe time, output per craft, ingredients per craft, machine-speed arithmetic and rounding.
+- **Send to Build Next** to make the selected ratio the *hypothetical planning goal*, without adding machines to Existing Factory. Cloud sync for actual plan settings continues through the existing Save flow.
+
+**Verified regression example:** At 90 advanced circuits/min, Assembler 2 speed 0.75, and bus-fed inputs, the internally produced chain requires **5 copper-cable assemblers, 2 green-circuit assemblers and 12 red-circuit assemblers (19 total)**. The recipe references used here are the [advanced circuit](https://wiki.factorio.com/Advanced_circuit), [electronic circuit](https://wiki.factorio.com/Electronic_circuit), and [copper cable](https://wiki.factorio.com/Copper_cable) pages of the Factorio Wiki.
+
+**Important model limitations:** The engine reuses the existing base recipe table, rather than inventing Space Age alternatives. It currently assumes normal quality, no modules/beacons, 2× furnace crafting speed and 1× chemical plant crafting speed. It does not model technology unlocks, planetary alternatives, productivity bonuses, inserters, pumps or circuit-controlled cracking. Recipe assumptions should be checked when expanding coverage.
+
 ## Sync and safety
 
 See [Cloud Sync Setup](sync/README.md). Pair devices using a private recovery key and a public Supabase project URL and publishable key. **Never commit the private recovery key, service_role key, database password, or other secrets.** JSON backups are available in Future Plan.
