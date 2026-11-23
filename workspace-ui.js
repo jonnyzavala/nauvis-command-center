@@ -2,6 +2,7 @@
 (function(root){
 'use strict';
 const ids=['learn','setup','balance','build','factory'];
+let lastPlanMode='build';
 const config={
  learn:{title:'Guide overview',intro:'The concepts behind the ratios, construction tracking and actual Factory.',links:[['Basics','.rulegrid'],['Circuit example','#guide-example'],['Belt capacity','#guide-belts']]},
  setup:{title:'Factory overview',intro:'Records you entered, not live game telemetry.',links:[['Smelting','#setupSmeltingPanel'],['Oil','#setupOilPanel'],['Machines','#setupMachinesPanel'],['Belts','#setupBeltsPanel'],['Compare','#setupComparePanel'],['Inventory tools','#setupStorePanel']]},
@@ -83,6 +84,7 @@ function refresh(view){
  }
 }
 function onActivate(view){
+ if(view==='build'||view==='factory')lastPlanMode=view;
  for(const id of ['build','factory'])el(id)?.querySelectorAll('[data-plan-target]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.planTarget===view)));
  refresh(view);root.NauvisJournal?.render?.();
 }
@@ -90,7 +92,7 @@ function init(){
  for(const id of ['build','factory'])makeModeSwitch(id);
  ids.forEach(injectOverview);
  initFolds();
- root.NauvisWorkspace={onActivate,refresh,jump};
+ root.NauvisWorkspace={onActivate,refresh,jump,lastPlanMode:()=>lastPlanMode};
  refresh();root.NauvisJournal?.render?.();
  onActivate(document.querySelector('.view.active')?.id||'balance');
 }
