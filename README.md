@@ -83,7 +83,7 @@ NAUVIS includes its own **original vector item icon set** for all 33 modeled bas
 
 **Art ownership:** These are **NAUVIS-original icons**, **not actual in-game Factorio/Wube sprites**. The [Official Factorio Wiki copyright notice](https://wiki.factorio.com/Factorio:Copyrights) explicitly excludes Wube-owned game art from its Creative Commons license; the [Factorio terms](https://www.factorio.com/terms-of-service) reserve the game art's rights. No game sprites, wiki image downloads or third-party licensed sprite sheets were copied into this public GitHub repository. Future use of actual game assets requires independent rights verification or permission.
 
-**Palette and gradient fix:** The tab rail now follows the actual visual and navigational order **Quick Guide slate → Factory gold → Balance mint green → Planner blueprint blue → Projects violet**. All five navigation dots, active-panel hues, background grids and the rail refer to the same CSS variables. The layered command console, colored gradients, blueprint texture and persistent contextual guide are preserved.
+**Palette and gradient fix:** The tab rail follows **Quick Guide slate → Factory gold → Balance mint green → Planner blueprint blue → Projects violet**. Each tab renders its own three-stop gradient segment with blended neighbors, so the rail stays aligned with variable-width tabs while scrolling on iPhone. Navigation dots, active-panel hues, background grids, and segments share the same CSS palette variables. The layered command console, colored gradients, blueprint texture and persistent contextual guide are preserved.
 
 ## Sync and safety
 
