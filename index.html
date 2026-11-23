@@ -600,6 +600,7 @@ body[data-workspace="build"]{
 
 </style>
 <link rel="stylesheet" href="./quick-add.css" />
+<link rel="stylesheet" href="./recipe-ratios.css" />
 </head>
 <body data-workspace="balance">
 <div class="shell">
@@ -611,18 +612,22 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.19.1 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.20 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, inspect, plan, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick guide</button><button data-view="setup" type="button"><span class="nav-dot" aria-hidden="true"></span>Existing factory</button><button data-view="balance" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory balance</button><button data-view="factory" type="button"><span class="nav-dot" aria-hidden="true"></span>Future plan</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Build next</button></div></nav>
  </div>
  <main>
  <section class="view" id="build">
-  <div class="hero"><div class="eyebrow">STEP-BY-STEP PRODUCTION PLANNER</div><h1>What are we building next?</h1><p>Choose an item. I'll calculate the machine counts, the supporting intermediates, and whether your belts can carry everything. Start with the suggested scale. No ratios required.</p></div>
+  <div class="hero"><div class="eyebrow">STEP-BY-STEP PRODUCTION PLANNER</div><h1>What are we building next?</h1><p>Choose an item. I'll calculate the machine counts, the supporting intermediates, and whether your belts can carry everything. Start with the suggested scale, then expand Recipe Ratios when you want the math.</p></div>
   <section class="section panel"><div class="section-head"><h2><span class="step">1</span> Choose an item</h2><span class="small">Common Nauvis builds</span></div><div class="goalgrid" id="goalGrid"></div><div class="customrow"><label for="allRecipes">Other recipe:</label><select id="allRecipes" class="select" aria-label="All supported recipes"></select><span class="small">33 supported recipes</span></div></section>
   <section class="section panel"><div class="section-head"><h2><span class="step">2</span> Choose the scale</h2><span class="small">The middle option is our recommended starting point.</span></div><div class="choicegrid" id="scaleOptions"></div><div class="scalehelper"><label for="goalNumber">Or set an exact target:</label><input id="goalNumber" type="number" min="0" max="25000" step="1" inputmode="numeric"/><span class="small">items per minute, not machines</span></div></section>
   <section class="section"><div class="section-head"><h2><span class="step">3</span> Here's what to build</h2><span id="goalStatus" class="tag green">Suggested plan</span></div><div class="resulthero"><div><div class="big" id="totalMachines">19</div><div class="unit">machines in this complete production chain</div></div><div class="resulttext"><b id="resultTitle">90 red circuits per minute</b><p class="small" id="resultSubtitle" style="margin:6px 0 0">Includes dedicated circuit and cable production.</p></div></div><div id="machineMetrics" class="metrics"></div></section>
   <section class="section twocol"><div class="panel"><div class="section-head"><h2>Build in this order</h2><span class="small">Inputs first, final assemblers last</span></div><div id="machineList"></div><details class="explain"><summary>Why these machine counts?</summary><div id="machineWhy" class="small"></div></details></div><div class="panel"><div class="section-head"><h2>Supplies + belt check</h2><span class="small">What to deliver and how fast</span></div><div id="suppliesList"></div><div class="notice" id="supplyCaveat" style="margin-top:12px">These are full-speed requirements, not what your base is currently consuming.</div><div id="beltMessage" class="notice good" style="margin-top:12px"></div>
-  <details class="advanced"><summary>More: belt-by-belt calculations and settings</summary><p class="small">A full yellow belt carries 900 items/min; red carries 1,800. Faster belts don't increase production.</p><div id="beltList" class="belts" style="margin-top:13px"></div><div class="settings"><div class="setting"><label for="assemblyTier">Assembler tier</label><select id="assemblyTier"><option value="0.75">Assembler 2 (current)</option><option value="1.25">Assembler 3</option></select></div><div class="setting"><label for="sourceMode">Count which intermediates?</label><select id="sourceMode"><option value="bus">Start with bus materials (recommended)</option><option value="raw">Include smelting and chemical intermediates</option></select></div><div class="setting"><label for="beltTier">Current transport belt</label><select id="beltTier"><option value="900">Yellow</option><option value="1800">Red</option><option value="2700">Blue</option></select></div></div><p class="small">Each material is assumed to use both belt lanes with no stacking. A mixed belt carries less of each item. Inserter limits aren't modeled yet.</p></details></div></section>
+  <details class="advanced"><summary>More: belt-by-belt calculations and settings</summary><p class="small">A full yellow belt carries 900 items/min; red carries 1,800. Faster belts don't increase production.</p><div id="beltList" class="belts" style="margin-top:13px"></div><div class="settings"><div class="setting"><label for="assemblyTier">Assembler tier</label><select id="assemblyTier"><option value="0.5">Assembler 1</option><option value="0.75">Assembler 2 (current)</option><option value="1.25">Assembler 3</option></select></div><div class="setting"><label for="sourceMode">Count which intermediates?</label><select id="sourceMode"><option value="bus">Start with bus materials (recommended)</option><option value="raw">Include smelting and chemical intermediates</option></select></div><div class="setting"><label for="beltTier">Current transport belt</label><select id="beltTier"><option value="900">Yellow</option><option value="1800">Red</option><option value="2700">Blue</option></select></div></div><p class="small">Each material is assumed to use both belt lanes with no stacking. A mixed belt carries less of each item. Inserter limits aren't modeled yet.</p></details></div></section>
+  <details class="section ratio-explorer" data-ratio-explorer="build">
+  <summary><span class="ratio-header-left"><span class="ratio-header-icon" aria-hidden="true">∶</span><span><span class="ratio-header-title">Recipe ratios & why they work</span><span class="ratio-header-subtitle">Explore machine math and upstream ingredients, or send a different ratio to Build Next.</span></span></span><span class="ratio-header-end"><span>EXPAND RATIOS</span><span class="ratio-header-chevron" aria-hidden="true">⌄</span></span></summary>
+  <div class="ratio-content"></div>
+ </details>
   <section class="section panel"><div class="section-head"><h2>One important thing</h2></div><p class="small" style="margin:0">This is the complete chain for <b>one selected goal</b>. Open <b>Existing factory</b> to record what you already have and see which machines are reusable. <b>Future plan</b> holds your long-term district design. The current numbers assume normal-quality machinery, no modules or beacons, continuous ingredient supply.</p></section>
  </section>
 
@@ -637,6 +642,10 @@ body[data-workspace="build"]{
     <section class="panel balance-ledger-panel"><div class="section-head"><h2>Production versus consumption</h2><span class="small">Per minute · full-speed estimates</span></div><div id="balanceLedger"></div></section>
     <section class="panel balance-insights"><div class="section-head"><h2>What needs attention</h2><span class="small">Automatically updated</span></div><div id="balanceAlerts"></div><details class="advanced"><summary>Outputs already dedicated to other areas</summary><div id="balanceAllocations"></div></details><details class="advanced"><summary>Recorded transport belts</summary><div id="balanceTransport"></div></details></section>
   </div>
+  <details class="section ratio-explorer" data-ratio-explorer="balance">
+  <summary><span class="ratio-header-left"><span class="ratio-header-icon" aria-hidden="true">∶</span><span><span class="ratio-header-title">Trace a production ratio</span><span class="ratio-header-subtitle">Explore the full upstream demand before expanding a production line.</span></span></span><span class="ratio-header-end"><span>EXPAND RATIOS</span><span class="ratio-header-chevron" aria-hidden="true">⌄</span></span></summary>
+  <div class="ratio-content"></div>
+ </details>
   <section class="section panel"><div class="section-head"><h2>How to interpret this</h2></div><div class="balance-explainer"><p><b style="color:var(--green)">Potential surplus:</b> Supply exceeds recorded demand. It may still be physically routed elsewhere.</p><p><b style="color:var(--danger)">Short:</b> Your recorded machines could consume more than your known producers could supply at full speed.</p><p><b style="color:var(--amber)">Unknown:</b> You recorded consumption but haven't entered a matching source. The dashboard does not assume unlimited supply.</p></div><p class="small">The oil figures use your refinery and cracking counts but cannot account for actual crude delivery or circuit-controlled cracking. Dedicated outputs are identified by destination, but individual input routes are not yet mapped. This means the ledger detects aggregate shortages without pretending that two disconnected belts are one connected network.</p></section>
 </section>
 <section class="view" id="setup">
@@ -671,6 +680,10 @@ body[data-workspace="build"]{
     <div id="setupMachineRows" class="setup-rows" style="margin-top:12px"></div>
     <button class="btn" style="margin-top:12px" id="setupAddMachine" type="button">+ Add production line</button>
     <div id="setupMachineSummary" style="margin-top:14px"></div>
+    <details class="ratio-explorer ratio-inline" data-ratio-explorer="setup">
+  <summary><span class="ratio-header-left"><span class="ratio-header-icon" aria-hidden="true">∶</span><span><span class="ratio-header-title">Check a recipe ratio</span><span class="ratio-header-subtitle">Examine actual recipe requirements without changing your recorded inventory.</span></span></span><span class="ratio-header-end"><span>EXPAND RATIOS</span><span class="ratio-header-chevron" aria-hidden="true">⌄</span></span></summary>
+  <div class="ratio-content"></div>
+ </details>
   </section>
   <section class="section panel" id="setupBeltsPanel"><div class="section-head"><h2><span class="step">4</span> Other bus and feeder belts</h2><span class="small">Add what you physically connected</span></div>
     <div class="setup-hintbar">Iron, copper, steel and bricks are calculated above. Add plastic, coal, stone, circuit belts, or other feeds here. Belt capacity is not proof that the upstream factory produces that much.</div>
@@ -758,7 +771,7 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v0.19.1 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.20 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script>
 'use strict';
@@ -845,7 +858,7 @@ function renderGuide(){const id=guide.goal,rate=Number(guide.rate),calc=calculat
  el('totalMachines').textContent=fmt(calc.total);el('resultTitle').textContent=`${fmt(rate)} ${R[id][0].toLowerCase()}${rate!==1 && !['sulfur','solid-fuel','rocket-fuel','sulfuric-acid'].includes(id) && !id.endsWith('science-pack') && !R[id][0].toLowerCase().endsWith('s')?'s':''} per minute`;
  el('resultSubtitle').textContent=`${fmt(final?.count||0)} making the final item, plus ${fmt(calc.total-(final?.count||0))} making its ingredients. This includes no machines already in your base.`;
  el('goalStatus').textContent=`${guide.source==='bus'?'Bus-fed':'Raw-material'} recipe chain`;
- const metrics=[{n:calc.kinds.asm,t:guide.machine===.75?'Assembler 2s':'Assembler 3s',col:c.purple},{n:calc.kinds.chem,t:'Chemical plants',col:c.chem},{n:calc.kinds.furnace,t:'Furnaces',col:c.furnace},{n:final?.count||0,t:'Final item machines',col:final?.color||c.gold}];
+ const metrics=[{n:calc.kinds.asm,t:guide.machine===.5?'Assembler 1s':guide.machine===.75?'Assembler 2s':'Assembler 3s',col:c.purple},{n:calc.kinds.chem,t:'Chemical plants',col:c.chem},{n:calc.kinds.furnace,t:'Furnaces',col:c.furnace},{n:final?.count||0,t:'Final item machines',col:final?.color||c.gold}];
  el('machineMetrics').innerHTML=metrics.map(m=>`<div class="metric" style="--accent:${m.col}"><b>${fmt(m.n)}</b><small>${m.t}</small></div>`).join('');
  const sorted=[...calc.entries].sort((a,b)=>depth(a.key)-depth(b.key)||a.name.localeCompare(b.name));const max=Math.max(1,...sorted.map(x=>x.count));
  el('machineList').innerHTML=sorted.map((m,i)=>`<div class="part" style="border-left:4px solid ${m.color}"><div class="line"><div><div class="tiny">${m.key===id?'FINAL ITEM':`STEP ${i+1} · INTERMEDIATE`}</div><b>${escapeHTML(m.name)}</b><div class="tiny">${fmt(m.rate)}/min needed</div></div><div style="text-align:right"><div class="amount" style="color:${m.color}">${fmt(m.count)}</div><div class="tiny">${m.kind==='asm'?'assemblers':m.kind==='chem'?'chem plants':'furnaces'}</div></div></div><div class="track"><div style="width:${m.count/max*100}%;background:${m.color}"></div></div></div>`).join('')||'<div class="small">Increase the goal above zero to see machine counts.</div>';
@@ -1075,7 +1088,8 @@ const HELP_DATA={
  n1:["Choose a useful production size","Items per minute is a production target, not machine count.","The three preset sizes are starting points.",["Bigger rates require more assemblers and more ingredients.","The middle preset is a reasonable first calculation.","You can change the target at any time."],"Check that the planned demand can fit your available materials and belts."],
  n2:["Why those machine counts?","Build the input makers first, then the final assemblers.","The planner divides required output by each recipe's machine rate.",["Machines are rounded up to whole numbers.","The model assumes normal quality, no modules, and continuously supplied ingredients.","More final machines cannot fix a missing upstream resource."],"Review the intermediate machines before constructing the final line."],
  n3:["Check inputs before building","Every assembler needs both enough ingredients and enough transport.","Read the supply list and belt check together.",["A single yellow belt carries at most 900 items/min without stacking.","A faster belt does not make slow furnaces or assemblers produce more.","Existing factories may already consume part of your shared bus."],"Compare this new build against Factory balance."],
- n4:["Planning vs actual output","A rated factory may run slower in the real game.","These numbers describe potential production.",["Starved assemblers stop even with correct ratios.","Slow inserters, mixed belts, and storage backups reduce throughput.","Build in stages and measure what actually runs."],"Revisit the plan after you observe your factory."],
+ n4:["Recipe ratios explained","Exact machine equivalents and whole-machine counts serve different jobs.","A reusable ratio card shows how the existing recipe model calculates one production chain.",["Each recipe has its own crafting time, output per craft, and input quantities.","Machine speed changes output per minute, so assembler tiers matter.","Round each recipe group independently to whole machines; upstream requirements are aggregated before rounding."],"Use Send to Build Next to test a hypothetical plan without recording any new machines."],
+ n5:["Planning vs actual output","A rated factory may run slower in the real game.","These numbers describe potential production.",["Starved assemblers stop even with correct ratios.","Slow inserters, mixed belts, and storage backups reduce throughput.","Build in stages and measure what actually runs."],"Revisit the plan after you observe your factory."],
  f0:["Future capacity is not built capacity","These are proposed assemblers, not your existing inventory.","Future plan helps you budget a larger circuit district.",["The displayed rates assume steady ingredient supply.","Reserved bus output is an allocation goal, not automatic routing.","Current machines belong under Existing factory."],"Decide which blocks to construct before recording them as built."],
  f1:["Production blocks","A block groups recipes that work toward one output.","This turns a large factory expansion into manageable chunks.",["Red circuits need supporting green circuits and copper cable.","Inputs need to arrive before final assemblers run.","A partially built block may not reach its planned output."],"Finish and test one block before copying it."],
  f2:["Planned machine inventory","Count each planned assembler once.","A recipe may appear in multiple blocks, but should not be double-counted.",["The inventory is a design estimate.","The totals assume the selected long-term block sizes.","It does not automatically add machines to Existing factory."],"Compare against what you have already built before placing new machines."],
@@ -1089,7 +1103,7 @@ const HELP_DATA={
 const HELP_MAP={
  balance:['.balance-overview','b0','.balance-ledger-panel','b1','.balance-insights','b2','> .section.panel','b3'],
  setup:['#setupSmeltingPanel','s0','#setupOilPanel','s1','#setupMachinesPanel','s2','#setupBeltsPanel','s3','#setupComparePanel','s4','#setupStorePanel','s5'],
- build:['> .section','n0','n1','n2','n3','n4'],
+ build:['> .section','n0','n1','n2','n3','n4','n5'],
  factory:['> .section','f0','f1','f2','f3','f4','f5'],
  learn:['> .section','g0','g1','g2']
 };
@@ -1213,6 +1227,7 @@ window.NauvisLocal={
 </script>
 <script src="sync/cloud-sync.js" defer></script>
 <script src="./quick-add.js" defer></script>
+<script src="./recipe-ratios.js" defer></script>
 <script>if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));</script>
 </body>
 </html>
