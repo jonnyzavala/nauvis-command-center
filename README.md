@@ -6,11 +6,12 @@ A local-first Factorio 2.0 / Space Age factory planning dashboard. Built for des
 
 ## Workspaces
 
-- **Quick Guide** (slate): plain-language production basics and contextual help
-- **Factory** (gold): actual smelting, refinery, assembler and belt records
-- **Balance** (green): potential production versus recorded consumption
-- **Planner** (blue): visual machine ratios, item flows and production planning
-- **Projects** (purple): saved construction projects and preserved original circuit district
+- **Quick Guide** (gold): learning notes, examples and contextual help
+- **Factory** (rose): actual smelting, refinery, assembler and belt records
+- **Balance** (violet): potential production versus recorded consumption, with shortages kept visible
+- **Plan & Build**: one top-level workspace with **Blueprint Designer** (Factorio blue) and **Construction Queue** (blueprint placement teal). Explore a recipe, save a project, then track what you actually build.
+
+Each workspace has an overview, compact headline metrics and jump links. Secondary sections can be collapsed; the primary visual flow, Factory smelting/machine controls, and Balance warnings stay visible.
 
 All throughput figures are estimates, not a live connection to Factorio. Modules, quality, beacons, inserters, circuit pumps and physical routing are not fully modeled.
 
@@ -85,9 +86,21 @@ NAUVIS includes its own **original vector item icon set** for all 33 modeled bas
 
 **Palette and gradient fix:** The tab rail follows **Quick Guide slate → Factory gold → Balance mint green → Planner blueprint blue → Projects violet**. Each tab renders its own three-stop gradient segment with blended neighbors, so the rail stays aligned with variable-width tabs while scrolling on iPhone. Navigation dots, active-panel hues, background grids, and segments share the same CSS palette variables. The layered command console, colored gradients, blueprint texture and persistent contextual guide are preserved.
 
+## Streamlined Plan & Build + Activity Journal (v0.25)
+
+**Four top-level tabs:** Quick Guide (gold) → Factory (rose) → Balance (purple) → Plan & Build. Inside the last tab, **Blueprint Designer** stays Factorio blueprint blue and **Construction Queue** changes the whole canvas to placement-confirmation teal. The last selected blue/teal mode is remembered when switching among tabs. The same layered gradients and indicator lights remain, but the five-color palette now ends at the blue/teal blueprint workspace.
+
+**Less scrolling:** Every workspace gets a summary with context-aware metrics and clickable section jumps. On Factory, Smelting and Machines stay expanded while Oil, Belts, Compare, and Inventory tools are collapsed initially; tapping a jump link opens the destination automatically. In Balance the production/capacity ledger and warnings stay visible; interpretive notes are optional. The original visual production flow remains open by default. All previous functionality and underlying section IDs remain intact.
+
+**Construction Journal:** The teal Construction Queue contains a compact recent activity preview and an expandable **Activity Journal · Recent Changes**. New construction checks record a single event (project, item, previous and new built counts, and the linked Factory update). Factory edits, oil/smelting edits, belt changes, and old circuit-district checklist activity are also captured. You may save dated field notes without modifying Factory. Events are capped at the most recent 250 per factory. This is an audit trail of **NAUVIS user actions from v0.25 forward**, not a historical reconstruction or a direct connection to Factorio.
+
+**Duplicate-entry warning:** Build events include hints when matching *unlinked* manual Factory rows exist. The journal doesn't automatically merge, delete, or reassign machines based on similarities. Existing protections against editing project-linked machine rows independently remain in place.
+
+**Backups, resets, and cloud:** The journal is an optional `plan.journal` array inside the existing local/cloud JSON snapshot. No new Supabase tables, migrations or RLS changes. Older snapshots without a journal still import. Resetting the **original circuit district** checklist now preserves saved Projects and the new journal; it does **not** reset actual Factory inventory. There is no automatic factory wipe or "fresh start" of existing counts. Before rebuilding a potentially inaccurate inventory, export a backup and reconcile entries rather than deleting historical evidence.
+
 ## Sync and safety
 
-See [Cloud Sync Setup](sync/README.md). Pair devices using a private recovery key and a public Supabase project URL and publishable key. **Never commit the private recovery key, service_role key, database password, or other secrets.** JSON backups are available in Projects → Original circuit district.
+See [Cloud Sync Setup](sync/README.md). Pair devices using a private recovery key and a public Supabase project URL and publishable key. **Never commit the private recovery key, service_role key, database password, or other secrets.** JSON backups remain available in Plan & Build → Construction Queue → Original circuit district.
 
 ## Tests
 

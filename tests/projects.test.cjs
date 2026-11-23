@@ -23,14 +23,15 @@ const context={stopBus:getSet('STOP_BUS'),stopRaw:getSet('STOP_RAW'),fluids:getS
 const analyze=(rate=90,source='bus',id='advanced-circuit')=>
  analyzeRecipeRatios(R,{id,rate,machine:.75,source,belt:900},context);
 const make=(id='project_1')=>buildProject('Red circuit expansion',analyze(),id,'2026-11-22T18:00:00Z');
-test('the five tabs have their promised order and consistent workspace palette',()=>{
+test('four tabs share the expected order, with teal Construction behind Plan & Build',()=>{
  const nav=html.match(/<nav class="nav"[\s\S]*?<\/nav>/)?.[0]||'';
  const names=[...nav.matchAll(/<button data-view="([^"]+)"[^>]*>[\s\S]*?<\/button>/g)].map(m=>m[1]);
- assert.deepEqual(names,['learn','setup','balance','build','factory']);
- for(const label of ['Quick Guide','Factory','Balance','Planner','Projects'])assert.match(nav,new RegExp('>'+label+'<\\/button>'));
- for(const color of ['#9ab0c1','#eec277','#79d0ad','#65b5ff','#bba5e5'])assert.ok(css.toLowerCase().includes(color));
+ assert.deepEqual(names,['learn','setup','balance','build']);
+ for(const label of ['Quick Guide','Factory','Balance','Plan &amp; Build'])assert.match(nav,new RegExp('>'+label+'<\\/button>'));
+ const newPalette=fs.readFileSync(path.join(base,'workspace-v025.css'),'utf8');
+ for(const color of ['#eec277','#ed91aa','#bba5e5','#65b5ff','#6ce0d1'])assert.ok(newPalette.toLowerCase().includes(color));
  assert.match(css,/body\[data-workspace="build"\]/);
- assert.match(css,/--workspace-grid:rgba\(100,181,255,\.11\)/);
+ assert.match(newPalette,/--workspace-grid:rgba\(100,181,255,\.125\)/);
 });
 test('Projects preserve original circuit district and its live construction checklist',()=>{
  const view=html.slice(html.indexOf('<section class="view" id="factory">'),html.indexOf('<section class="view" id="learn">'));
@@ -122,7 +123,7 @@ test('the cloud snapshot continues to include plan without new tables or sync co
  assert.match(html,/snapshot\(\)\{return JSON\.parse\(JSON\.stringify\(\{version:7,plan:factory,guide,setup,balancePrefs\}\)\)\}/);
  assert.match(html,/projects:Array\.isArray\(data\.plan\.projects\)\?data\.plan\.projects:\[\]/);
  assert.match(html,/factory\.projects=Array\.isArray\(factory\.projects\)\?factory\.projects:\[\]/);
- assert.match(worker,/nauvis-shell-v024/);
+ assert.match(worker,/nauvis-shell-v025/);
  assert.match(worker,/projects\.js/);
  assert.match(worker,/projects\.css/);
 });

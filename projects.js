@@ -92,9 +92,16 @@ const colorFor=(recipe,kind)=>{
 const noun=kind=>kind==='asm'?'assemblers':kind==='chem'?'chemical plants':'furnaces';
 const fmt=n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:1});
 let pending=null,editing=null,showArchived=false,notice='';
+const reviewedOverlaps=new Set();
+function matchingUnlinked(recipe,machine){
+ const matches=(setup.machines||[]).filter(row=>!row.projectId&&row.recipe===recipe&&
+   (R[recipe]?.[3]!=='asm'||Math.abs(Number(row.tier)-Number(machine))<1e-8));
+ return matches.reduce((sum,row)=>sum+Math.max(0,Number(row.count)||0),0);
+}
 function allProjects(){return normalizeProjects(factory.projects)}
-function setProjects(projects){
+function setProjects(projects,event){
  factory.projects=projects;
+ if(event)root.NauvisJournal?.record?.(event);
  save();
  render();
 }
@@ -122,6 +129,7 @@ function projectHTML(p){
   const color=colorFor(task.recipe,task.kind);
   const mismatch=saved.mismatch||saved.count!==task.built;
   const cannotRecord=task.kind==='furnace';
+  const possibleDuplicates=matchingUnlinked(task.recipe,p.goal.machine);
   return '<div class="project-task" style="--project-task-accent:'+color+'">'+
    '<div class="project-task-identity"><span class="project-task-led" aria-hidden="true"></span>'+itemGlyph(task.recipe,32)+'<div><strong>'+escape(R[task.recipe]?.[0]||task.recipe)+'</strong><small>'+escape(noun(task.kind))+' · '+task.planned+' planned'+(task.kind==='asm'?' · Assembler '+(p.goal.machine===1.25?'3':'2'):'')+'</small></div></div>'+
    '<div class="project-task-controls"><button type="button" data-project-minus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Mark one fewer '+escape(task.recipe)+' built" '+(archived||task.built<=0||mismatch?'disabled':'')+'>−</button>'+
@@ -129,7 +137,8 @@ function projectHTML(p){
    '<button type="button" data-project-plus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Mark one more '+escape(task.recipe)+' built" '+(archived||task.built>=task.planned||mismatch||cannotRecord?'disabled':'')+'>+</button></div>'+
    '<div class="project-task-foot"><span class="project-task-recorded">'+saved.count+' in Factory · linked to this project</span>'+
    (mismatch?'<span class="project-task-warning">Factory and project counts differ. Review the linked line in Factory.</span>':
-    cannotRecord?'<span class="project-task-warning">Save a bus-fed project to record machines automatically.</span>':'')+
+    cannotRecord?'<span class="project-task-warning">Save a bus-fed project to record machines automatically.</span>':
+    possibleDuplicates?'<span class="project-task-warning">Check for duplicates: '+possibleDuplicates+' matching unlinked machines already in Factory.</span>':'')+
    '</div></div>';
  }).join('');
  return '<article class="project-card" data-project-card="'+escape(p.id)+'" style="--project-card-accent:'+colorFor(p.goal.id,'asm')+'">'+
@@ -177,11 +186,19 @@ function saveDialog(event){
  try{
   const name=validateProjectName($('projectsName').value);
   if(editing){
-   setProjects(allProjects().map(p=>p.id===editing?{...p,name}:p));
+   const original=selectedProject(editing);
+   setProjects(allProjects().map(p=>p.id===editing?{...p,name}:p),{
+    type:'project',source:'Construction Queue',projectId:editing,title:'Renamed project',
+    detail:(original?.name||'Project')+' → '+name
+   });
   }else{
    if(!pending)throw Error('No production calculation selected.');
    const project=buildProject(name,pending,uniqueId(),new Date().toISOString());
-   setProjects([...allProjects(),project]);
+   setProjects([...allProjects(),project],{
+    type:'project',source:'Blueprint Designer',projectId:project.id,
+    recipe:project.goal.id,title:'Saved construction project',
+    detail:project.name+' · '+project.tasks.reduce((n,t)=>n+t.planned,0)+' machines planned · 0 built'
+   });
    notice='Saved '+project.name+'. Machine counts are planned, not yet built.';
   }
   $('projectsDialog').close();editing=null;pending=null;render();
@@ -193,15 +210,33 @@ function saveDialog(event){
 function updateBuilt(id,recipe,delta){
  const project=selectedProject(id);if(!project)return;
  try{
+  const overlap=matchingUnlinked(recipe,project.goal.machine);
+  const overlapKey=id+'|'+recipe;
+  if(delta>0&&overlap>0&&!reviewedOverlaps.has(overlapKey)){
+   const msg=overlap+' matching '+(R[recipe]?.[0]||recipe)+' machines are already recorded in Factory without a project link.\n\n'+
+    'Are you certain this is a NEW machine that is not already counted in that inventory? This action adds another machine to your Factory totals.';
+   if(!root.confirm(msg))return;
+   reviewedOverlaps.add(overlapKey);
+  }
   const change=applyBuildDelta(project,recipe,delta,setup.machines);
   const expanded=!!$('projectsList')?.querySelector('[data-project-card="'+id+'"] .project-task-details')?.open;
   // Update the paired plan and the actual factory ledger before either save notification.
   // Cloud snapshots will therefore always see both sides of the same adjustment.
   factory.projects=allProjects().map(p=>p.id===id?change.project:p);
   setup.machines=change.rows;
+  const task=change.project.tasks.find(t=>t.recipe===recipe);
+  const unlinked=matchingUnlinked(recipe,project.goal.machine);
+  const item=R[recipe]?.[0]||recipe;
+  root.NauvisJournal?.record?.({
+   type:'construction',source:'Construction Queue',projectId:id,recipe,delta,
+   before:task.built-delta,after:task.built,
+   title:(delta>0?'Built +1 ':'Reversed −1 ')+item+' machine',
+   detail:project.name+' · '+(task.built-delta)+' → '+task.built+' built · Factory inventory updated once.'+
+     (unlinked&&delta>0?' Review '+unlinked+' unlinked '+item+' machines already recorded in Factory to avoid double-counting.':'')
+  });
   saveSetup();save();renderSetup();
-  notice=delta>0?'Built 1 machine and recorded it in Factory. Set its destination there if needed.':
-   'Reversed 1 built machine and updated Factory.';
+  notice=delta>0?'Built 1 machine and recorded it in Factory and the journal. Verify its destination under Factory.':
+   'Reversed 1 built machine in both Factory and your journal.';
   render();
   if(expanded){
    const detail=$('projectsList')?.querySelector('[data-project-card="'+id+'"] .project-task-details');
@@ -240,7 +275,11 @@ function attachEvents(){
   else if(b.hasAttribute('data-project-visit'))navigateToPlan(id);
   else if(b.hasAttribute('data-project-rename')){ $('projectsDialogError').hidden=true;openDialog('rename',project)}
   else if(b.hasAttribute('data-project-archive')){
-   setProjects(allProjects().map(p=>p.id===id?{...p,status:p.status==='archived'?'active':'archived'}:p));
+   const restored=project.status==='archived';
+   setProjects(allProjects().map(p=>p.id===id?{...p,status:restored?'active':'archived'}:p),{
+    type:'project',source:'Construction Queue',projectId:id,recipe:project.goal.id,
+    title:(restored?'Restored':'Archived')+' project',detail:project.name
+   });
   }
  });
 }

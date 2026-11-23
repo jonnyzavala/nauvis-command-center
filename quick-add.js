@@ -180,7 +180,7 @@ function init(){
      if(!tasks.some(([k])=>k===field))field=tasks[0][0];
      html+=selectField('quickTask','Construction milestone',tasks,field);
      html+='<label class="quick-progress"><input type="checkbox" id="quickComplete"'+(factory.checked[field]?' checked':'')+'><span>Mark this build as completed</span></label>';
-     html+='<p class="quick-help">Changes the actual Future Plan checklist, not the current factory machine inventory.</p>';
+     html+='<p class="quick-help">Changes the original circuit-district checklist, not the current Factory inventory.</p>';
      saveButton.textContent='Update progress';
    }
    body.innerHTML=html;
@@ -232,7 +232,12 @@ function init(){
      const before=serialized(),result=applyQuickEdit(snap(),change,ctx),after=JSON.stringify(result.state);
      if(before===after){notice('Nothing changed. Your factory is already up to date.',false);return}
      adopt(result.state);
-     lastAction={before,after,label:result.label};
+     lastAction={before,after,label:result.label,kind:change.kind,task:change.task||null};
+     if(change.kind==='progress')root.NauvisJournal?.record?.({
+      type:'milestone',source:'Quick Change',
+      title:(change.complete?'Checked':'Unchecked')+' legacy milestone',
+      detail:String(change.task||'Unknown')+' · original district checklist only, not Factory inventory'
+     });
      refreshAll();
      if(change.kind==='machine'&&change.target==='new')target=String(setup.machines.length-1);
      if(change.kind==='belt'&&change.target==='new')target=String(setup.feeds.length-1);
@@ -250,6 +255,10 @@ function init(){
    }
    const previous=JSON.parse(lastAction.before);
    adopt(previous);
+   if(lastAction.kind==='progress')root.NauvisJournal?.record?.({
+    type:'milestone',source:'Quick Change',title:'Undid legacy checklist edit',
+    detail:String(lastAction.task||'Unknown')+' · restored checklist state; no Factory machines affected'
+   });
    lastAction=null;
    refreshAll();
    target='new';
