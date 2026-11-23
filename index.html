@@ -603,6 +603,7 @@ body[data-workspace="build"]{
 <link rel="stylesheet" href="./recipe-ratios.css" />
 <link rel="stylesheet" href="./ratio-flow.css" />
 <link rel="stylesheet" href="./projects.css" />
+<link rel="stylesheet" href="./item-icons.css" />
 </head>
 <body data-workspace="balance">
 <div class="shell">
@@ -614,7 +615,7 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.23 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.24 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory</button><button data-view="balance" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Balance</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Planner</button><button data-view="factory" type="button"><span class="nav-dot" aria-hidden="true"></span>Projects</button></div></nav>
  </div>
@@ -811,8 +812,9 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v0.23 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.24 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
+<script src="./item-icons.js"></script>
 <script>
 'use strict';
 /* Verified standard recipes. Inputs for chemical fluids are in fluid units, not solid items. */
@@ -855,6 +857,7 @@ const STOP_BUS=new Set(['iron-plate','copper-plate','steel-plate','plastic-bar',
 const STOP_RAW=new Set(['iron-ore','copper-ore','stone','coal','water','petroleum-gas','heavy-oil','light-oil','lubricant']);
 const FLUID=new Set(['water','petroleum-gas','heavy-oil','light-oil','lubricant','sulfuric-acid']);
 const names={'iron-ore':'Iron ore','copper-ore':'Copper ore','stone':'Stone','coal':'Coal','water':'Water','petroleum-gas':'Petroleum gas','heavy-oil':'Heavy oil','light-oil':'Light oil','lubricant':'Lubricant'};
+const itemIcon=(id,size=30)=>window.NauvisIcons?.item?.(id,size)||'';
 const c={red:'#f18b86',green:'#79d0ad',blue:'#82bdf0',gold:'#eec277',purple:'#bba5e5',chem:'#7cc7d4',furnace:'#c4c9d3',other:'#d6a4d8'};
 const popular=[
 {id:'advanced-circuit',group:'Circuit',defaults:[45,90,180]},
@@ -891,7 +894,7 @@ const nameOf=id=>R[id]?.[0]||names[id]||id;
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,k=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[k]));
 function scaleChoices(){const data=popular.find(x=>x.id===guide.goal);if(data)return data.defaults;const d=guide.goal.includes('science')?[15,30,60]:[30,60,120];return d}
 function setGoal(id){if(!R[id])return;guide.goal=id;guide.rate=scaleChoices()[1];renderGuide()}
-function renderGoals(){el('goalGrid').innerHTML=popular.map(x=>`<button class="goal ${x.id===guide.goal?'active':''}" style="--accent:${csscolor(x.id,R[x.id][3])}" data-goal="${x.id}"><span class="dot"></span><b>${escapeHTML(R[x.id][0])}</b><small>${x.group}</small></button>`).join('');el('goalGrid').querySelectorAll('button').forEach(x=>x.addEventListener('click',()=>setGoal(x.dataset.goal)));el('allRecipes').value=guide.goal}
+function renderGoals(){el('goalGrid').innerHTML=popular.map(x=>`<button class="goal ${x.id===guide.goal?'active':''}" style="--accent:${csscolor(x.id,R[x.id][3])}" data-goal="${x.id}"><span class="dot"></span>${itemIcon(x.id,35)}<b>${escapeHTML(R[x.id][0])}</b><small>${x.group}</small></button>`).join('');el('goalGrid').querySelectorAll('button').forEach(x=>x.addEventListener('click',()=>setGoal(x.dataset.goal)));el('allRecipes').value=guide.goal}
 function beltAdvice(n){if(n<=900)return 'Yellow belt is enough';if(n<=1800)return 'A red belt is needed for one line';if(n<=2700)return 'A blue belt or parallel belts';return 'Parallel belts needed'}
 function renderGuide(){const id=guide.goal,rate=Number(guide.rate),calc=calculate(id,rate),final=calc.entries.find(x=>x.key===id),counts=calc.kinds,opts=scaleChoices();
  renderGoals();el('scaleOptions').innerHTML=opts.map((n,i)=>`<button class="choice ${n===rate?'active':''}" data-rate="${n}" aria-pressed="${n===rate}"><span>${['Starter','Balanced','Expand'][i]}</span><strong>${fmt(n)}/min</strong><span>${i===1?'Suggested':i===0?'Smaller start':'More headroom'}</span></button>`).join('');el('scaleOptions').querySelectorAll('button').forEach(x=>x.addEventListener('click',()=>{guide.rate=+x.dataset.rate;renderGuide()}));el('goalNumber').value=rate;
@@ -989,7 +992,7 @@ function renderSetupOil(){const o=setup.oil,r=safeNum(o.refineries),h=safeNum(o.
 function setupLineOutput(row){if(!R[row.recipe])return 0;const r=R[row.recipe],speed=r[3]==='asm'?safeNum(row.tier||.75):r[3]==='chem'?1:2;return safeNum(row.count)*60*r[2]*speed/r[1]}
 function renderSetupMachines(){const opts=itemsForSetup.map(k=>[k,R[k][0]]);
  el('setupMachineRows').innerHTML=setup.machines.map((row,i)=>`<div class="setup-row">
- <div class="slot"><label>Recipe</label><select data-row="${i}" data-field="recipe">${xselect(opts,row.recipe)}</select><span class="smallcap">${fmt(setupLineOutput(row))}/min theoretical</span><div class="tiny">${R[row.recipe]?.[3]==='asm'?'Assembler tier':'Chemical plant'}</div>${R[row.recipe]?.[3]==='asm'?`<select aria-label="Assembler tier" data-row="${i}" data-field="tier">${xselect([['0.5','Assembler 1'],['0.75','Assembler 2'],['1.25','Assembler 3']],String(row.tier||.75))}</select>`:''}</div>
+ <div class="slot"><label class="setup-recipe-label">${itemIcon(row.recipe,30)}<span>Recipe</span></label><select data-row="${i}" data-field="recipe">${xselect(opts,row.recipe)}</select><span class="smallcap">${fmt(setupLineOutput(row))}/min theoretical</span><div class="tiny">${R[row.recipe]?.[3]==='asm'?'Assembler tier':'Chemical plant'}</div>${R[row.recipe]?.[3]==='asm'?`<select aria-label="Assembler tier" data-row="${i}" data-field="tier">${xselect([['0.5','Assembler 1'],['0.75','Assembler 2'],['1.25','Assembler 3']],String(row.tier||.75))}</select>`:''}</div>
  <div class="slot"><label>Machines</label><input type="number" min="0" step="1" value="${safeNum(row.count)}" data-row="${i}" data-field="count"/></div>
  <div class="slot"><label>Goes to</label><select data-row="${i}" data-field="destination">${xselect(destinations.map(x=>[x,x]),row.destination)}</select></div>
  <button type="button" aria-label="Remove production line" data-remove-machine="${i}">×</button>
@@ -1004,7 +1007,7 @@ function renderSetupMachineSummary(){const total=setup.machines.reduce((a,x)=>a+
  <p class="small">Production lines assume their own inputs are supplied. Adding an existing red-circuit line does not imply the required plastic or green circuits are available.</p>`;
 }
 function renderSetupFeeds(){el('setupFeedRows').innerHTML=setup.feeds.map((row,i)=>`<div class="setup-bus-grid">
- <div class="slot"><label>Resource</label><select data-feed="${i}" data-field="recipe">${xselect(feedMaterials,row.recipe)}</select></div>
+ <div class="slot"><label class="setup-recipe-label">${itemIcon(row.recipe,30)}<span>Resource</span></label><select data-feed="${i}" data-field="recipe">${xselect(feedMaterials,row.recipe)}</select></div>
  <div class="slot"><label>Belts</label><input type="number" min="0" step="1" value="${safeNum(row.count)}" data-feed="${i}" data-field="count"/></div>
  <div class="slot"><label>Type</label><select data-feed="${i}" data-field="tier">${xselect([['yellow','Yellow'],['red','Red'],['blue','Blue']],row.tier)}</select></div>
  <div class="slot"><label>Destination</label><select data-feed="${i}" data-field="destination">${xselect(destinations.map(x=>[x,x]),row.destination)}</select></div>
@@ -1096,7 +1099,7 @@ function renderBalance(){
    const [label,color]=statuses[r.status];
    const text=r.hasSource?`${r.margin>=0?'+':''}${f(r.margin)}`:'Unknown source';
    const bar=r.hasSource&&r.produced>0?Math.min(100,r.total/r.produced*100):0;
-   return `<tr><td><strong>${escapeHTML(nameOf(r.id))}</strong><div class="little" style="color:${color}">${label}</div></td><td class="balance-number">${r.hasSource?f(r.produced):'Not entered'}</td><td class="balance-number">${f(r.needed)}</td><td class="balance-number">${r.planned?f(r.planned):'·'}</td><td class="balance-number"><b style="color:${color}">${escapeHTML(text)}</b><div class="balance-meter"><span style="width:${bar}%;background:${color}"></span></div></td></tr>`;
+   return `<tr><td><span class="balance-item-label">${itemIcon(r.id,29)}<strong>${escapeHTML(nameOf(r.id))}</strong></span><div class="little" style="color:${color}">${label}</div></td><td class="balance-number">${r.hasSource?f(r.produced):'Not entered'}</td><td class="balance-number">${f(r.needed)}</td><td class="balance-number">${r.planned?f(r.planned):'·'}</td><td class="balance-number"><b style="color:${color}">${escapeHTML(text)}</b><div class="balance-meter"><span style="width:${bar}%;background:${color}"></span></div></td></tr>`;
   }).join('')}</tbody></table></div>`;
  const alerts=result.rows.filter(x=>x.status==='short'||x.status==='unknown'||x.status==='tight').sort((a,b)=>({short:0,unknown:1,tight:2}[a.status]-{short:0,unknown:1,tight:2}[b.status]));
  const notes=[];
