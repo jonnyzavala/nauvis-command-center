@@ -602,6 +602,7 @@ body[data-workspace="build"]{
 <link rel="stylesheet" href="./quick-add.css" />
 <link rel="stylesheet" href="./recipe-ratios.css" />
 <link rel="stylesheet" href="./ratio-flow.css" />
+<link rel="stylesheet" href="./projects.css" />
 </head>
 <body data-workspace="balance">
 <div class="shell">
@@ -613,9 +614,9 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.22 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.23 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
-  <nav class="nav" aria-label="Factory workflow: learn, inspect, plan, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick guide</button><button data-view="setup" type="button"><span class="nav-dot" aria-hidden="true"></span>Existing factory</button><button data-view="balance" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory balance</button><button data-view="factory" type="button"><span class="nav-dot" aria-hidden="true"></span>Future plan</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Visual planner</button></div></nav>
+  <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory</button><button data-view="balance" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Balance</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Planner</button><button data-view="factory" type="button"><span class="nav-dot" aria-hidden="true"></span>Projects</button></div></nav>
  </div>
  <main>
  <section class="view" id="build">
@@ -706,13 +707,36 @@ body[data-workspace="build"]{
  </section>
 
  <section class="view" id="factory">
-  <div class="hero"><div class="eyebrow">LONG-TERM CAPACITY PLAN</div><h1>What should I build later?</h1><p>Start with your future circuit district. This is the optional, generous 130-machine expansion we planned. It is <b>not</b> the minimum needed to unlock science. Track what's built and see where each assembler belongs.</p></div>
-  <div class="section panel"><div class="section-head"><h2>Planned capacity</h2><span class="tag">Potential, not measured output</span></div><div id="districtMetrics" class="metrics"></div><div id="districtBands" style="margin-top:15px"></div><p class="small" style="margin:12px 0 0">Protected bus output is an allocation target, not a physically guaranteed priority. Supply still requires proper belts, inserters and materials.</p></div>
+  <div class="hero"><div class="eyebrow">CONSTRUCTION PIPELINE · YOUR NEXT BUILDS</div><h1>Projects &amp; Build Queue</h1><p>Save recipes from Planner, track the machines you physically build, and keep your actual Factory inventory up to date. Your original circuit district remains available below.</p></div>
+  <section id="projectsOverview" class="section projects-overview">
+   <div class="projects-toolbar"><div><h2>Your construction pipeline</h2><p>One built-machine action updates your project and Factory together.</p></div><button type="button" id="projectsGoPlanner" class="projects-action">+ Plan another build</button></div>
+   <div id="projectsSummary" class="projects-summary" aria-label="Project status summary"></div>
+   <p id="projectsNotice" role="status" hidden></p>
+  </section>
+  <section id="projectsListPanel" class="section">
+   <div class="section-head"><h2>Saved projects</h2><span class="small">Track every machine as you build it</span></div>
+   <div id="projectsList" class="projects-cards"></div>
+  </section>
+  <section class="projects-legacy-card" aria-label="Original circuit district progress">
+   <div class="projects-legacy-head"><div><h3>Original circuit district</h3><p>Your existing long-term design and construction checklist are preserved. This is a legacy plan, not a second machine inventory.</p></div><span class="tag">PRESERVED PLAN</span></div>
+   <div class="project-progress-track"><span id="projectsLegacyFill" style="width:0%"></span></div>
+   <div class="projects-legacy-actions"><span id="projectsLegacyStatus" class="projects-legacy-caption">Loading construction milestones…</span><button type="button" id="projectsOpenLegacy">Open circuit district</button></div>
+  </section>
+  <details id="legacyDistrict" class="section">
+   <summary>Original circuit district · details and legacy checklist</summary>
+   <div class="legacy-district-content">
+<div class="section panel"><div class="section-head"><h2>Planned capacity</h2><span class="tag">Potential, not measured output</span></div><div id="districtMetrics" class="metrics"></div><div id="districtBands" style="margin-top:15px"></div><p class="small" style="margin:12px 0 0">Protected bus output is an allocation target, not a physically guaranteed priority. Supply still requires proper belts, inserters and materials.</p></div>
   <div class="section"><div class="section-head"><h2>Production blocks</h2><span class="small">Machine counts divided by destination</span></div><div id="districtBlocks" class="blockgrid"></div></div>
   <div class="section panel"><div class="section-head"><h2>Master machine inventory</h2><span class="small">All recipes, all blocks, once each</span></div><div id="districtInventory" class="tablewrap"></div></div>
   <div class="section panel"><div class="section-head"><h2>Construction checklist</h2><span id="progressCaption" class="tag">0 complete</span></div><div class="progress"><span id="progressFill" style="width:0%"></span></div><div id="districtChecklist"></div></div>
   <details class="advanced section"><summary>Customize long-term factory targets (optional)</summary><p class="small">These sliders change the generous district plan, not your immediate one-item build. Existing progress checkboxes remain saved.</p><div class="settings" id="factorySettings"></div><div class="notice warn" id="factoryCapacityWarning" style="margin-top:14px"></div></details>
   <div class="section panel"><div class="section-head"><h2>Save your factory plan</h2></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="exportButton">Export backup</button><button class="btn" id="importButton">Import backup</button><button class="btn ghost" id="resetButton">Reset settings</button></div><input type="file" id="importFile" accept=".json,application/json" hidden/><p class="small">Changes are saved locally, even offline. Pair your devices using the header sync indicator to share your factory. Export remains your manual backup.</p></div>
+   </div>
+  </details>
+  <details id="projectsArchivedWrapper" class="section" hidden>
+   <summary>Archived projects</summary>
+   <div id="projectsArchived" class="projects-cards"></div>
+  </details>
  </section>
  <section class="view" id="learn"><div class="hero"><div class="eyebrow">THE THREE NUMBERS THAT MATTER</div><h1>How do I use this?</h1><p>You only need the goal. The computer should do the recipe accounting.</p></div>
   <div class="rulegrid section"><div class="rule"><b style="color:var(--gold)">30/min</b><strong>Production goal</strong><p class="small">How much finished product the factory makes each minute. For science, 30/min is a reasonable starting baseline, not an obligation.</p></div><div class="rule"><b style="color:var(--purple)">19</b><strong>Machine count</strong><p class="small">How many machines are needed to make the item and its local ingredients. 90 red circuits/min takes 19 Assembler 2s in the self-contained block.</p></div><div class="rule"><b style="color:var(--green)">900/min</b><strong>Yellow belt capacity</strong><p class="small">The most items one full yellow belt carries per minute, both lanes combined. Red is 1,800/min. Faster belts don't increase machine output.</p></div></div>
@@ -720,6 +744,15 @@ body[data-workspace="build"]{
   <div class="section panel"><h2>Before upgrading a belt</h2><div style="display:grid;gap:12px"><div><div class="inline"><b>Yellow</b><b>900/min</b></div><div class="track"><div style="width:33.333%;background:#e9bd61"></div></div></div><div><div class="inline"><b>Red</b><b>1,800/min</b></div><div class="track"><div style="width:66.666%;background:#e67b78"></div></div></div><div><div class="inline"><b>Blue</b><b>2,700/min</b></div><div class="track"><div style="width:100%;background:#76b3e2"></div></div></div></div><p class="small">If your furnaces produce only 700 plates/min, any of these belts will still carry only 700. Upgrade when the belt is saturated, not just because you've researched the next color.</p></div>
  </section>
  </main>
+<dialog id="projectsDialog" aria-labelledby="projectsDialogTitle">
+ <form id="projectsSaveForm">
+  <h2 id="projectsDialogTitle">Save to Projects</h2>
+  <p id="projectsDialogSubtitle">Save a construction plan without adding unbuilt machines.</p>
+  <div class="project-dialog-field"><label for="projectsName">Project name</label><input type="text" id="projectsName" maxlength="80" autocomplete="off" required /></div>
+  <p id="projectsDialogError" role="alert" hidden></p>
+  <div class="project-dialog-buttons"><button type="button" id="projectsDialogClose">Cancel</button><button type="submit">Save project</button></div>
+ </form>
+</dialog>
 <!-- A matching-bottom command dock contains both persistent tools. -->
 <div class="command-dock" id="commandDock" aria-label="Quick factory controls">
 <button type="button" id="quickAddToggle" class="quick-add-toggle" aria-label="Quick change factory inventory" title="Quick change" aria-expanded="false" aria-controls="quickAddPanel">
@@ -778,7 +811,7 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v0.22 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.23 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script>
 'use strict';
@@ -838,8 +871,8 @@ const oldGKey='nauvis-guide-v04';
 const load=(k)=>{try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}};
 const guide={goal:'advanced-circuit',rate:90,machine:.75,source:'bus',belt:900,...(load(oldGKey)||{}),...(load(gkey)||{})};
 if(!R[guide.goal])guide.goal='advanced-circuit';if(!Number.isFinite(guide.rate)||guide.rate<0)guide.rate=90;
-const fd={redBlocks:4,blueMachines:8,greenBus:4,ldsMachines:16,purpleSPM:30,yellowSPM:30,redReserve:90,blueReserve:12,ldsReserve:12,copperBelts:4,ironBelts:4,plasticPlants:4,checked:{}};
-const factory={...fd,...(load(fkey)||{})};factory.checked={...((load(fkey)||{}).checked||{})};
+const fd={redBlocks:4,blueMachines:8,greenBus:4,ldsMachines:16,purpleSPM:30,yellowSPM:30,redReserve:90,blueReserve:12,ldsReserve:12,copperBelts:4,ironBelts:4,plasticPlants:4,checked:{},projects:[]};
+const factory={...fd,...(load(fkey)||{})};factory.checked={...((load(fkey)||{}).checked||{})};factory.projects=Array.isArray(factory.projects)?factory.projects:[];
 const el=id=>document.getElementById(id);
 const fmt=n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:1});
 const csscolor=(id,kind)=>id==='advanced-circuit'?c.red:id==='electronic-circuit'?c.green:id==='processing-unit'?c.blue:/(science|structure)/.test(id)?c.gold:kind==='chem'?c.chem:kind==='furnace'?c.furnace:c.other;
@@ -887,7 +920,7 @@ function renderFactory(){const d=districtCounts();el('districtMetrics').innerHTM
  el('districtInventory').innerHTML=`<table><thead><tr><th>Recipe</th><th>Red blocks</th><th>Blue block</th><th>Bus greens</th><th>LDS</th><th>Total</th></tr></thead><tbody>${d.rows.map(x=>`<tr><td>${x[0]}</td>${x.slice(1).map(n=>`<td>${n}</td>`).join('')}<td>${x.slice(1).reduce((a,b)=>a+b,0)}</td></tr>`).join('')}<tr><td><b>TOTAL</b></td>${[1,2,3,4].map(i=>`<td>${d.rows.reduce((a,row)=>a+row[i],0)}</td>`).join('')}<td>${d.total}</td></tr></tbody></table>`;
  const tasks=[];for(let i=1;i<=factory.redBlocks;i++)tasks.push([`red${i}`,`Red circuit block ${i}`,'19 machines']);tasks.push(['blue','Blue circuit block',`${blocks[1].machines} machines`],['greenbus','Bus green circuits',`${blocks[2].machines} machines`],['lds','Low-density structures',`${blocks[3].machines} machines`],['purple','Purple science','Separate science line'],['yellow','Yellow science','Separate science line']);const complete=tasks.filter(x=>factory.checked[x[0]]).length;el('progressCaption').textContent=`${complete} of ${tasks.length} complete`;el('progressFill').style.width=`${complete/tasks.length*100}%`;el('districtChecklist').innerHTML=tasks.map(([key,label,detail])=>`<div class="check"><label><input type="checkbox" data-task="${key}" ${factory.checked[key]?'checked':''}/> ${label}</label><small>${detail}</small></div>`).join('');el('districtChecklist').querySelectorAll('input').forEach(x=>x.addEventListener('change',e=>{factory.checked[x.dataset.task]=e.target.checked;renderFactory()}));
  let copper= factory.redBlocks*450+factory.blueMachines*135+factory.greenBus*135+factory.ldsMachines*60,iron=factory.redBlocks*180+factory.blueMachines*90+factory.greenBus*90,plastic=factory.redBlocks*180+factory.ldsMachines*15;let pcap=factory.plasticPlants*120;el('factoryCapacityWarning').innerHTML=`At full speed, this district needs <b>${fmt(copper)} copper</b>, <b>${fmt(iron)} iron</b> and <b>${fmt(plastic)} plastic/min</b>. Your configured plastic plants could make ${fmt(pcap)}/min, ${plastic>pcap?`<b style="color:#ffaaaa">short ${fmt(plastic-pcap)}/min</b>`:`leaving ${fmt(pcap-plastic)}/min spare`}. These checks exclude all existing factory demand and assume full raw-material supply.`;
- renderFactorySettings();save();}
+ renderFactorySettings();save();window.NauvisProjects?.refresh();}
 function renderFactorySettings(){const data=[['redBlocks','Red production blocks',0,8],['blueMachines','Blue circuit assemblers',0,40],['greenBus','Bus green circuit assemblers',0,24],['ldsMachines','LDS assemblers',0,40],['purpleSPM','Purple science target/min',0,120],['yellowSPM','Yellow science target/min',0,120],['redReserve','Red bus reserve/min',0,360],['blueReserve','Blue bus reserve/min',0,150],['ldsReserve','LDS spare/min',0,120],['plasticPlants','Plastic chemical plants',0,24]];const container=el('factorySettings');const active=document.activeElement; if(active && active.closest('#factorySettings'))return;
  container.innerHTML=data.map(([key,name,min,max])=>`<div class="setting"><label for="f_${key}">${name}<b>${factory[key]}</b></label><input id="f_${key}" type="range" min="${min}" max="${max}" step="1" value="${factory[key]}" data-key="${key}"/></div>`).join('');container.querySelectorAll('input').forEach(input=>input.addEventListener('input',e=>{factory[e.target.dataset.key]=Number(e.target.value);const parent=e.target.closest('.setting');parent.querySelector('b').textContent=factory[e.target.dataset.key];renderFactory();}));}
 function handleFactorySettingsReset(){if(!confirm('Reset planning settings and construction checklist?'))return;Object.assign(factory,fd,{checked:{}});save();renderFactory();}
@@ -1097,6 +1130,8 @@ const HELP_DATA={
  n3:["Check inputs before building","Every assembler needs both enough ingredients and enough transport.","Read the supply list and belt check together.",["A single yellow belt carries at most 900 items/min without stacking.","A faster belt does not make slow furnaces or assemblers produce more.","Existing factories may already consume part of your shared bus."],"Compare this new build against Factory balance."],
  n4:["Recipe ratios explained","Exact machine equivalents and whole-machine counts serve different jobs.","A reusable ratio card shows how the existing recipe model calculates one production chain.",["Each recipe has its own crafting time, output per craft, and input quantities.","Machine speed changes output per minute, so assembler tiers matter.","Round each recipe group independently to whole machines; upstream requirements are aggregated before rounding."],"Use Send to Build Next to test a hypothetical plan without recording any new machines."],
  n5:["Planning vs actual output","A rated factory may run slower in the real game.","These numbers describe potential production.",["Starved assemblers stop even with correct ratios.","Slow inserters, mixed belts, and storage backups reduce throughput.","Build in stages and measure what actually runs."],"Revisit the plan after you observe your factory."],
+ p0:["Projects turn plans into construction","Saved builds remain separate from your original circuit-district plan.","Save an output target from Planner, then track the machines as you physically build them.",["Mark Built automatically records the same machine in Factory, so there is no second entry.","Each machine counts only once, and the Factory record feeds Balance.","You can adjust where an output goes under Factory."],"Use Planner to save your first construction project."],
+ p1:["Track your build queue","Each project tracks machines already built versus machines still planned.","Use the + and − controls as you physically construct or remove a machine.",["Progress and Factory machine inventory update together.","If a linked Factory row was edited, review it before changing project progress.","Your circuit district remains separately preserved below."],"Build machines first, then mark them in the matching project."],
  f0:["Future capacity is not built capacity","These are proposed assemblers, not your existing inventory.","Future plan helps you budget a larger circuit district.",["The displayed rates assume steady ingredient supply.","Reserved bus output is an allocation goal, not automatic routing.","Current machines belong under Existing factory."],"Decide which blocks to construct before recording them as built."],
  f1:["Production blocks","A block groups recipes that work toward one output.","This turns a large factory expansion into manageable chunks.",["Red circuits need supporting green circuits and copper cable.","Inputs need to arrive before final assemblers run.","A partially built block may not reach its planned output."],"Finish and test one block before copying it."],
  f2:["Planned machine inventory","Count each planned assembler once.","A recipe may appear in multiple blocks, but should not be double-counted.",["The inventory is a design estimate.","The totals assume the selected long-term block sizes.","It does not automatically add machines to Existing factory."],"Compare against what you have already built before placing new machines."],
@@ -1111,16 +1146,18 @@ const HELP_MAP={
  balance:['.balance-overview','b0','.balance-ledger-panel','b1','.balance-insights','b2','> .section.panel','b3'],
  setup:['#setupSmeltingPanel','s0','#setupOilPanel','s1','#setupMachinesPanel','s2','#setupBeltsPanel','s3','#setupComparePanel','s4','#setupStorePanel','s5'],
  build:['> .section','n4','n0','n1','n2','n3','n5'],
- factory:['> .section','f0','f1','f2','f3','f4','f5'],
+ factory:['> .section','p0','p1','f0','f1','f2','f3','f4','f5'],
  learn:['> .section','g0','g1','g2']
 };
-const HELP_DEFAULT={balance:'b0',setup:'s0',build:'n4',factory:'f0',learn:'g0'};
+const HELP_DEFAULT={balance:'b0',setup:'s0',build:'n4',factory:'p0',learn:'g0'};
 let guideOpen=false, guideTopic='',guideFocus=null,guideScroll=0;
 function mountGuideTargets(){
  for(const id of ['build','factory','learn']){
   const view=document.getElementById(id);
   const sections=id==='build'?
    [...view.querySelectorAll(':scope > [data-ratio-explorer="build"], :scope > #buildClassic > .build-classic-content > .section')]:
+   id==='factory'?
+   [...view.querySelectorAll(':scope > #projectsOverview, :scope > #projectsListPanel, :scope > #legacyDistrict > .legacy-district-content > .section')]:
    [...view.querySelectorAll(':scope > .section')];
   sections.forEach((node,i)=>{
    const key=HELP_MAP[id][i+1];if(HELP_DATA[key])node.dataset.guideTopic=key;
@@ -1192,7 +1229,7 @@ function activateWorkspace(view,scrollPage=false){
  const allowed=new Set(['learn','setup','balance','factory','build']);
  if(!allowed.has(view))view='balance';
  document.body.dataset.workspace=view;
- const workspaceNames={learn:'Quick guide',setup:'Existing factory',balance:'Factory balance',factory:'Future plan',build:'Visual planner'};
+ const workspaceNames={learn:'Quick Guide',setup:'Factory',balance:'Balance',factory:'Projects',build:'Planner'};
  const workspaceLabel=document.getElementById('welcomeWorkspace');
  if(workspaceLabel)workspaceLabel.textContent=workspaceNames[view]||'Factory balance';
  document.querySelectorAll('.nav button').forEach(b=>{
@@ -1208,7 +1245,7 @@ function activateWorkspace(view,scrollPage=false){
  if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>{const c=document.querySelector('.command-chrome');if(c)document.documentElement.style.setProperty('--chrome-height',Math.ceil(c.getBoundingClientRect().height)+'px')});
 }
 function init(){el('balanceIncludeGoal').addEventListener('change',e=>{balancePrefs.includeGoal=e.target.checked;try{localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs))}catch(_e){}window.NauvisCloud?.changed();renderBalance()});el('balanceEditSetup').addEventListener('click',()=>document.querySelector('.nav button[data-view="setup"]').click());el('allRecipes').innerHTML=[...new Set(allOrder.filter(x=>R[x]))].map(k=>`<option value="${k}">${R[k][0]}</option>`).join('');el('allRecipes').addEventListener('change',e=>setGoal(e.target.value));el('goalNumber').addEventListener('change',e=>{guide.rate=Math.min(25000,Math.max(0,Number(e.target.value)||0));renderGuide()});for(const [id,key] of [['assemblyTier','machine'],['sourceMode','source'],['beltTier','belt']])el(id).addEventListener('change',e=>{guide[key]=key==='source'?e.target.value:Number(e.target.value);renderGuide()});document.querySelectorAll('.nav button').forEach(btn=>btn.addEventListener('click',()=>activateWorkspace(btn.dataset.view,true)));
- el('exportButton').addEventListener('click',()=>{const data=JSON.stringify({version:7,plan:factory,guide,setup,balancePrefs},null,2),u=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='nauvis-plan.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)});el('importButton').addEventListener('click',()=>el('importFile').click());el('importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const r=JSON.parse(await file.text());if(r.plan&&typeof r.plan.redBlocks==='number'){Object.assign(factory,fd,r.plan,{checked:{...(r.plan.checked||{})}});if(r.guide&&R[r.guide.goal])Object.assign(guide,r.guide);if(r.setup){Object.assign(setup.smelt,setupSeed.smelt,r.setup.smelt||{});Object.assign(setup.oil,setupSeed.oil,r.setup.oil||{});setup.machines=r.setup.machines||[];setup.feeds=r.setup.feeds||[];if(r.balancePrefs){balancePrefs.includeGoal=!!r.balancePrefs.includeGoal;localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs));el('balanceIncludeGoal').checked=balancePrefs.includeGoal}saveSetup();renderSetup();}}else if(typeof r.redBlocks==='number'){Object.assign(factory,fd,r,{checked:{...(r.checked||{})}})}else throw Error('Not a dashboard backup');save();renderGuide();renderFactory();window.NauvisQuick?.invalidate();alert('Your plan was imported.')}catch(err){alert('Could not import plan: '+err.message)}e.target.value=''});el('resetButton').addEventListener('click',handleFactorySettingsReset);
+ el('exportButton').addEventListener('click',()=>{const data=JSON.stringify({version:7,plan:factory,guide,setup,balancePrefs},null,2),u=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='nauvis-plan.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)});el('importButton').addEventListener('click',()=>el('importFile').click());el('importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const r=JSON.parse(await file.text());if(r.plan&&typeof r.plan.redBlocks==='number'){Object.assign(factory,fd,r.plan,{checked:{...(r.plan.checked||{})}});if(r.guide&&R[r.guide.goal])Object.assign(guide,r.guide);factory.projects=Array.isArray(factory.projects)?factory.projects:[];if(r.setup){Object.assign(setup.smelt,setupSeed.smelt,r.setup.smelt||{});Object.assign(setup.oil,setupSeed.oil,r.setup.oil||{});setup.machines=r.setup.machines||[];setup.feeds=r.setup.feeds||[];if(r.balancePrefs){balancePrefs.includeGoal=!!r.balancePrefs.includeGoal;localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs));el('balanceIncludeGoal').checked=balancePrefs.includeGoal}saveSetup();renderSetup();}}else if(typeof r.redBlocks==='number'){Object.assign(factory,fd,r,{checked:{...(r.checked||{})}})}else throw Error('Not a dashboard backup');save();renderGuide();renderFactory();window.NauvisProjects?.refresh();window.NauvisQuick?.invalidate();alert('Your plan was imported.')}catch(err){alert('Could not import plan: '+err.message)}e.target.value=''});el('resetButton').addEventListener('click',handleFactorySettingsReset);
  renderGuide();renderFactory();initSetup();activateWorkspace("balance");initStickyCommand();initGuide();}
 window.nauvisTest=(id,target,source='bus')=>{const prev=guide.source;guide.source=source;const output=calculate(id,target);guide.source=prev;return output};
 init();
@@ -1219,7 +1256,7 @@ window.NauvisLocal={
   if(!data||typeof data!=='object'||!data.plan||!data.guide||!data.setup)throw Error('Invalid shared factory snapshot.');
   window.NauvisCloudApplying=true;
   try{
-   Object.assign(factory,fd,data.plan,{checked:{...(data.plan.checked||{})}});
+   Object.assign(factory,fd,data.plan,{checked:{...(data.plan.checked||{})},projects:Array.isArray(data.plan.projects)?data.plan.projects:[]});
    Object.assign(guide,data.guide);
    if(!R[guide.goal])guide.goal='advanced-circuit';
    Object.assign(setup.smelt,setupSeed.smelt,data.setup.smelt||{});
@@ -1229,7 +1266,7 @@ window.NauvisLocal={
    balancePrefs.includeGoal=!!data.balancePrefs?.includeGoal;
    el('balanceIncludeGoal').checked=balancePrefs.includeGoal;
    localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs));
-   saveSetup();save();renderGuide();renderFactory();renderSetup();renderBalance();window.NauvisQuick?.invalidate();
+   saveSetup();save();renderGuide();renderFactory();renderSetup();renderBalance();window.NauvisProjects?.refresh();window.NauvisQuick?.invalidate();
   }finally{window.NauvisCloudApplying=false}
  }
 };
@@ -1239,6 +1276,7 @@ window.NauvisLocal={
 <script src="./quick-add.js" defer></script>
 <script src="./ratio-flow.js" defer></script>
 <script src="./recipe-ratios.js" defer></script>
+<script src="./projects.js" defer></script>
 <script>if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));</script>
 </body>
 </html>
