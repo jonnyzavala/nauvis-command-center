@@ -1130,6 +1130,8 @@ const HELP_DATA={
  n3:["Check inputs before building","Every assembler needs both enough ingredients and enough transport.","Read the supply list and belt check together.",["A single yellow belt carries at most 900 items/min without stacking.","A faster belt does not make slow furnaces or assemblers produce more.","Existing factories may already consume part of your shared bus."],"Compare this new build against Factory balance."],
  n4:["Recipe ratios explained","Exact machine equivalents and whole-machine counts serve different jobs.","A reusable ratio card shows how the existing recipe model calculates one production chain.",["Each recipe has its own crafting time, output per craft, and input quantities.","Machine speed changes output per minute, so assembler tiers matter.","Round each recipe group independently to whole machines; upstream requirements are aggregated before rounding."],"Use Send to Build Next to test a hypothetical plan without recording any new machines."],
  n5:["Planning vs actual output","A rated factory may run slower in the real game.","These numbers describe potential production.",["Starved assemblers stop even with correct ratios.","Slow inserters, mixed belts, and storage backups reduce throughput.","Build in stages and measure what actually runs."],"Revisit the plan after you observe your factory."],
+ p0:["Projects turn plans into construction","Saved builds remain separate from your original circuit-district plan.","Save an output target from Planner, then track the machines as you physically build them.",["Mark Built automatically records the same machine in Factory, so there is no second entry.","Each machine counts only once, and the Factory record feeds Balance.","You can adjust where an output goes under Factory."],"Use Planner to save your first construction project."],
+ p1:["Track your build queue","Each project tracks machines already built versus machines still planned.","Use the + and − controls as you physically construct or remove a machine.",["Progress and Factory machine inventory update together.","If a linked Factory row was edited, review it before changing project progress.","Your circuit district remains separately preserved below."],"Build machines first, then mark them in the matching project."],
  f0:["Future capacity is not built capacity","These are proposed assemblers, not your existing inventory.","Future plan helps you budget a larger circuit district.",["The displayed rates assume steady ingredient supply.","Reserved bus output is an allocation goal, not automatic routing.","Current machines belong under Existing factory."],"Decide which blocks to construct before recording them as built."],
  f1:["Production blocks","A block groups recipes that work toward one output.","This turns a large factory expansion into manageable chunks.",["Red circuits need supporting green circuits and copper cable.","Inputs need to arrive before final assemblers run.","A partially built block may not reach its planned output."],"Finish and test one block before copying it."],
  f2:["Planned machine inventory","Count each planned assembler once.","A recipe may appear in multiple blocks, but should not be double-counted.",["The inventory is a design estimate.","The totals assume the selected long-term block sizes.","It does not automatically add machines to Existing factory."],"Compare against what you have already built before placing new machines."],
@@ -1144,16 +1146,18 @@ const HELP_MAP={
  balance:['.balance-overview','b0','.balance-ledger-panel','b1','.balance-insights','b2','> .section.panel','b3'],
  setup:['#setupSmeltingPanel','s0','#setupOilPanel','s1','#setupMachinesPanel','s2','#setupBeltsPanel','s3','#setupComparePanel','s4','#setupStorePanel','s5'],
  build:['> .section','n4','n0','n1','n2','n3','n5'],
- factory:['> .section','f0','f1','f2','f3','f4','f5'],
+ factory:['> .section','p0','p1','f0','f1','f2','f3','f4','f5'],
  learn:['> .section','g0','g1','g2']
 };
-const HELP_DEFAULT={balance:'b0',setup:'s0',build:'n4',factory:'f0',learn:'g0'};
+const HELP_DEFAULT={balance:'b0',setup:'s0',build:'n4',factory:'p0',learn:'g0'};
 let guideOpen=false, guideTopic='',guideFocus=null,guideScroll=0;
 function mountGuideTargets(){
  for(const id of ['build','factory','learn']){
   const view=document.getElementById(id);
   const sections=id==='build'?
    [...view.querySelectorAll(':scope > [data-ratio-explorer="build"], :scope > #buildClassic > .build-classic-content > .section')]:
+   id==='factory'?
+   [...view.querySelectorAll(':scope > #projectsOverview, :scope > #projectsListPanel, :scope > #legacyDistrict > .legacy-district-content > .section')]:
    [...view.querySelectorAll(':scope > .section')];
   sections.forEach((node,i)=>{
    const key=HELP_MAP[id][i+1];if(HELP_DATA[key])node.dataset.guideTopic=key;
