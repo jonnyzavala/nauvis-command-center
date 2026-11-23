@@ -156,6 +156,10 @@ function init(){
          selectField('quickTier','Assembler tier',[['0.5','Assembler 1'],['0.75','Assembler 2'],['1.25','Assembler 3']],row.tier||.75)+'</div>';
      }else html+=selectField('quickTier','Belt tier',[['yellow','Yellow · 900/min'],['red','Red · 1,800/min'],['blue','Blue · 2,700/min']],row.tier);
      html+='</div>';
+     const selectedLabel=machine?(ctx.recipeNames[row.recipe]||R[row.recipe]?.[0]||row.recipe):
+      (feedMaterials.find(x=>x[0]===row.recipe)?.[1]||row.recipe);
+     html+='<div id="quickItemPreview" class="quick-item-preview">'+(root.NauvisIcons?.item?.(row.recipe,38)||'')+
+      '<span>'+esc(selectedLabel)+'<small>Original NAUVIS icon · local asset</small></span></div>';
      html+='<p class="quick-help">'+(machine?'New lines count actual assemblers or chemical plants, not planned machines.':'Belts represent transport capacity, not additional production.')+'</p>';
      removeButton.hidden=target==='new';
      saveButton.textContent=target==='new'?'Add to existing factory':'Save change';
@@ -182,7 +186,14 @@ function init(){
    body.innerHTML=html;
    if(mode==='machine'||mode==='belt'){
      $('quickTarget').addEventListener('change',e=>{target=e.target.value;render()});
-     if(mode==='machine')$('quickRecipe').addEventListener('change',e=>{$('quickTierField').hidden=R[e.target.value]?.[3]!=='asm'});
+     $('quickRecipe').addEventListener('change',e=>{
+       const key=e.target.value;
+       if(mode==='machine')$('quickTierField').hidden=R[key]?.[3]!=='asm';
+       const name=mode==='machine'?(ctx.recipeNames[key]||R[key]?.[0]||key):
+        (feedMaterials.find(x=>x[0]===key)?.[1]||key);
+       $('quickItemPreview').innerHTML=(root.NauvisIcons?.item?.(key,38)||'')+
+        '<span>'+esc(name)+'<small>Original NAUVIS icon · local asset</small></span>';
+      });
    }else if(mode==='smelt'||mode==='oil')$('quickMetric').addEventListener('change',e=>{field=e.target.value;render()});
    else $('quickTask').addEventListener('change',e=>{field=e.target.value;render()});
    const count=$('quickCount');

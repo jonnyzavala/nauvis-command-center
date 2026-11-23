@@ -84,6 +84,7 @@ if(typeof module==='object'&&module.exports)
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id);
 const escape=s=>String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
+const itemGlyph=(id,size)=>root.NauvisIcons?.item?.(id,size)||'';
 const colorFor=(recipe,kind)=>{
  if(typeof csscolor==='function'&&R?.[recipe])return csscolor(recipe,kind);
  return '#bba5e5';
@@ -122,7 +123,7 @@ function projectHTML(p){
   const mismatch=saved.mismatch||saved.count!==task.built;
   const cannotRecord=task.kind==='furnace';
   return '<div class="project-task" style="--project-task-accent:'+color+'">'+
-   '<div class="project-task-identity"><span class="project-task-led" aria-hidden="true"></span><div><strong>'+escape(R[task.recipe]?.[0]||task.recipe)+'</strong><small>'+escape(noun(task.kind))+' · '+task.planned+' planned'+(task.kind==='asm'?' · Assembler '+(p.goal.machine===1.25?'3':'2'):'')+'</small></div></div>'+
+   '<div class="project-task-identity"><span class="project-task-led" aria-hidden="true"></span>'+itemGlyph(task.recipe,32)+'<div><strong>'+escape(R[task.recipe]?.[0]||task.recipe)+'</strong><small>'+escape(noun(task.kind))+' · '+task.planned+' planned'+(task.kind==='asm'?' · Assembler '+(p.goal.machine===1.25?'3':'2'):'')+'</small></div></div>'+
    '<div class="project-task-controls"><button type="button" data-project-minus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Mark one fewer '+escape(task.recipe)+' built" '+(archived||task.built<=0||mismatch?'disabled':'')+'>−</button>'+
    '<span class="project-task-counter"><b>'+task.built+'</b><small>/ '+task.planned+' built</small></span>'+
    '<button type="button" data-project-plus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Mark one more '+escape(task.recipe)+' built" '+(archived||task.built>=task.planned||mismatch||cannotRecord?'disabled':'')+'>+</button></div>'+
@@ -132,7 +133,7 @@ function projectHTML(p){
    '</div></div>';
  }).join('');
  return '<article class="project-card" data-project-card="'+escape(p.id)+'" style="--project-card-accent:'+colorFor(p.goal.id,'asm')+'">'+
-  '<div class="project-card-top"><span class="project-card-icon" aria-hidden="true">▦</span>'+
+  '<div class="project-card-top"><span class="project-card-icon" aria-hidden="true">'+itemGlyph(p.goal.id,34)+'</span>'+
   '<div class="project-card-intro"><h3>'+escape(p.name)+'</h3><p>'+escape(R[p.goal.id]?.[0]||p.goal.id)+' · '+fmt(p.goal.rate)+'/min · '+(p.goal.source==='bus'?'Bus fed':'Raw inputs')+'</p></div>'+
   '<span class="project-card-status">'+(archived?'ARCHIVED':pct===100?'BUILT':'IN PROGRESS')+'</span></div>'+
   '<div class="project-card-progress"><div class="project-card-progress-top"><strong>'+progress.built+' / '+progress.planned+' machines built</strong><span>'+pct+'%</span></div>'+

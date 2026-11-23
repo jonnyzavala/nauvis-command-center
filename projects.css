@@ -130,3 +130,83 @@ body[data-workspace="factory"]{
 .ratio-save-project:hover{filter:brightness(1.1)}
 .ratio-save-project:focus-visible{outline:2px solid var(--workspace-accent);outline-offset:3px}
 @media(max-width:650px){.ratio-save-project{width:100%}}
+
+
+/* v0.24: One source of truth for every tab's dot, background accent and spectrum.
+   Stops follow actual navigation order: Guide → Factory → Balance → Planner → Projects. */
+:root{
+ --nauvis-guide:#9ab0c1;
+ --nauvis-factory:#eec277;
+ --nauvis-balance:#79d0ad;
+ --nauvis-planner:#65b5ff;
+ --nauvis-projects:#bba5e5;
+}
+body[data-workspace="learn"]{--workspace-accent:var(--nauvis-guide)}
+body[data-workspace="setup"]{--workspace-accent:var(--nauvis-factory)}
+body[data-workspace="balance"]{--workspace-accent:var(--nauvis-balance)}
+body[data-workspace="build"]{--workspace-accent:var(--nauvis-planner)}
+body[data-workspace="factory"]{--workspace-accent:var(--nauvis-projects)}
+.nav button[data-view="learn"]{--tab-color:var(--nauvis-guide)}
+.nav button[data-view="setup"]{--tab-color:var(--nauvis-factory)}
+.nav button[data-view="balance"]{--tab-color:var(--nauvis-balance)}
+.nav button[data-view="build"]{--tab-color:var(--nauvis-planner)}
+.nav button[data-view="factory"]{--tab-color:var(--nauvis-projects)}
+.nav button[data-view="learn"] .nav-dot{background:var(--nauvis-guide)}
+.nav button[data-view="setup"] .nav-dot{background:var(--nauvis-factory)}
+.nav button[data-view="balance"] .nav-dot{background:var(--nauvis-balance)}
+.nav button[data-view="build"] .nav-dot{background:var(--nauvis-planner)}
+.nav button[data-view="factory"] .nav-dot{background:var(--nauvis-projects)}
+.nav button.active .nav-dot{
+ background:var(--tab-color,var(--workspace-accent));
+ box-shadow:0 0 0 3px color-mix(in srgb,var(--tab-color,var(--workspace-accent)) 16%,transparent),
+ 0 0 11px color-mix(in srgb,var(--tab-color,var(--workspace-accent)) 55%,transparent);
+}
+.nav-track::after,.command-chrome .nav-track::after{
+ /* Centers of each of the five equal-order segments are 10/30/50/70/90%. */
+ background:linear-gradient(90deg,
+  var(--nauvis-guide) 0%,var(--nauvis-guide) 10%,
+  var(--nauvis-factory) 30%,
+  var(--nauvis-balance) 50%,
+  var(--nauvis-planner) 70%,
+  var(--nauvis-projects) 90%,var(--nauvis-projects) 100%);
+ opacity:1;
+ height:4px;
+ box-shadow:0 0 8px color-mix(in srgb,var(--workspace-accent) 22%,transparent);
+}
+
+/* Responsive spectrum: each tab paints its own three-stop gradient segment.
+   Adjacent segments share their boundary blend, so this stays aligned when the
+   tab names have different widths or the iPhone navigation scrolls sideways. */
+.command-chrome .nav-track::after{display:none}
+.command-chrome .nav-track>button{
+ position:relative;
+ --tab-prev:var(--tab-color);
+ --tab-next:var(--tab-color);
+}
+.command-chrome .nav-track>button[data-view="learn"]{
+ --tab-prev:var(--nauvis-guide);--tab-next:var(--nauvis-factory);
+}
+.command-chrome .nav-track>button[data-view="setup"]{
+ --tab-prev:var(--nauvis-guide);--tab-next:var(--nauvis-balance);
+}
+.command-chrome .nav-track>button[data-view="balance"]{
+ --tab-prev:var(--nauvis-factory);--tab-next:var(--nauvis-planner);
+}
+.command-chrome .nav-track>button[data-view="build"]{
+ --tab-prev:var(--nauvis-balance);--tab-next:var(--nauvis-projects);
+}
+.command-chrome .nav-track>button[data-view="factory"]{
+ --tab-prev:var(--nauvis-planner);--tab-next:var(--nauvis-projects);
+}
+.command-chrome .nav-track>button::after{
+ content:"";position:absolute;pointer-events:none;
+ bottom:-13px;left:-3px;right:-3px;height:4px;border-radius:3px;
+ background:linear-gradient(90deg,
+  color-mix(in srgb,var(--tab-color) 50%,var(--tab-prev)) 0%,
+  var(--tab-color) 50%,
+  color-mix(in srgb,var(--tab-color) 50%,var(--tab-next)) 100%);
+ box-shadow:0 0 8px color-mix(in srgb,var(--tab-color) 22%,transparent);
+}
+@media(max-width:480px){
+ .command-chrome .nav-track>button::after{bottom:-11px}
+}
