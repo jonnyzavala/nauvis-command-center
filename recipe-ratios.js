@@ -88,7 +88,7 @@ const colorFor=(id,kind)=>csscolor(id,kind);
 const cards=[...document.querySelectorAll('[data-ratio-explorer]')];
 const select=(items,chosen)=>items.map(([v,title])=>'<option value="'+escape(v)+'"'+(String(v)===String(chosen)?' selected':'')+'>'+escape(title)+'</option>').join('');
 function descriptionForRate(r){
- return r.rate+' output/min ÷ '+r.outputPerCraft+' per craft = '+precision(r.craftsPerMinute)+' crafts/min.';
+ return number(r.needed)+' output/min ÷ '+number(r.outputPerCraft)+' per craft = '+precision(r.craftsPerMinute)+' crafts/min.';
 }
 function buildView(result,card){
  const cardKey=card.dataset.ratioExplorer;
