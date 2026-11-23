@@ -60,7 +60,7 @@ function buildFlowGraph(result){
 }
 if(typeof module==='object'&&module.exports)module.exports={buildFlowGraph};
 if(typeof document==='undefined')return;
-const browserViews=new WeakMap();
+const browserViews=new Map();
 const colors={
   'advanced-circuit':'#f18b86','electronic-circuit':'#79d0ad',
   'processing-unit':'#82bdf0','copper-cable':'#eec277',
@@ -86,7 +86,7 @@ function fullLabel(node){return node.label+' '+machineNoun(node.kind)}
 function mount(target,result,cardKey){
  const holder=target.querySelector('[data-ratio-flow-root]');if(!holder)return;
  const graph=buildFlowGraph(result);
- const older=browserViews.get(holder);
+ const older=browserViews.get(cardKey);
  older?.observer?.disconnect();
  older?.cancel?.();
  const mode=(root.NauvisRatioFlow?.modeByCard?.get(cardKey)||'flow');
@@ -111,9 +111,9 @@ function mount(target,result,cardKey){
  const controls=[...holder.querySelectorAll('[data-flow-mode]')];
  const checkbox=holder.querySelector('[data-flow-input-toggle]');
  const panel=target.querySelector('[data-ratio-legacy-table]');
- const state={graph,display,holder,result,cardKey,inputVisible,selected:null,observer:null,
+ const state={graph,display,holder,result,cardKey,inputVisible,selected:older?.selected||null,observer:null,
   cancel:null,redraw:null};
- browserViews.set(holder,state);
+ browserViews.set(cardKey,state);
  function update(){
   const inFlow=root.NauvisRatioFlow.modeByCard.get(cardKey)!=='table';
   controls.forEach(b=>{
@@ -142,13 +142,13 @@ function mount(target,result,cardKey){
 }
 function drawLayout(state){
  const {graph,display,result}=state;
- const columns=graph.columns.map((col,idx)=>col.filter(n=>state.inputVisible||n.type==='machine'));
+ const columns=graph.columns.map(col=>col.filter(n=>state.inputVisible||n.type==='machine')).filter(col=>col.length);
  const visible=new Set(columns.flat().map(n=>n.key));
  const links=graph.edges.filter(e=>visible.has(e.from)&&visible.has(e.to));
  const nCols=columns.length;
  const stages=columns.map((nodes,idx)=>
   '<section class="ratio-flow-stage" aria-label="Stage '+(idx+1)+'">'+
-  '<span class="ratio-flow-stage-label">'+(idx===nCols-1?'FINAL OUTPUT':idx===0?'UPSTREAM SOURCES':'STAGE '+(idx+1))+'</span>'+
+  '<span class="ratio-flow-stage-label">'+(idx===nCols-1?'FINAL OUTPUT':idx===0?'FIRST PRODUCTION STEP':'STAGE '+(idx+1))+'</span>'+
   nodes.map(nodeMarkup).join('')+
   '</section>'
  ).join('');
@@ -177,8 +177,10 @@ function drawLayout(state){
   const outputs=graph.edges.filter(e=>e.from===node.key);
   const toText=(edge,direction)=>{
    const other=nodeByKey.get(direction==='in'?edge.from:edge.to);
-   return '<span class="ratio-flow-connection">'+formatted(edge.rate)+'/min '+escapeHTML(edge.item==='?'?'':(direction==='in'?(other?.label||edge.item):node.label))+
-     '<span class="ratio-flow-connection-arrow"> '+(direction==='in'?'from':'→')+' '+escapeHTML(direction==='in'?node.label:other?.label||edge.to)+'</span></span>';
+   const from=direction==='in'?(other?.label||edge.item):node.label;
+   const to=direction==='in'?node.label:(other?.label||edge.to);
+   return '<span class="ratio-flow-connection"><b>'+formatted(edge.rate)+'/min</b> '+escapeHTML(from)+
+     '<span class="ratio-flow-connection-arrow">→ '+escapeHTML(to)+'</span></span>';
   };
   summary.innerHTML='<div class="ratio-flow-detail-top"><span class="ratio-flow-selected-title">'+escapeHTML(node.label)+'</span>'+
     (node.type==='machine'?'<strong>'+formatted(node.count)+' '+machineNoun(node.kind)+'</strong>':'<strong>'+formatted(node.needed)+'/min supplied</strong>')+'</div>'+
@@ -197,7 +199,7 @@ function drawLayout(state){
   const nodesEl=new Map(cards.map(x=>[x.dataset.flowNode,x]));
   const lineMarkup=[];
   // Only label all branches in small maps. Larger maps reveal rates on selection.
-  const permanent=links.length<=6;
+  const permanent=links.length<=6&&!vertical;
   for(let i=0;i<links.length;i++){
    const edge=links[i],src=nodesEl.get(edge.from),dst=nodesEl.get(edge.to);
    if(!src||!dst)continue;
@@ -232,7 +234,6 @@ function drawLayout(state){
   state.observer=new ResizeObserver(queueRedraw);
   state.observer.observe(canvas);
  }
- viewport.addEventListener('scroll',()=>{}, {passive:true});
 }
 root.NauvisRatioFlow={mount,buildFlowGraph,modeByCard:new Map(),inputByCard:new Map()};
 })(typeof window==='undefined'?globalThis:window);
