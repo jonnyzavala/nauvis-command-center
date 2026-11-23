@@ -93,8 +93,9 @@ const noun=kind=>kind==='asm'?'assemblers':kind==='chem'?'chemical plants':'furn
 const fmt=n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:1});
 let pending=null,editing=null,showArchived=false,notice='';
 function allProjects(){return normalizeProjects(factory.projects)}
-function setProjects(projects){
+function setProjects(projects,event){
  factory.projects=projects;
+ if(event)root.NauvisJournal?.record?.(event);
  save();
  render();
 }
@@ -177,11 +178,19 @@ function saveDialog(event){
  try{
   const name=validateProjectName($('projectsName').value);
   if(editing){
-   setProjects(allProjects().map(p=>p.id===editing?{...p,name}:p));
+   const original=selectedProject(editing);
+   setProjects(allProjects().map(p=>p.id===editing?{...p,name}:p),{
+    type:'project',source:'Construction Queue',projectId:editing,title:'Renamed project',
+    detail:(original?.name||'Project')+' → '+name
+   });
   }else{
    if(!pending)throw Error('No production calculation selected.');
    const project=buildProject(name,pending,uniqueId(),new Date().toISOString());
-   setProjects([...allProjects(),project]);
+   setProjects([...allProjects(),project],{
+    type:'project',source:'Blueprint Designer',projectId:project.id,
+    recipe:project.goal.id,title:'Saved construction project',
+    detail:project.name+' · '+project.tasks.reduce((n,t)=>n+t.planned,0)+' machines planned · 0 built'
+   });
    notice='Saved '+project.name+'. Machine counts are planned, not yet built.';
   }
   $('projectsDialog').close();editing=null;pending=null;render();
@@ -199,9 +208,21 @@ function updateBuilt(id,recipe,delta){
   // Cloud snapshots will therefore always see both sides of the same adjustment.
   factory.projects=allProjects().map(p=>p.id===id?change.project:p);
   setup.machines=change.rows;
+  const task=change.project.tasks.find(t=>t.recipe===recipe);
+  const otherRows=setup.machines.filter(row=>!row.projectId&&row.recipe===recipe&&
+   (R[recipe]?.[3]!=='asm'||Math.abs(Number(row.tier)-Number(project.goal.machine))<1e-8));
+  const unlinked=otherRows.reduce((sum,row)=>sum+Math.max(0,Number(row.count)||0),0);
+  const item=R[recipe]?.[0]||recipe;
+  root.NauvisJournal?.record?.({
+   type:'construction',source:'Construction Queue',projectId:id,recipe,delta,
+   before:task.built-delta,after:task.built,
+   title:(delta>0?'Built +1 ':'Reversed −1 ')+item+' machine',
+   detail:project.name+' · '+(task.built-delta)+' → '+task.built+' built · Factory inventory updated once.'+
+     (unlinked&&delta>0?' Review '+unlinked+' unlinked '+item+' machines already recorded in Factory to avoid double-counting.':'')
+  });
   saveSetup();save();renderSetup();
-  notice=delta>0?'Built 1 machine and recorded it in Factory. Set its destination there if needed.':
-   'Reversed 1 built machine and updated Factory.';
+  notice=delta>0?'Built 1 machine and recorded it in Factory and the journal. Verify its destination under Factory.':
+   'Reversed 1 built machine in both Factory and your journal.';
   render();
   if(expanded){
    const detail=$('projectsList')?.querySelector('[data-project-card="'+id+'"] .project-task-details');
@@ -240,7 +261,11 @@ function attachEvents(){
   else if(b.hasAttribute('data-project-visit'))navigateToPlan(id);
   else if(b.hasAttribute('data-project-rename')){ $('projectsDialogError').hidden=true;openDialog('rename',project)}
   else if(b.hasAttribute('data-project-archive')){
-   setProjects(allProjects().map(p=>p.id===id?{...p,status:p.status==='archived'?'active':'archived'}:p));
+   const restored=project.status==='archived';
+   setProjects(allProjects().map(p=>p.id===id?{...p,status:restored?'active':'archived'}:p),{
+    type:'project',source:'Construction Queue',projectId:id,recipe:project.goal.id,
+    title:(restored?'Restored':'Archived')+' project',detail:project.name
+   });
   }
  });
 }
