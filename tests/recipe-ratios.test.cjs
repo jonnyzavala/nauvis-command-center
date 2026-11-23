@@ -60,7 +60,6 @@ test('small goals expose exact machine equivalents before per-recipe integer rou
  assert.ok(result.entries.some(x=>x.exact!==x.count));
 });
 test('assembler tiers alter production rate, but not fixed furnace/chemical speeds',()=>{
- close(run('advanced-circuit',90,.5).entries.at(-1).perMachine,5);
  close(run('advanced-circuit',90,.75).entries.at(-1).perMachine,7.5);
  close(run('advanced-circuit',90,1.25).entries.at(-1).perMachine,12.5);
  close(run('plastic-bar',120,.5).entries.at(-1).perMachine,120);
@@ -103,6 +102,7 @@ test('invalid IDs, unsupported machines, and unreasonable input fail validation'
  assert.throws(()=>run('advanced-circuit',25001));
  assert.throws(()=>run('advanced-circuit',-1));
  assert.throws(()=>run('advanced-circuit',90,2));
+ assert.throws(()=>run('advanced-circuit',90,.5));
  assert.throws(()=>analyzeRecipeRatios(R,{id:'advanced-circuit',rate:30,machine:.75,belt:9999,source:'bus'},ctx));
 });
 test('recipe ratio panels exist on existing workspaces without a sixth tab',()=>{
