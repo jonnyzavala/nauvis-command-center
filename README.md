@@ -27,6 +27,10 @@ Use the floating **Quick change** control from any tab. This writes directly to 
 
 Changes are saved locally first, including offline. Paired devices synchronize changes through the existing cloud outbox. A conflict must still be resolved explicitly when both devices edit concurrently.
 
+## Persistent footer dock (v0.19)
+
+Quick Change and Quick Guide share one bottom dock on laptop and iPhone. The compact **+** Quick Change icon on iPhone retains an accessible name. A fixed matching workspace-color blueprint canvas masks content scrolling underneath the footer, like the sticky header. Quick Guide's explanation opens above the footer instead of resizing it. Only one expanded panel is shown at a time, and Escape or the Close control closes it.
+
 ## Sync and safety
 
 See [Cloud Sync Setup](sync/README.md). Pair devices using a private recovery key and a public Supabase project URL and publishable key. **Never commit the private recovery key, service_role key, database password, or other secrets.** JSON backups are available in Future Plan.
