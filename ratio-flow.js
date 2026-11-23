@@ -69,6 +69,7 @@ const colors={
 function nodeColor(node){
  return colors[node.recipe]||colors[node.kind]||(node.type==='supply'?'#94b6c9':'#bba5e5');
 }
+const itemGlyph=(id,size)=>root.NauvisIcons?.item?.(id,size)||'';
 function nodeMarkup(node){
  const color=nodeColor(node),label=escapeHTML(node.label);
  return '<button class="ratio-flow-node'+(node.final?' ratio-flow-final':'')+
@@ -76,9 +77,9 @@ function nodeMarkup(node){
     '" style="--node-color:'+color+'" aria-pressed="false">'+
    '<span class="ratio-flow-node-dot" aria-hidden="true"></span>'+
    (node.type==='machine'?
-     '<span class="ratio-flow-count">'+formatted(node.count)+'</span>'+
+     itemGlyph(node.recipe,40)+'<span class="ratio-flow-count">'+formatted(node.count)+'</span>'+
      '<span class="ratio-flow-node-label"><strong>'+label+'</strong><b>'+machineNoun(node.kind)+'</b><small>Needs '+formatted(node.needed)+'/min output</small></span>':
-     '<span class="ratio-flow-supply-mark" aria-hidden="true">'+(node.kind==='fluid'?'◉':'◆')+'</span>'+
+     itemGlyph(node.recipe,34)+
      '<span class="ratio-flow-node-label"><strong>'+label+'</strong><b>Input supply</b><small>'+formatted(node.needed)+'/min</small></span>')+
    '</button>';
 }
@@ -93,7 +94,7 @@ function mount(target,result,cardKey){
  const inputVisible=root.NauvisRatioFlow?.inputByCard?.get(cardKey)??true;
  const compact=graph.nodes.filter(n=>n.type==='machine');
  const buildList=compact.map(n=>
-  '<span class="ratio-flow-build-chip" style="--node-color:'+nodeColor(n)+'"><strong>'+
+  '<span class="ratio-flow-build-chip" style="--node-color:'+nodeColor(n)+'">'+itemGlyph(n.recipe,35)+'<strong>'+
   formatted(n.count)+'</strong><span>'+escapeHTML(fullLabel(n))+'</span></span>'
  ).join('');
  holder.innerHTML=
@@ -182,7 +183,7 @@ function drawLayout(state){
    return '<span class="ratio-flow-connection"><b>'+formatted(edge.rate)+'/min</b> '+escapeHTML(from)+
      '<span class="ratio-flow-connection-arrow">→ '+escapeHTML(to)+'</span></span>';
   };
-  summary.innerHTML='<div class="ratio-flow-detail-top"><span class="ratio-flow-selected-title">'+escapeHTML(node.label)+'</span>'+
+  summary.innerHTML='<div class="ratio-flow-detail-top"><span class="ratio-flow-selected-title">'+itemGlyph(node.recipe,27)+escapeHTML(node.label)+'</span>'+
     (node.type==='machine'?'<strong>'+formatted(node.count)+' '+machineNoun(node.kind)+'</strong>':'<strong>'+formatted(node.needed)+'/min supplied</strong>')+'</div>'+
    '<div class="ratio-flow-detail-lanes">'+
    '<div><small>REQUIRES</small>'+(inputs.length?inputs.map(e=>toText(e,'in')).join(''):'<span class="ratio-muted">External input or no modeled upstream recipe</span>')+'</div>'+
