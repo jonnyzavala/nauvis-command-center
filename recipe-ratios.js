@@ -85,6 +85,7 @@ const machineName=kind=>kind==='asm'?'assemblers':kind==='chem'?'chemical plants
 const state={id:guide.goal,rate:guide.rate,machine:guide.machine,source:guide.source,belt:guide.belt};
 const recipes=R,contexts={stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names};
 const colorFor=(id,kind)=>csscolor(id,kind);
+const itemGlyph=(id,size)=>root.NauvisIcons?.item?.(id,size)||'';
 const cards=[...document.querySelectorAll('[data-ratio-explorer]')];
 const select=(items,chosen)=>items.map(([v,title])=>'<option value="'+escape(v)+'"'+(String(v)===String(chosen)?' selected':'')+'>'+escape(title)+'</option>').join('');
 function descriptionForRate(r){
@@ -106,22 +107,22 @@ function buildView(result,card){
   const pct=x.exact>0?Math.min(100,Math.max(2,100*x.exact/Math.max(1,x.count))):0;
   const color=colorFor(x.key,x.kind);
   return '<div class="ratio-part" style="--ratio-accent:'+color+'">'+
-    '<div class="ratio-part-name"><span class="ratio-dot" aria-hidden="true"></span><div><b>'+escape(x.name)+'</b><div class="ratio-muted">'+number(x.needed)+'/min required · '+machineName(x.kind)+'</div></div></div>'+
+    '<div class="ratio-part-name">'+itemGlyph(x.key,34)+'<div><b>'+escape(x.name)+'</b><div class="ratio-muted">'+number(x.needed)+'/min required · '+machineName(x.kind)+'</div></div></div>'+
     '<div class="ratio-part-count"><strong>'+x.count+'</strong><span>whole</span></div>'+
     '<div class="ratio-mini-meter"><span style="width:'+pct+'%"></span></div>'+
     '<div class="ratio-muted">Exact equivalent: '+precision(x.exact)+' machines · '+number(x.perMachine)+'/min each</div>'+
     '</div>';
  }).join('');
- const shorthand=result.entries.map(x=>'<span class="ratio-chip" style="--ratio-accent:'+colorFor(x.key,x.kind)+'"><span class="ratio-dot"></span><b>'+x.count+'</b> '+escape(x.name)+'</span>').join('');
+ const shorthand=result.entries.map(x=>'<span class="ratio-chip" style="--ratio-accent:'+colorFor(x.key,x.kind)+'">'+itemGlyph(x.key,25)+'<b>'+x.count+'</b> '+escape(x.name)+'</span>').join('');
  const tableRows=result.entries.map(x=>
-    '<tr><td><strong>'+escape(x.name)+'</strong><div class="ratio-muted">'+machineName(x.kind)+'</div></td>'+
+    '<tr><td><span class="ratio-cell-item">'+itemGlyph(x.key,30)+'<strong>'+escape(x.name)+'</strong></span><div class="ratio-muted">'+machineName(x.kind)+'</div></td>'+
     '<td>'+number(x.needed)+'</td><td>'+number(x.perMachine)+'</td><td>'+precision(x.exact)+'</td><td class="ratio-rounded">'+x.count+'</td></tr>'
  ).join('');
  const detailed=result.entries.map((x,i)=>{
   const pieces=x.ingredients.map(z=>'<span>'+number(z.perCraft)+' '+escape(z.name)+(z.fluid?' fluid':'')+'</span>').join(' + ')||'No recorded ingredients';
   const ratioInfo=number(x.needed)+' ÷ '+number(x.perMachine)+' = '+precision(x.exact);
   const method=number(x.outputPerCraft)+' output/craft × '+precision(x.machineSpeed)+' speed × 60 ÷ '+number(x.craftSeconds)+' s = '+number(x.perMachine)+'/min per machine';
-  return '<details class="ratio-why-item"><summary><span><b>'+escape(x.name)+'</b><span class="ratio-muted"> · '+x.count+' '+machineName(x.kind)+'</span></span><span class="ratio-expand-arrow">⌄</span></summary>'+
+  return '<details class="ratio-why-item"><summary><span>'+itemGlyph(x.key,27)+'<b>'+escape(x.name)+'</b><span class="ratio-muted"> · '+x.count+' '+machineName(x.kind)+'</span></span><span class="ratio-expand-arrow">⌄</span></summary>'+
     '<div class="ratio-why-detail">'+
     '<p><b>Recipe:</b> '+number(x.craftSeconds)+' s per craft produces '+number(x.outputPerCraft)+' '+escape(x.name)+'; consumes '+pieces+'.</p>'+
     '<p><b>Required output:</b> '+descriptionForRate(x)+'</p>'+
@@ -131,7 +132,7 @@ function buildView(result,card){
     '</div></details>';
  }).join('');
  const supplies=result.external.map(x=>'<div class="ratio-supply">'+
-   '<div><b>'+escape(x.name)+'</b><small>'+ (x.isFluid?'Piped fluid':'Belted material')+'</small></div>'+
+   '<div>'+itemGlyph(x.key,31)+'<span><b>'+escape(x.name)+'</b><small>'+ (x.isFluid?'Piped fluid':'Belted material')+'</small></span></div>'+
    '<div class="ratio-supply-value">'+number(x.needed)+'/min<div class="ratio-muted">'+(x.isFluid?'Pipe flow not modeled':x.belts+' × '+(result.belt===900?'yellow':result.belt===1800?'red':'blue')+' belt'+(x.belts===1?'':'s')+' minimum')+'</div></div></div>').join('');
  const output=result.outputStream;
  const outputDesc=output.isFluid?'Output uses pipes; pipe throughput not modeled':(output.belts+' × '+(result.belt===900?'yellow':result.belt===1800?'red':'blue')+' belt'+(output.belts===1?'':'s')+' for final output');
