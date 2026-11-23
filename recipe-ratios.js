@@ -155,7 +155,7 @@ function buildView(result,card){
   '</div>'+
   '<details class="ratio-explain"><summary><span>Why this ratio? <small>Show recipe math and rounding for each machine group</small></span><span>⌄</span></summary>'+
   '<div class="ratio-explain-body"><p class="ratio-caveat">Machine output = items per craft × crafting speed × 60 ÷ recipe seconds. Divide needed items/min by output per machine/min, then round each group up.</p>'+detailed+'</div></details>'+
-  '<div class="ratio-actions"><button type="button" class="ratio-send" data-ratio-send>Send to Build Next <span aria-hidden="true">→</span></button><small>This updates the hypothetical Build Next goal only. Your Existing Factory inventory remains untouched.</small></div>'+
+  '<div class="ratio-actions"><button type="button" class="ratio-send" data-ratio-send>Open detailed planner with this goal <span aria-hidden="true">→</span></button><small>Updates the hypothetical planning goal only. Your Existing Factory inventory remains untouched.</small></div>'+
   '<p class="ratio-caveat">Model limits: default/base Nauvis recipes only; no alternative Space Age recipes, quality, modules, beacons, productivity bonuses, inserter constraints, mining throughput, pump control or physical routing. Furnaces are modeled at 2× and chemical plants at 1×.</p>';
 }
 function renderCard(card){
@@ -177,9 +177,12 @@ function renderCard(card){
    guide.goal=state.id;guide.rate=state.rate;guide.machine=state.machine;guide.source=state.source;guide.belt=state.belt;
    renderGuide();
    activateWorkspace('build',true);
-   if(card.dataset.ratioExplorer!=='build'){
-    const buildCard=document.querySelector('[data-ratio-explorer="build"]');
-    buildCard.open=true;renderCard(buildCard);
+   const buildCard=document.querySelector('[data-ratio-explorer="build"]');
+   if(buildCard&&!buildCard.open)buildCard.open=true;
+   const classic=document.getElementById('buildClassic');
+   if(classic){
+    classic.open=true;
+    if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>classic.scrollIntoView({behavior:'smooth',block:'start'}));
    }
   });
   const note=document.createElement('p');note.className='ratio-error';note.dataset.ratioError='';note.hidden=true;note.setAttribute('role','alert');target.prepend(note);
@@ -193,4 +196,5 @@ root.NauvisRatioExplorer={refresh:renderAll,openAt(view){
  const card=document.querySelector('[data-ratio-explorer="'+view+'"]');
  if(card){card.open=true;renderCard(card)}
 }};
+cards.filter(card=>card.open).forEach(renderCard);
 })(typeof window==='undefined'?globalThis:window);

@@ -613,23 +613,29 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.21 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.22 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
-  <nav class="nav" aria-label="Factory workflow: learn, inspect, plan, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick guide</button><button data-view="setup" type="button"><span class="nav-dot" aria-hidden="true"></span>Existing factory</button><button data-view="balance" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory balance</button><button data-view="factory" type="button"><span class="nav-dot" aria-hidden="true"></span>Future plan</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Build next</button></div></nav>
+  <nav class="nav" aria-label="Factory workflow: learn, inspect, plan, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick guide</button><button data-view="setup" type="button"><span class="nav-dot" aria-hidden="true"></span>Existing factory</button><button data-view="balance" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory balance</button><button data-view="factory" type="button"><span class="nav-dot" aria-hidden="true"></span>Future plan</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Visual planner</button></div></nav>
  </div>
  <main>
  <section class="view" id="build">
-  <div class="hero"><div class="eyebrow">STEP-BY-STEP PRODUCTION PLANNER</div><h1>What are we building next?</h1><p>Choose an item. I'll calculate the machine counts, the supporting intermediates, and whether your belts can carry everything. Start with the suggested scale, then expand Recipe Ratios when you want the math.</p></div>
-  <section class="section panel"><div class="section-head"><h2><span class="step">1</span> Choose an item</h2><span class="small">Common Nauvis builds</span></div><div class="goalgrid" id="goalGrid"></div><div class="customrow"><label for="allRecipes">Other recipe:</label><select id="allRecipes" class="select" aria-label="All supported recipes"></select><span class="small">33 supported recipes</span></div></section>
+  <div class="hero"><div class="eyebrow">VISUAL RECIPE & PRODUCTION PLANNER</div><h1>Visual production planner</h1><p>Choose your recipe and output target below. See the machines to build and how ingredients flow between them. The detailed step-by-step calculator is available underneath.</p></div>
+  <details class="section ratio-explorer ratio-featured" data-ratio-explorer="build" open>
+  <summary><span class="ratio-header-left"><span class="ratio-header-icon" aria-hidden="true">∶</span><span><span class="ratio-header-title">Visual production chain</span><span class="ratio-header-subtitle">Your production blueprint: machine counts first, connections next, detailed math on demand.</span></span></span><span class="ratio-header-end"><span>VISUAL PLANNER</span><span class="ratio-header-chevron" aria-hidden="true">⌄</span></span></summary>
+  <div class="ratio-content"></div>
+ </details>
+  <details id="buildClassic" class="section build-classic">
+   <summary><span class="build-classic-summary-icon" aria-hidden="true">▤</span><span class="build-classic-summary-copy"><strong>Detailed step-by-step planner</strong><small>Preset scales, traditional build list, supplies, and belt calculations</small></span><span class="build-classic-chevron" aria-hidden="true">⌄</span></summary>
+   <div class="build-classic-content">
+<section class="section panel"><div class="section-head"><h2><span class="step">1</span> Choose an item</h2><span class="small">Common Nauvis builds</span></div><div class="goalgrid" id="goalGrid"></div><div class="customrow"><label for="allRecipes">Other recipe:</label><select id="allRecipes" class="select" aria-label="All supported recipes"></select><span class="small">33 supported recipes</span></div></section>
   <section class="section panel"><div class="section-head"><h2><span class="step">2</span> Choose the scale</h2><span class="small">The middle option is our recommended starting point.</span></div><div class="choicegrid" id="scaleOptions"></div><div class="scalehelper"><label for="goalNumber">Or set an exact target:</label><input id="goalNumber" type="number" min="0" max="25000" step="1" inputmode="numeric"/><span class="small">items per minute, not machines</span></div></section>
   <section class="section"><div class="section-head"><h2><span class="step">3</span> Here's what to build</h2><span id="goalStatus" class="tag green">Suggested plan</span></div><div class="resulthero"><div><div class="big" id="totalMachines">19</div><div class="unit">machines in this complete production chain</div></div><div class="resulttext"><b id="resultTitle">90 red circuits per minute</b><p class="small" id="resultSubtitle" style="margin:6px 0 0">Includes dedicated circuit and cable production.</p></div></div><div id="machineMetrics" class="metrics"></div></section>
   <section class="section twocol"><div class="panel"><div class="section-head"><h2>Build in this order</h2><span class="small">Inputs first, final assemblers last</span></div><div id="machineList"></div><details class="explain"><summary>Why these machine counts?</summary><div id="machineWhy" class="small"></div></details></div><div class="panel"><div class="section-head"><h2>Supplies + belt check</h2><span class="small">What to deliver and how fast</span></div><div id="suppliesList"></div><div class="notice" id="supplyCaveat" style="margin-top:12px">These are full-speed requirements, not what your base is currently consuming.</div><div id="beltMessage" class="notice good" style="margin-top:12px"></div>
   <details class="advanced"><summary>More: belt-by-belt calculations and settings</summary><p class="small">A full yellow belt carries 900 items/min; red carries 1,800. Faster belts don't increase production.</p><div id="beltList" class="belts" style="margin-top:13px"></div><div class="settings"><div class="setting"><label for="assemblyTier">Assembler tier</label><select id="assemblyTier"><option value="0.75">Assembler 2 (current)</option><option value="1.25">Assembler 3</option></select></div><div class="setting"><label for="sourceMode">Count which intermediates?</label><select id="sourceMode"><option value="bus">Start with bus materials (recommended)</option><option value="raw">Include smelting and chemical intermediates</option></select></div><div class="setting"><label for="beltTier">Current transport belt</label><select id="beltTier"><option value="900">Yellow</option><option value="1800">Red</option><option value="2700">Blue</option></select></div></div><p class="small">Each material is assumed to use both belt lanes with no stacking. A mixed belt carries less of each item. Inserter limits aren't modeled yet.</p></details></div></section>
-  <details class="section ratio-explorer" data-ratio-explorer="build">
-  <summary><span class="ratio-header-left"><span class="ratio-header-icon" aria-hidden="true">∶</span><span><span class="ratio-header-title">Recipe ratios & why they work</span><span class="ratio-header-subtitle">Explore machine math and upstream ingredients, or send a different ratio to Build Next.</span></span></span><span class="ratio-header-end"><span>EXPAND RATIOS</span><span class="ratio-header-chevron" aria-hidden="true">⌄</span></span></summary>
-  <div class="ratio-content"></div>
- </details>
+  
   <section class="section panel"><div class="section-head"><h2>One important thing</h2></div><p class="small" style="margin:0">This is the complete chain for <b>one selected goal</b>. Open <b>Existing factory</b> to record what you already have and see which machines are reusable. <b>Future plan</b> holds your long-term district design. The current numbers assume normal-quality machinery, no modules or beacons, continuous ingredient supply.</p></section>
+   </div>
+  </details>
  </section>
 
  <section class="view active" id="balance">
@@ -772,7 +778,7 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v0.21 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.22 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script>
 'use strict';
@@ -1104,16 +1110,19 @@ const HELP_DATA={
 const HELP_MAP={
  balance:['.balance-overview','b0','.balance-ledger-panel','b1','.balance-insights','b2','> .section.panel','b3'],
  setup:['#setupSmeltingPanel','s0','#setupOilPanel','s1','#setupMachinesPanel','s2','#setupBeltsPanel','s3','#setupComparePanel','s4','#setupStorePanel','s5'],
- build:['> .section','n0','n1','n2','n3','n4','n5'],
+ build:['> .section','n4','n0','n1','n2','n3','n5'],
  factory:['> .section','f0','f1','f2','f3','f4','f5'],
  learn:['> .section','g0','g1','g2']
 };
-const HELP_DEFAULT={balance:'b0',setup:'s0',build:'n0',factory:'f0',learn:'g0'};
+const HELP_DEFAULT={balance:'b0',setup:'s0',build:'n4',factory:'f0',learn:'g0'};
 let guideOpen=false, guideTopic='',guideFocus=null,guideScroll=0;
 function mountGuideTargets(){
  for(const id of ['build','factory','learn']){
   const view=document.getElementById(id);
-  [...view.querySelectorAll(':scope > .section')].forEach((node,i)=>{
+  const sections=id==='build'?
+   [...view.querySelectorAll(':scope > [data-ratio-explorer="build"], :scope > #buildClassic > .build-classic-content > .section')]:
+   [...view.querySelectorAll(':scope > .section')];
+  sections.forEach((node,i)=>{
    const key=HELP_MAP[id][i+1];if(HELP_DATA[key])node.dataset.guideTopic=key;
   });
  }
@@ -1183,7 +1192,7 @@ function activateWorkspace(view,scrollPage=false){
  const allowed=new Set(['learn','setup','balance','factory','build']);
  if(!allowed.has(view))view='balance';
  document.body.dataset.workspace=view;
- const workspaceNames={learn:'Quick guide',setup:'Existing factory',balance:'Factory balance',factory:'Future plan',build:'Build next'};
+ const workspaceNames={learn:'Quick guide',setup:'Existing factory',balance:'Factory balance',factory:'Future plan',build:'Visual planner'};
  const workspaceLabel=document.getElementById('welcomeWorkspace');
  if(workspaceLabel)workspaceLabel.textContent=workspaceNames[view]||'Factory balance';
  document.querySelectorAll('.nav button').forEach(b=>{
@@ -1228,8 +1237,8 @@ window.NauvisLocal={
 </script>
 <script src="sync/cloud-sync.js" defer></script>
 <script src="./quick-add.js" defer></script>
-<script src="./recipe-ratios.js" defer></script>
 <script src="./ratio-flow.js" defer></script>
+<script src="./recipe-ratios.js" defer></script>
 <script>if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));</script>
 </body>
 </html>

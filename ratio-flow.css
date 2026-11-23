@@ -132,3 +132,72 @@
  .ratio-flow-detail-lanes{grid-template-columns:minmax(0,1fr)}
 }
 @media(prefers-reduced-motion:reduce){.ratio-flow-node{transition:none}}
+
+
+/* v0.22 · Primary visual planner placement.
+   The production graph is the main workflow; legacy planning tools remain one tap away. */
+#build > .hero{margin-bottom:6px}
+#build > .ratio-featured{
+ margin-top:10px;
+ border-color:color-mix(in srgb,var(--workspace-accent) 73%,#3d6d7f);
+ box-shadow:0 0 0 1px color-mix(in srgb,var(--workspace-accent) 20%,transparent),0 10px 32px #030b1766,inset 0 1px 0 #ffffff18;
+}
+#build > .ratio-featured > summary{
+ padding:17px 19px;
+ background:linear-gradient(112deg,color-mix(in srgb,var(--workspace-accent) 16%,#1a3340),#152b3a);
+}
+#build > .ratio-featured > summary .ratio-header-title{
+ font-size:clamp(17px,2.3vw,21px);
+ letter-spacing:-.035em;
+}
+#build > .ratio-featured > summary .ratio-header-icon{
+ width:40px;height:40px;flex-basis:40px;
+ font-size:23px;
+}
+#build > .ratio-featured > .ratio-content{padding:17px 19px 19px}
+#build .build-classic{
+ margin-top:23px;min-width:0;max-width:100%;
+ border:1px solid #476277;border-radius:16px;
+ background:linear-gradient(140deg,#1b3040,#122635 90%);
+ box-shadow:inset 0 1px 0 #ffffff0d;
+ overflow:hidden;
+}
+#build .build-classic > summary{
+ list-style:none;cursor:pointer;
+ display:flex;align-items:center;gap:12px;
+ min-height:70px;padding:16px 19px;
+ border-bottom:1px solid transparent;
+ background:linear-gradient(110deg,color-mix(in srgb,var(--workspace-accent) 9%,#1b3040),#162939);
+}
+#build .build-classic > summary::-webkit-details-marker{display:none}
+#build .build-classic > summary:focus-visible{outline:2px solid var(--workspace-accent);outline-offset:-3px}
+#build .build-classic[open] > summary{
+ border-bottom-color:#435e72;
+}
+#build .build-classic-summary-icon{
+ display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;
+ border:1px solid #4b7080;border-radius:11px;background:#234153;
+ color:var(--workspace-accent);font-size:23px;font-weight:800;
+ box-shadow:inset 0 1px 0 #ffffff19;
+}
+#build .build-classic-summary-copy{min-width:0;display:flex;flex:1 1 auto;flex-direction:column;gap:3px}
+#build .build-classic-summary-copy strong{font-size:15px;font-weight:850;color:#f0fafb}
+#build .build-classic-summary-copy small{font-size:11px;line-height:1.4;color:#b4cedb}
+#build .build-classic-chevron{font-size:23px;color:var(--workspace-accent);line-height:1;transform-origin:center;transition:transform .18s ease}
+#build .build-classic[open] .build-classic-chevron{transform:rotate(180deg)}
+#build .build-classic-content{
+ min-width:0;max-width:100%;padding:2px 18px 15px;
+}
+#build .build-classic-content > .section{min-width:0;max-width:100%}
+#build .build-classic-content > .twocol{min-width:0}
+#build .build-classic{scroll-margin-top:calc(var(--chrome-height,130px) + 64px)}
+@media(max-width:650px){
+ #build > .ratio-featured > summary{padding:13px 12px}
+ #build > .ratio-featured > .ratio-content{padding:12px}
+ #build .build-classic > summary{padding:13px 12px;gap:9px}
+ #build .build-classic-summary-icon{width:32px;height:32px;flex-basis:32px;font-size:19px}
+ #build .build-classic-summary-copy strong{font-size:13px}
+ #build .build-classic-summary-copy small{font-size:10px}
+ #build .build-classic-content{padding:2px 11px 11px}
+}
+@media(prefers-reduced-motion:reduce){#build .build-classic-chevron{transition:none}}
