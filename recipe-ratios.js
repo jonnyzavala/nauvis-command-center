@@ -13,7 +13,7 @@ function analyzeRecipeRatios(recipes,query,context){
  const id=query.id,recipe=recipes[id],rate=assertFiniteRate(query.rate,'Target');
  if(!recipe)throw Error('Choose a supported recipe.');
  const speed=Number(query.machine),belt=Number(query.belt),source=query.source;
- if(![.5,.75,1.25].includes(speed))throw Error('Choose an available assembler tier.');
+ if(![.75,1.25].includes(speed))throw Error('Choose an available assembler tier.');
  if(![900,1800,2700].includes(belt))throw Error('Choose a supported transport belt.');
  if(!['bus','raw'].includes(source))throw Error('Choose bus-fed or raw-material inputs.');
  const bus=cloneSet(context.stopBus),raw=cloneSet(context.stopRaw),stop=source==='bus'?bus:raw;
@@ -93,7 +93,7 @@ function descriptionForRate(r){
 function buildView(result,card){
  const cardKey=card.dataset.ratioExplorer;
  const id=key=>'ratio-'+cardKey+'-'+key;
- const tiers=[['0.5','Assembler 1 · 0.5×'],['0.75','Assembler 2 · 0.75×'],['1.25','Assembler 3 · 1.25×']];
+ const tiers=[['0.75','Assembler 2 · 0.75×'],['1.25','Assembler 3 · 1.25×']];
  const options=allOrder.filter(k=>recipes[k]).map(k=>[k,recipes[k][0]]);
  const selectField=(key,title,opts,value)=>'<div class="ratio-field"><label for="'+id(key)+'">'+escape(title)+'</label><select id="'+id(key)+'" data-ratio-field="'+key+'">'+select(opts,value)+'</select></div>';
  const fieldset='<div class="ratio-fields">'+
