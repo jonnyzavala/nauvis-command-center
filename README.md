@@ -47,6 +47,16 @@ Open the **Recipe ratios** expander inside **Build Next**, **Existing Factory**,
 
 **Important model limitations:** The engine reuses the existing base recipe table, rather than inventing Space Age alternatives. It currently assumes normal quality, no modules/beacons, 2× furnace crafting speed and 1× chemical plant crafting speed. Assembler 1 is omitted because the planner uses one assembler tier for an entire recipe chain and Assembler 1 cannot process fluid inputs. It does not model technology unlocks, planetary alternatives, productivity bonuses, inserters, pumps or circuit-controlled cracking. Recipe assumptions should be checked when expanding coverage.
 
+## Visual Production Flow (v0.21)
+
+The **Recipe Ratio Explorer** now opens **Flow view** first. Its first result is **Build these machines**: large, readable counts such as **5 copper cable assemblers**, **2 green circuit assemblers**, and **12 red circuit assemblers** for the 90/min red-circuit example with Assembler 2.
+
+Under the counts, a color-coded production flow shows upstream supplies, machine groups, directional connections and per-branch output rates. It derives every node and link from the same recipe analysis used by the original table. Tap a block to highlight the associated connections and review incoming and outgoing material rates. On iPhone, the flow stacks vertically so the overall page does not expand; on larger screens it reads left to right, scrolling inside the panel if necessary.
+
+**Flow / Table** switches between the flowchart and the original detailed allocation table. **Show inputs** hides/shows raw feed nodes. The existing **Why this ratio?** expander retains the detailed math. **Send to Build Next** still changes only the hypothetical goal, not the actual Existing Factory inventory.
+
+Input examples are labeled correctly: *copper cable assemblers* are different from *copper plate furnaces*. Numbers in the flowchart are theoretical requirements at the selected rate and speed, not live telemetry.
+
 ## Sync and safety
 
 See [Cloud Sync Setup](sync/README.md). Pair devices using a private recovery key and a public Supabase project URL and publishable key. **Never commit the private recovery key, service_role key, database password, or other secrets.** JSON backups are available in Future Plan.
