@@ -84,7 +84,7 @@ test('projects and quick change show real-time current recipe icons without chan
  assert.match(projects,/itemGlyph\(p\.goal\.id,34\)/);
  assert.match(quick,/id="quickItemPreview"/);
  assert.match(quick,/NauvisIcons\?\.item\?\.\(key,38\)/);
- assert.match(quick,/id='quickItemPreview'/);
+ assert.match(quick,/\$\('quickItemPreview'\)\.innerHTML/);
  assert.match(projects,/setup\.machines=change\.rows/);
 });
 
