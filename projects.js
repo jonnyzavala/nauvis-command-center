@@ -92,6 +92,12 @@ const colorFor=(recipe,kind)=>{
 const noun=kind=>kind==='asm'?'assemblers':kind==='chem'?'chemical plants':'furnaces';
 const fmt=n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:1});
 let pending=null,editing=null,showArchived=false,notice='';
+const reviewedOverlaps=new Set();
+function matchingUnlinked(recipe,machine){
+ const matches=(setup.machines||[]).filter(row=>!row.projectId&&row.recipe===recipe&&
+   (R[recipe]?.[3]!=='asm'||Math.abs(Number(row.tier)-Number(machine))<1e-8));
+ return matches.reduce((sum,row)=>sum+Math.max(0,Number(row.count)||0),0);
+}
 function allProjects(){return normalizeProjects(factory.projects)}
 function setProjects(projects,event){
  factory.projects=projects;
@@ -123,6 +129,7 @@ function projectHTML(p){
   const color=colorFor(task.recipe,task.kind);
   const mismatch=saved.mismatch||saved.count!==task.built;
   const cannotRecord=task.kind==='furnace';
+  const possibleDuplicates=matchingUnlinked(task.recipe,p.goal.machine);
   return '<div class="project-task" style="--project-task-accent:'+color+'">'+
    '<div class="project-task-identity"><span class="project-task-led" aria-hidden="true"></span>'+itemGlyph(task.recipe,32)+'<div><strong>'+escape(R[task.recipe]?.[0]||task.recipe)+'</strong><small>'+escape(noun(task.kind))+' · '+task.planned+' planned'+(task.kind==='asm'?' · Assembler '+(p.goal.machine===1.25?'3':'2'):'')+'</small></div></div>'+
    '<div class="project-task-controls"><button type="button" data-project-minus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Mark one fewer '+escape(task.recipe)+' built" '+(archived||task.built<=0||mismatch?'disabled':'')+'>−</button>'+
@@ -130,7 +137,8 @@ function projectHTML(p){
    '<button type="button" data-project-plus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Mark one more '+escape(task.recipe)+' built" '+(archived||task.built>=task.planned||mismatch||cannotRecord?'disabled':'')+'>+</button></div>'+
    '<div class="project-task-foot"><span class="project-task-recorded">'+saved.count+' in Factory · linked to this project</span>'+
    (mismatch?'<span class="project-task-warning">Factory and project counts differ. Review the linked line in Factory.</span>':
-    cannotRecord?'<span class="project-task-warning">Save a bus-fed project to record machines automatically.</span>':'')+
+    cannotRecord?'<span class="project-task-warning">Save a bus-fed project to record machines automatically.</span>':
+    possibleDuplicates?'<span class="project-task-warning">Check for duplicates: '+possibleDuplicates+' matching unlinked machines already in Factory.</span>':'')+
    '</div></div>';
  }).join('');
  return '<article class="project-card" data-project-card="'+escape(p.id)+'" style="--project-card-accent:'+colorFor(p.goal.id,'asm')+'">'+
@@ -202,6 +210,14 @@ function saveDialog(event){
 function updateBuilt(id,recipe,delta){
  const project=selectedProject(id);if(!project)return;
  try{
+  const overlap=matchingUnlinked(recipe,project.goal.machine);
+  const overlapKey=id+'|'+recipe;
+  if(delta>0&&overlap>0&&!reviewedOverlaps.has(overlapKey)){
+   const msg=overlap+' matching '+(R[recipe]?.[0]||recipe)+' machines are already recorded in Factory without a project link.\n\n'+
+    'Are you certain this is a NEW machine that is not already counted in that inventory? This action adds another machine to your Factory totals.';
+   if(!root.confirm(msg))return;
+   reviewedOverlaps.add(overlapKey);
+  }
   const change=applyBuildDelta(project,recipe,delta,setup.machines);
   const expanded=!!$('projectsList')?.querySelector('[data-project-card="'+id+'"] .project-task-details')?.open;
   // Update the paired plan and the actual factory ledger before either save notification.
@@ -209,9 +225,7 @@ function updateBuilt(id,recipe,delta){
   factory.projects=allProjects().map(p=>p.id===id?change.project:p);
   setup.machines=change.rows;
   const task=change.project.tasks.find(t=>t.recipe===recipe);
-  const otherRows=setup.machines.filter(row=>!row.projectId&&row.recipe===recipe&&
-   (R[recipe]?.[3]!=='asm'||Math.abs(Number(row.tier)-Number(project.goal.machine))<1e-8));
-  const unlinked=otherRows.reduce((sum,row)=>sum+Math.max(0,Number(row.count)||0),0);
+  const unlinked=matchingUnlinked(recipe,project.goal.machine);
   const item=R[recipe]?.[0]||recipe;
   root.NauvisJournal?.record?.({
    type:'construction',source:'Construction Queue',projectId:id,recipe,delta,
