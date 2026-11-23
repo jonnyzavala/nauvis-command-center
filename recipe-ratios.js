@@ -136,6 +136,8 @@ function buildView(result,card){
  const output=result.outputStream;
  const outputDesc=output.isFluid?'Output uses pipes; pipe throughput not modeled':(output.belts+' × '+(result.belt===900?'yellow':result.belt===1800?'red':'blue')+' belt'+(output.belts===1?'':'s')+' for final output');
  return fieldset+
+  '<div data-ratio-flow-root class="ratio-flow-root"></div>'+
+  '<div data-ratio-legacy-table hidden>'+
   '<div class="ratio-overview">'+
    '<div class="ratio-number-box"><span class="ratio-kicker">ROUNDED MACHINE COUNT</span><strong>'+result.roundedTotal+'</strong><small>'+number(result.rate)+' '+escape(result.name)+'/min</small></div>'+
    '<div class="ratio-number-box secondary"><span class="ratio-kicker">EXACT MACHINE EQUIVALENTS</span><strong>'+precision(result.exactTotal)+'</strong><small>Before whole-machine rounding</small></div>'+
@@ -150,6 +152,7 @@ function buildView(result,card){
   '<div class="ratio-section-head"><h3>External ingredients and belts</h3><span class="ratio-muted">'+(state.source==='bus'?'Bus-fed':'Raw-to-production')+' boundary</span></div>'+
   '<div class="ratio-supplies">'+(supplies||'<p class="ratio-muted">No external inputs for this selected recipe.</p>')+'</div>'+
   '<p class="ratio-output"><b>Finished output:</b> '+number(result.rate)+'/min '+escape(result.name)+'. '+outputDesc+'. Belts assume a dedicated full belt, both lanes and no stacking. Fluids are calculated in fluid units/min.</p>'+
+  '</div>'+
   '<details class="ratio-explain"><summary><span>Why this ratio? <small>Show recipe math and rounding for each machine group</small></span><span>⌄</span></summary>'+
   '<div class="ratio-explain-body"><p class="ratio-caveat">Machine output = items per craft × crafting speed × 60 ÷ recipe seconds. Divide needed items/min by output per machine/min, then round each group up.</p>'+detailed+'</div></details>'+
   '<div class="ratio-actions"><button type="button" class="ratio-send" data-ratio-send>Send to Build Next <span aria-hidden="true">→</span></button><small>This updates the hypothetical Build Next goal only. Your Existing Factory inventory remains untouched.</small></div>'+
@@ -161,6 +164,7 @@ function renderCard(card){
  try{
   const result=analyzeRecipeRatios(recipes,state,contexts);
   target.innerHTML=buildView(result,card);
+  root.NauvisRatioFlow?.mount(target,result,card.dataset.ratioExplorer);
   target.querySelectorAll('[data-ratio-field]').forEach(input=>input.addEventListener('change',event=>{
    const kind=event.target.dataset.ratioField,prev=state[kind],raw=event.target.value;
    if(kind==='rate'){
