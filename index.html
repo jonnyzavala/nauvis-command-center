@@ -599,6 +599,7 @@ body[data-workspace="build"]{
 @media(max-width:440px){.command-actions{max-width:43%}.cloud-status{font-size:10px}.command-top .version-detail{display:none}}
 
 </style>
+<link rel="stylesheet" href="./quick-add.css" />
 </head>
 <body data-workspace="balance">
 <div class="shell">
@@ -610,7 +611,7 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.17 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.18 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, inspect, plan, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick guide</button><button data-view="setup" type="button"><span class="nav-dot" aria-hidden="true"></span>Existing factory</button><button data-view="balance" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory balance</button><button data-view="factory" type="button"><span class="nav-dot" aria-hidden="true"></span>Future plan</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Build next</button></div></nav>
  </div>
@@ -699,6 +700,28 @@ body[data-workspace="build"]{
   <div class="section panel"><h2>Before upgrading a belt</h2><div style="display:grid;gap:12px"><div><div class="inline"><b>Yellow</b><b>900/min</b></div><div class="track"><div style="width:33.333%;background:#e9bd61"></div></div></div><div><div class="inline"><b>Red</b><b>1,800/min</b></div><div class="track"><div style="width:66.666%;background:#e67b78"></div></div></div><div><div class="inline"><b>Blue</b><b>2,700/min</b></div><div class="track"><div style="width:100%;background:#76b3e2"></div></div></div></div><p class="small">If your furnaces produce only 700 plates/min, any of these belts will still carry only 700. Upgrade when the belt is saturated, not just because you've researched the next color.</p></div>
  </section>
  </main>
+<!-- Quick Change modifies the existing factory snapshot, not a separate inventory. -->
+<button type="button" id="quickAddToggle" class="quick-add-toggle" aria-expanded="false" aria-controls="quickAddPanel">
+ <span class="quick-add-symbol" aria-hidden="true">+</span>
+ <span>Quick change</span><span class="quick-add-led" aria-hidden="true"></span>
+</button>
+<div id="quickAddBackdrop" class="quick-add-backdrop" hidden></div>
+<aside id="quickAddPanel" class="quick-add-panel" role="dialog" aria-modal="true" aria-labelledby="quickAddTitle" hidden>
+ <div class="quick-add-top"><div><div class="quick-add-eyebrow">LIVE FACTORY · SHORTCUT</div><h2 id="quickAddTitle">Quick Add / Quick Change</h2></div><button id="quickAddClose" class="quick-add-close" type="button" aria-label="Close quick change">×</button></div>
+ <p class="quick-add-description">Update what you actually built. Saved offline first and synced to your paired devices.</p>
+ <div class="quick-modes" role="group" aria-label="What do you want to update?">
+  <button type="button" data-quick-mode="machine" class="active" aria-pressed="true">Machines</button>
+  <button type="button" data-quick-mode="smelt" aria-pressed="false">Smelting</button>
+  <button type="button" data-quick-mode="oil" aria-pressed="false">Oil</button>
+  <button type="button" data-quick-mode="belt" aria-pressed="false">Belts</button>
+  <button type="button" data-quick-mode="progress" aria-pressed="false">Progress</button>
+ </div>
+ <div id="quickAddBody" class="quick-add-body"></div>
+ <div id="quickAddFeedback" class="quick-add-feedback" role="status" aria-live="polite"></div>
+ <div class="quick-add-footer"><button id="quickAddUndo" class="quick-add-undo" type="button" disabled>↶ Undo</button><button id="quickAddSave" class="quick-add-save" type="button">Add to existing factory</button></div>
+ <button id="quickAddRemove" class="quick-add-remove" type="button" hidden>Remove selected line</button>
+ <p id="quickAddUndoNote" class="quick-add-undo-note">Undo is available after saving a change.</p>
+</aside>
 <aside id="contextHelp" class="context-help" aria-label="Context-sensitive quick guide" data-open="false">
  <button type="button" class="context-help-toggle" id="contextHelpToggle" aria-expanded="false" aria-controls="contextHelpDetail">
   <span class="context-help-icon" aria-hidden="true">?</span>
@@ -732,7 +755,7 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v0.17 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.18 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script>
 'use strict';
@@ -1156,7 +1179,7 @@ function activateWorkspace(view,scrollPage=false){
  if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>{const c=document.querySelector('.command-chrome');if(c)document.documentElement.style.setProperty('--chrome-height',Math.ceil(c.getBoundingClientRect().height)+'px')});
 }
 function init(){el('balanceIncludeGoal').addEventListener('change',e=>{balancePrefs.includeGoal=e.target.checked;try{localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs))}catch(_e){}window.NauvisCloud?.changed();renderBalance()});el('balanceEditSetup').addEventListener('click',()=>document.querySelector('.nav button[data-view="setup"]').click());el('allRecipes').innerHTML=[...new Set(allOrder.filter(x=>R[x]))].map(k=>`<option value="${k}">${R[k][0]}</option>`).join('');el('allRecipes').addEventListener('change',e=>setGoal(e.target.value));el('goalNumber').addEventListener('change',e=>{guide.rate=Math.min(25000,Math.max(0,Number(e.target.value)||0));renderGuide()});for(const [id,key] of [['assemblyTier','machine'],['sourceMode','source'],['beltTier','belt']])el(id).addEventListener('change',e=>{guide[key]=key==='source'?e.target.value:Number(e.target.value);renderGuide()});document.querySelectorAll('.nav button').forEach(btn=>btn.addEventListener('click',()=>activateWorkspace(btn.dataset.view,true)));
- el('exportButton').addEventListener('click',()=>{const data=JSON.stringify({version:7,plan:factory,guide,setup,balancePrefs},null,2),u=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='nauvis-plan.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)});el('importButton').addEventListener('click',()=>el('importFile').click());el('importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const r=JSON.parse(await file.text());if(r.plan&&typeof r.plan.redBlocks==='number'){Object.assign(factory,fd,r.plan,{checked:{...(r.plan.checked||{})}});if(r.guide&&R[r.guide.goal])Object.assign(guide,r.guide);if(r.setup){Object.assign(setup.smelt,setupSeed.smelt,r.setup.smelt||{});Object.assign(setup.oil,setupSeed.oil,r.setup.oil||{});setup.machines=r.setup.machines||[];setup.feeds=r.setup.feeds||[];if(r.balancePrefs){balancePrefs.includeGoal=!!r.balancePrefs.includeGoal;localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs));el('balanceIncludeGoal').checked=balancePrefs.includeGoal}saveSetup();renderSetup();}}else if(typeof r.redBlocks==='number'){Object.assign(factory,fd,r,{checked:{...(r.checked||{})}})}else throw Error('Not a dashboard backup');save();renderGuide();renderFactory();alert('Your plan was imported.')}catch(err){alert('Could not import plan: '+err.message)}e.target.value=''});el('resetButton').addEventListener('click',handleFactorySettingsReset);
+ el('exportButton').addEventListener('click',()=>{const data=JSON.stringify({version:7,plan:factory,guide,setup,balancePrefs},null,2),u=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='nauvis-plan.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)});el('importButton').addEventListener('click',()=>el('importFile').click());el('importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const r=JSON.parse(await file.text());if(r.plan&&typeof r.plan.redBlocks==='number'){Object.assign(factory,fd,r.plan,{checked:{...(r.plan.checked||{})}});if(r.guide&&R[r.guide.goal])Object.assign(guide,r.guide);if(r.setup){Object.assign(setup.smelt,setupSeed.smelt,r.setup.smelt||{});Object.assign(setup.oil,setupSeed.oil,r.setup.oil||{});setup.machines=r.setup.machines||[];setup.feeds=r.setup.feeds||[];if(r.balancePrefs){balancePrefs.includeGoal=!!r.balancePrefs.includeGoal;localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs));el('balanceIncludeGoal').checked=balancePrefs.includeGoal}saveSetup();renderSetup();}}else if(typeof r.redBlocks==='number'){Object.assign(factory,fd,r,{checked:{...(r.checked||{})}})}else throw Error('Not a dashboard backup');save();renderGuide();renderFactory();window.NauvisQuick?.invalidate();alert('Your plan was imported.')}catch(err){alert('Could not import plan: '+err.message)}e.target.value=''});el('resetButton').addEventListener('click',handleFactorySettingsReset);
  renderGuide();renderFactory();initSetup();activateWorkspace("balance");initStickyCommand();initGuide();}
 window.nauvisTest=(id,target,source='bus')=>{const prev=guide.source;guide.source=source;const output=calculate(id,target);guide.source=prev;return output};
 init();
@@ -1177,13 +1200,14 @@ window.NauvisLocal={
    balancePrefs.includeGoal=!!data.balancePrefs?.includeGoal;
    el('balanceIncludeGoal').checked=balancePrefs.includeGoal;
    localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs));
-   saveSetup();save();renderGuide();renderFactory();renderSetup();renderBalance();
+   saveSetup();save();renderGuide();renderFactory();renderSetup();renderBalance();window.NauvisQuick?.invalidate();
   }finally{window.NauvisCloudApplying=false}
  }
 };
 
 </script>
 <script src="sync/cloud-sync.js" defer></script>
+<script src="./quick-add.js" defer></script>
 <script>if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));</script>
 </body>
 </html>
