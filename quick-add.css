@@ -103,8 +103,8 @@ body.quick-add-open{overflow:hidden}
 }
 @media(prefers-reduced-motion:reduce){.quick-add-toggle{transition:none}}
 
-/* v0.19: One persistent footer rail, with the same viewport-aligned blueprint
-   canvas as the page. Scrolling content is masked, not blurred through. */
+/* v0.19.1: transparent footer rail with individually surfaced controls.
+   Unlike the sticky header, the footer lets the page scroll freely behind it. */
 :root{--dock-height:calc(70px + env(safe-area-inset-bottom,0px))}
 .shell{padding-bottom:calc(103px + env(safe-area-inset-bottom,0px))}
 .command-dock{
@@ -120,25 +120,15 @@ body.quick-add-open{overflow:hidden}
  padding:8px max(14px,env(safe-area-inset-right,0px))
          calc(8px + env(safe-area-inset-bottom,0px))
          max(14px,env(safe-area-inset-left,0px));
- border-top:1px solid color-mix(in srgb,var(--workspace-accent) 28%,transparent);
-}
-.command-dock::before{
- content:"";
- position:fixed;
- inset:0;
- z-index:-1;
+ /* No full-width background or divider: the dashboard remains visible underneath.
+    Only the surfaced controls intercept touches and clicks. */
  pointer-events:none;
- background-image:var(--workspace-canvas);
- background-size:48px 48px,48px 48px,auto,auto,auto;
- background-position:0 0,0 0,center top,center center,center center;
- clip-path:polygon(0 calc(100% - var(--dock-height)),
-                   100% calc(100% - var(--dock-height)),
-                   100% 100%,0 100%);
 }
 .command-dock .quick-add-toggle{
  position:relative;inset:auto;
  z-index:1;flex:0 0 auto;
  min-height:48px;
+ pointer-events:auto;
 }
 .command-dock .context-help,
 .command-dock .context-help[data-open="true"]{
@@ -150,6 +140,7 @@ body.quick-add-open{overflow:hidden}
  min-width:0;
  overflow:visible;
  margin:0;
+ pointer-events:auto;
 }
 .command-dock .context-help-toggle{min-height:48px}
 .command-dock .context-help[data-open="true"]{
