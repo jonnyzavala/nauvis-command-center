@@ -13,10 +13,10 @@ const start=html.indexOf('<section class="view" id="build">');
 const end=html.indexOf('<section class="view active" id="balance">',start);
 const build=html.slice(start,end);
 
-test('the fifth existing tab is discoverably named Visual planner',()=>{
+test('the fifth existing tab is discoverably named Planner',()=>{
  assert.equal((html.match(/<button data-view=/g)||[]).length,5,'Still five tabs');
- assert.match(html,/<button data-view="build"[^>]*>[\s\S]*?Visual planner<\/button>/);
- assert.match(html,/build:'Visual planner'/);
+ assert.match(html,/<button data-view="build"[^>]*>[\s\S]*?Planner<\/button>/);
+ assert.match(html,/build:'Planner'/);
 });
 test('visual production chain is open by default and appears immediately below hero',()=>{
  assert.match(build,/<h1>Visual production planner<\/h1>/);
@@ -58,9 +58,9 @@ test('the featured visuals keep current mobile layout and offline support',()=>{
  assert.match(css,/#build \.build-classic/);
  assert.match(css,/scroll-margin-top:calc\(var\(--chrome-height/);
  assert.match(css,/@media\(max-width:650px\)/);
- assert.match(worker,/nauvis-shell-v022/);
+ assert.match(worker,/nauvis-shell-v023/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(worker,/recipe-ratios\.js/);
- assert.match(html,/Nauvis Command Center v0\.22/);
+ assert.match(html,/Nauvis Command Center v0\.23/);
  assert.match(html,/sync\/cloud-sync\.js/);
 });
