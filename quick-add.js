@@ -246,6 +246,7 @@ function init(){
    notice('Last quick change undone. The restored inventory is saved and will sync.',false);
  }
  function open(){
+   root.NauvisGuide?.close?.();
    opened=true;shade.hidden=false;panel.hidden=false;
    trigger.setAttribute('aria-expanded','true');
    document.body.classList.add('quick-add-open');
@@ -253,11 +254,12 @@ function init(){
    render();notice('Choose what you built or changed.',false);
    modeButtons[0].focus();
  }
- function close(){
+ function close(restoreFocus=true){
+   if(!opened)return;
    opened=false;shade.hidden=true;panel.hidden=true;
    trigger.setAttribute('aria-expanded','false');
    document.body.classList.remove('quick-add-open');
-   trigger.focus();
+   if(restoreFocus)trigger.focus();
  }
  trigger.addEventListener('click',()=>opened?close():open());
  $('quickAddClose').addEventListener('click',close);
