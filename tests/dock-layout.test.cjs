@@ -28,12 +28,14 @@ test('mobile uses an accessible compact quick-change icon',()=>{
  assert.match(html,/class="quick-add-label">Quick change/);
  assert.match(css,/\.command-dock \.quick-add-label\{display:none\}/);
 });
-test('the footer masks scrolled content with the same anchored workspace canvas',()=>{
- assert.match(css,/\.command-dock::before\{/);
- assert.match(css,/background-image:var\(--workspace-canvas\)/);
- assert.match(css,/background-size:48px 48px,48px 48px,auto,auto,auto/);
- assert.match(css,/background-position:0 0,0 0,center top,center center,center center/);
- assert.match(css,/clip-path:polygon\(0 calc\(100% - var\(--dock-height\)\)/);
+test('footer stays transparent with no hard cutoff; only controls catch taps',()=>{
+ assert.doesNotMatch(css,/\.command-dock::before\{/);
+ const dock=css.match(/\.command-dock\{([\s\S]*?)\}/)?.[1]||'';
+ assert.doesNotMatch(dock,/border-top\s*:/);
+ assert.doesNotMatch(dock,/background\s*:/);
+ assert.match(dock,/pointer-events:none/);
+ assert.match(css,/\.command-dock \.quick-add-toggle\{[\s\S]*?pointer-events:auto/);
+ assert.match(css,/\.command-dock \.context-help,[\s\S]*?pointer-events:auto/);
  assert.match(css,/\.command-dock \.context-help-detail\{[\s\S]*?bottom:calc\(100% \+ 12px\)/);
 });
 test('quick change and the context guide close the other panel before opening',()=>{
@@ -46,7 +48,7 @@ test('existing tab navigation, sync, and offline cached code remain intact',()=>
  assert.equal((html.match(/<button data-view=/g)||[]).length,5);
  assert.match(html,/sync\/cloud-sync\.js/);
  assert.match(html,/Nauvis Command Center v0\.19/);
- assert.match(worker,/nauvis-shell-v019/);
+ assert.match(worker,/nauvis-shell-v0191/);
  assert.match(worker,/quick-add\.js/);
  assert.match(worker,/quick-add\.css/);
 });
