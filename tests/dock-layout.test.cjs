@@ -47,8 +47,10 @@ test('quick change and the context guide close the other panel before opening',(
 test('existing tab navigation, sync, and offline cached code remain intact',()=>{
  assert.equal((html.match(/<button data-view=/g)||[]).length,5);
  assert.match(html,/sync\/cloud-sync\.js/);
- assert.match(html,/Nauvis Command Center v0\.19/);
- assert.match(worker,/nauvis-shell-v0191/);
+ const uiVersion=html.match(/Nauvis Command Center v(\d+(?:\.\d+)+)/)?.[1];
+ const cacheVersion=worker.match(/const VERSION='nauvis-shell-v(\d+)';/)?.[1];
+ assert.ok(uiVersion,'The UI needs a visible version');
+ assert.equal(cacheVersion,uiVersion.replace(/\./g,''),'Offline cache version must follow the UI version');
  assert.match(worker,/quick-add\.js/);
  assert.match(worker,/quick-add\.css/);
 });
