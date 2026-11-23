@@ -137,6 +137,7 @@ function buildView(result,card){
  const outputDesc=output.isFluid?'Output uses pipes; pipe throughput not modeled':(output.belts+' × '+(result.belt===900?'yellow':result.belt===1800?'red':'blue')+' belt'+(output.belts===1?'':'s')+' for final output');
  return fieldset+
   '<div data-ratio-flow-root class="ratio-flow-root"></div>'+
+  '<div class="ratio-save-strip"><button class="ratio-save-project" data-ratio-project-save type="button">Save this build to Projects <span aria-hidden="true">→</span></button><span>Turn this recipe calculation into a saved construction checklist.</span></div>'+
   '<div data-ratio-legacy-table hidden>'+
   '<div class="ratio-overview">'+
    '<div class="ratio-number-box"><span class="ratio-kicker">ROUNDED MACHINE COUNT</span><strong>'+result.roundedTotal+'</strong><small>'+number(result.rate)+' '+escape(result.name)+'/min</small></div>'+
@@ -172,6 +173,7 @@ function renderCard(card){
    }else state[kind]=kind==='machine'||kind==='belt'?Number(raw):raw;
    renderAll();
   }));
+  target.querySelector('[data-ratio-project-save]')?.addEventListener('click',()=>root.NauvisProjects?.createFromRatio(result));
   const button=target.querySelector('[data-ratio-send]');
   button.addEventListener('click',()=>{
    guide.goal=state.id;guide.rate=state.rate;guide.machine=state.machine;guide.source=state.source;guide.belt=state.belt;
@@ -192,7 +194,11 @@ function renderCard(card){
 }
 function renderAll(){cards.forEach(renderCard)}
 cards.forEach(card=>card.addEventListener('toggle',()=>{if(card.open)renderCard(card)}));
-root.NauvisRatioExplorer={refresh:renderAll,openAt(view){
+root.NauvisRatioExplorer={refresh:renderAll,setGoal(goal){
+  if(!goal||!recipes[goal.id])return;
+  for(const key of ['id','rate','machine','source','belt'])if(goal[key]!==undefined)state[key]=goal[key];
+  renderAll();
+ },openAt(view){
  const card=document.querySelector('[data-ratio-explorer="'+view+'"]');
  if(card){card.open=true;renderCard(card)}
 }};
