@@ -74,3 +74,24 @@
 @media(max-width:390px){
  .ratio-flow-node:not(.ratio-flow-supply){grid-template-columns:36px minmax(0,1fr)}
 }
+
+/* Readability adjustments for icon-supported recipe and ledger selectors. */
+.goal>.item-icon{margin:3px 0 4px;align-self:flex-start}
+.goal>.dot{margin-bottom:1px}
+.goal b{overflow-wrap:anywhere}
+.balance-ledger .balance-item-label{
+ display:inline-flex;align-items:center;gap:8px;
+ min-width:0;white-space:nowrap;
+}
+.balance-ledger .balance-item-label strong{min-width:0}
+.setup-row .slot label.setup-recipe-label,
+.setup-bus-grid .slot label.setup-recipe-label{
+ display:flex;align-items:center;gap:8px;margin-bottom:7px;
+}
+.setup-row .slot label.setup-recipe-label .item-icon,
+.setup-bus-grid .slot label.setup-recipe-label .item-icon{margin:0}
+@media(max-width:650px){
+ .goal>.item-icon{--icon-size:31px!important}
+ .balance-ledger .balance-item-label{gap:6px}
+ .balance-ledger .balance-item-label .item-icon{--icon-size:25px!important}
+}
