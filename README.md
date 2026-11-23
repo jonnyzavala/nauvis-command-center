@@ -47,7 +47,13 @@ Open the **Recipe ratios** expander inside **Build Next**, **Existing Factory**,
 
 **Important model limitations:** The engine reuses the existing base recipe table, rather than inventing Space Age alternatives. It currently assumes normal quality, no modules/beacons, 2× furnace crafting speed and 1× chemical plant crafting speed. Assembler 1 is omitted because the planner uses one assembler tier for an entire recipe chain and Assembler 1 cannot process fluid inputs. It does not model technology unlocks, planetary alternatives, productivity bonuses, inserters, pumps or circuit-controlled cracking. Recipe assumptions should be checked when expanding coverage.
 
-## Visual Production Flow (v0.21)
+## Featured Visual Planner (v0.22)
+
+The **Visual planner** is now its own clearly named main navigation destination (the existing Build tab, **not** an extra sixth tab). On opening that tab, the **Visual production chain** is the first section directly below the header and is **already expanded**, showing recipe selectors, large machine counts and the interactive flowchart.
+
+The older preset-based calculator is preserved underneath in the expandable **Detailed step-by-step planner**. From the visual planner, **Open detailed planner with this goal** transfers the selected recipe and rate to that calculator, expands it, and scrolls directly to its results. This transfers a hypothetical target only and does not edit Existing Factory records.
+
+### Previous release: Visual Production Flow (v0.21)
 
 The **Recipe Ratio Explorer** now opens **Flow view** first. Its first result is **Build these machines**: large, readable counts such as **5 copper cable assemblers**, **2 green circuit assemblers**, and **12 red circuit assemblers** for the 90/min red-circuit example with Assembler 2.
 
