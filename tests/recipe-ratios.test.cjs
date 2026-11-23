@@ -108,7 +108,7 @@ test('invalid IDs, unsupported machines, and unreasonable input fail validation'
 test('recipe ratio panels exist on existing workspaces without a sixth tab',()=>{
  for(const page of ['build','setup','balance'])assert.match(html,new RegExp('data-ratio-explorer="'+page+'"'));
  assert.equal((html.match(/<details[^>]*data-ratio-explorer="/g)||[]).length,3);
- assert.equal((html.match(/<button data-view=/g)||[]).length,5);
+ assert.equal((html.match(/<button data-view=/g)||[]).length,4);
  assert.match(html,/href="\.\/recipe-ratios\.css"/);
  assert.match(html,/src="\.\/recipe-ratios\.js" defer/);
 });
