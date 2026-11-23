@@ -198,14 +198,14 @@ function updateBuilt(id,recipe,delta){
   // Cloud snapshots will therefore always see both sides of the same adjustment.
   factory.projects=allProjects().map(p=>p.id===id?change.project:p);
   setup.machines=change.rows;
-  saveSetup();save();renderSetup();render();
+  saveSetup();save();renderSetup();
+  notice=delta>0?'Built 1 machine and recorded it in Factory. Set its destination there if needed.':
+   'Reversed 1 built machine and updated Factory.';
+  render();
   if(expanded){
    const detail=$('projectsList')?.querySelector('[data-project-card="'+id+'"] .project-task-details');
    if(detail)detail.open=true;
   }
-  notice=delta>0?'Built 1 machine and recorded it in Factory. Assign its destination there if needed.':
-   'Reversed 1 built machine and updated Factory.';
-  render();
  }catch(err){notice=err.message;render()}
 }
 function navigateToPlan(id){
@@ -244,7 +244,11 @@ function attachEvents(){
  });
 }
 function createFromRatio(result){
- if(!result?.entries?.length){notice='Choose a production target above zero before saving.';render();return}
+ if(!result?.entries?.length){root.alert('Choose a production target above zero before saving.');return}
+ if(result.entries.some(row=>row.kind==='furnace')){
+  root.alert('To save this build, select Bus-fed inputs in Planner. Raw-smelting project recording is not supported yet, because furnaces belong to a separate smelting inventory.');
+  return;
+ }
  $('projectsDialogError').hidden=true;openDialog('create',null,result);
 }
 function refresh(){render()}
