@@ -35,7 +35,7 @@ Quick Change and Quick Guide share one bottom dock on laptop and iPhone. The com
 
 Open the **Recipe ratios** expander inside **Build Next**, **Existing Factory**, or **Factory Balance**. It does not add a sixth tab.
 
-- Choose any of the **33 modeled base Nauvis recipes**, an output rate/minute, Assembler 1/2/3, and a belt type.
+- Choose any of the **33 modeled base Nauvis recipes**, an output rate/minute, Assembler 2/3, and a belt type.
 - **Bus-fed:** counts the supporting recipes back to your assumed bus / chemical supply boundary.
 - **Raw-material expansion:** additionally models included smelting and chemical recipes back toward ore, crude-related fluids, and other external ingredients. This is **not** a model of mining drills, refineries, cracking circuits or pipe networks.
 - See each supporting step's needed items/min, per-machine capacity, **exact machine equivalents**, and **rounded whole machine counts**. The compact ratio shorthand shows rounded build counts, not a mathematically universal fixed ratio.
@@ -45,7 +45,7 @@ Open the **Recipe ratios** expander inside **Build Next**, **Existing Factory**,
 
 **Verified regression example:** At 90 advanced circuits/min, Assembler 2 speed 0.75, and bus-fed inputs, the internally produced chain requires **5 copper-cable assemblers, 2 green-circuit assemblers and 12 red-circuit assemblers (19 total)**. The recipe references used here are the [advanced circuit](https://wiki.factorio.com/Advanced_circuit), [electronic circuit](https://wiki.factorio.com/Electronic_circuit), and [copper cable](https://wiki.factorio.com/Copper_cable) pages of the Factorio Wiki.
 
-**Important model limitations:** The engine reuses the existing base recipe table, rather than inventing Space Age alternatives. It currently assumes normal quality, no modules/beacons, 2× furnace crafting speed and 1× chemical plant crafting speed. It does not model technology unlocks, planetary alternatives, productivity bonuses, inserters, pumps or circuit-controlled cracking. Recipe assumptions should be checked when expanding coverage.
+**Important model limitations:** The engine reuses the existing base recipe table, rather than inventing Space Age alternatives. It currently assumes normal quality, no modules/beacons, 2× furnace crafting speed and 1× chemical plant crafting speed. Assembler 1 is omitted because the planner uses one assembler tier for an entire recipe chain and Assembler 1 cannot process fluid inputs. It does not model technology unlocks, planetary alternatives, productivity bonuses, inserters, pumps or circuit-controlled cracking. Recipe assumptions should be checked when expanding coverage.
 
 ## Sync and safety
 
