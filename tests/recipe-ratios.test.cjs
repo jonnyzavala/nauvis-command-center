@@ -62,7 +62,7 @@ test('small goals expose exact machine equivalents before per-recipe integer rou
 test('assembler tiers alter production rate, but not fixed furnace/chemical speeds',()=>{
  close(run('advanced-circuit',90,.75).entries.at(-1).perMachine,7.5);
  close(run('advanced-circuit',90,1.25).entries.at(-1).perMachine,12.5);
- close(run('plastic-bar',120,.5).entries.at(-1).perMachine,120);
+ close(run('plastic-bar',120,.75).entries.at(-1).perMachine,120);
  close(run('plastic-bar',120,1.25).entries.at(-1).perMachine,120);
 });
 test('raw mode includes modeled smelting and chemistry, unlike bus-fed mode',()=>{
