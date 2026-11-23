@@ -6,11 +6,11 @@ A local-first Factorio 2.0 / Space Age factory planning dashboard. Built for des
 
 ## Workspaces
 
-- **Quick Guide:** plain-language production basics
-- **Existing Factory:** actual smelting, refinery, assembler and belt records
-- **Factory Balance:** potential production vs. recorded consumption
-- **Future Plan:** optional long-term circuit district and construction checklist
-- **Build Next:** guided recipe, machine-count and belt calculations
+- **Quick Guide** (slate): plain-language production basics and contextual help
+- **Factory** (gold): actual smelting, refinery, assembler and belt records
+- **Balance** (green): potential production versus recorded consumption
+- **Planner** (blue): visual machine ratios, item flows and production planning
+- **Projects** (purple): saved construction projects and preserved original circuit district
 
 All throughput figures are estimates, not a live connection to Factorio. Modules, quality, beacons, inserters, circuit pumps and physical routing are not fully modeled.
 
@@ -77,9 +77,17 @@ NAUVIS now has five color-coordinated workspaces in order: **Quick Guide** (slat
 
 **Sync and backups:** Projects are stored as an optional array in the existing plan JSON. The cloud snapshot protocol, Supabase tables, RLS, revision handling and conflict protection are unchanged. Old backups without projects remain valid.
 
+## Original Industrial Item Icons & Navigation Spectrum (v0.24)
+
+NAUVIS includes its own **original vector item icon set** for all 33 modeled base recipes and common raw inputs (ore, coal, stone, water, oils, lubricant). Icons appear in the Visual Planner's machine counts and node flow, detailed ratio breakdown, input supplies, recipe shortcuts, Projects, Factory rows, Balance ledger, and Quick Change preview. Every icon is compact inline SVG drawn using simple industrial geometry and bundled locally, so retina/iPhone rendering is sharp and works offline. The item name always remains visible, and redundant icons are hidden from screen readers.
+
+**Art ownership:** These are **NAUVIS-original icons**, **not actual in-game Factorio/Wube sprites**. The [Official Factorio Wiki copyright notice](https://wiki.factorio.com/Factorio:Copyrights) explicitly excludes Wube-owned game art from its Creative Commons license; the [Factorio terms](https://www.factorio.com/terms-of-service) reserve the game art's rights. No game sprites, wiki image downloads or third-party licensed sprite sheets were copied into this public GitHub repository. Future use of actual game assets requires independent rights verification or permission.
+
+**Palette and gradient fix:** The tab rail now follows the actual visual and navigational order **Quick Guide slate → Factory gold → Balance mint green → Planner blueprint blue → Projects violet**. All five navigation dots, active-panel hues, background grids and the rail refer to the same CSS variables. The layered command console, colored gradients, blueprint texture and persistent contextual guide are preserved.
+
 ## Sync and safety
 
-See [Cloud Sync Setup](sync/README.md). Pair devices using a private recovery key and a public Supabase project URL and publishable key. **Never commit the private recovery key, service_role key, database password, or other secrets.** JSON backups are available in Future Plan.
+See [Cloud Sync Setup](sync/README.md). Pair devices using a private recovery key and a public Supabase project URL and publishable key. **Never commit the private recovery key, service_role key, database password, or other secrets.** JSON backups are available in Projects → Original circuit district.
 
 ## Tests
 
