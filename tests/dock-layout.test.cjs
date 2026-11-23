@@ -1,0 +1,52 @@
+// Run with: node --test tests/*.test.cjs
+// Structural regression tests for the responsive persistent footer controls.
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.join(__dirname,'..');
+const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const css=fs.readFileSync(path.join(root,'quick-add.css'),'utf8');
+const js=fs.readFileSync(path.join(root,'quick-add.js'),'utf8');
+const worker=fs.readFileSync(path.join(root,'service-worker.js'),'utf8');
+
+test('both persistent controls live in one dock with no duplicate IDs',()=>{
+ const start=html.indexOf('id="commandDock"');
+ const end=html.indexOf('id="quickAddBackdrop"');
+ assert.ok(start>0&&end>start);
+ const dock=html.slice(start,end);
+ assert.match(dock,/id="quickAddToggle"/);
+ assert.match(dock,/id="contextHelp"/);
+ assert.match(dock,/id="contextHelpDetail"/);
+ assert.equal((html.match(/id="quickAddToggle"/g)||[]).length,1);
+ assert.equal((html.match(/id="contextHelp"/g)||[]).length,1);
+ assert.equal((html.match(/id="commandDock"/g)||[]).length,1);
+});
+test('mobile uses an accessible compact quick-change icon',()=>{
+ assert.match(html,/id="quickAddToggle"[^>]*aria-label="Quick change factory inventory"/);
+ assert.match(html,/class="quick-add-label">Quick change/);
+ assert.match(css,/\.command-dock \.quick-add-label\{display:none\}/);
+});
+test('the footer masks scrolled content with the same anchored workspace canvas',()=>{
+ assert.match(css,/\.command-dock::before\{/);
+ assert.match(css,/background-image:var\(--workspace-canvas\)/);
+ assert.match(css,/background-size:48px 48px,48px 48px,auto,auto,auto/);
+ assert.match(css,/background-position:0 0,0 0,center top,center center,center center/);
+ assert.match(css,/clip-path:polygon\(0 calc\(100% - var\(--dock-height\)\)/);
+ assert.match(css,/\.command-dock \.context-help-detail\{[\s\S]*?bottom:calc\(100% \+ 12px\)/);
+});
+test('quick change and the context guide close the other panel before opening',()=>{
+ assert.match(html,/if\(open\)window\.NauvisQuick\?\.close\(false\)/);
+ assert.match(html,/window\.NauvisGuide=\{close:\(\)=>toggleGuide\(false\)/);
+ assert.match(js,/root\.NauvisGuide\?\.close\?\.\(\)/);
+ assert.match(js,/function close\(restoreFocus=true\)/);
+});
+test('existing tab navigation, sync, and offline cached code remain intact',()=>{
+ assert.equal((html.match(/<button data-view=/g)||[]).length,5);
+ assert.match(html,/sync\/cloud-sync\.js/);
+ assert.match(html,/Nauvis Command Center v0\.19/);
+ assert.match(worker,/nauvis-shell-v019/);
+ assert.match(worker,/quick-add\.js/);
+ assert.match(worker,/quick-add\.css/);
+});
