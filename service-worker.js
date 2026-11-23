@@ -1,5 +1,5 @@
 /* NAUVIS Command Center offline shell. Does not cache private cloud API responses. */
-const VERSION='nauvis-shell-v021';
+const VERSION='nauvis-shell-v022';
 const STATIC=['./','./index.html','./sync/cloud-sync.js','./quick-add.js','./quick-add.css','./recipe-ratios.js','./recipe-ratios.css','./ratio-flow.js','./ratio-flow.css'];
 self.addEventListener('install',event=>{
  event.waitUntil(caches.open(VERSION).then(cache=>cache.addAll(STATIC)).then(()=>self.skipWaiting()));
