@@ -158,3 +158,38 @@ button[data-plan-target="factory"] .plan-switch-light{background:#6ce0d1;box-sha
  .workspace-jump-list button{font-size:10px}
  .workspace-fold-toggle{font-size:10px;padding:6px}
 }
+
+/* v0.26 — three destinations; rose Inventory and purple Analysis share one
+   navigation segment, just like blue Designer and teal Construction. */
+:root{
+ --nauvis-guide:#eec277;
+ --nauvis-factory:#ed91aa;
+ --nauvis-balance:#bba5e5;
+ --nauvis-planner:#65b5ff;
+ --nauvis-projects:#6ce0d1;
+}
+body[data-workspace="learn"]{--workspace-accent:var(--nauvis-guide)}
+body[data-workspace="setup"]{--workspace-accent:var(--nauvis-factory)}
+body[data-workspace="balance"]{--workspace-accent:var(--nauvis-balance)}
+body[data-workspace="build"]{--workspace-accent:var(--nauvis-planner)}
+body[data-workspace="factory"]{--workspace-accent:var(--nauvis-projects)}
+.nav button[data-view="setup"]{--tab-color:var(--nauvis-factory)}
+body[data-workspace="balance"] .nav button[data-view="setup"]{--tab-color:var(--nauvis-balance)}
+body[data-workspace="balance"] .nav button[data-view="setup"] .nav-dot{background:var(--nauvis-balance)}
+.nav button[data-view="build"]{--tab-color:var(--nauvis-planner)}
+body[data-workspace="factory"] .nav button[data-view="build"]{--tab-color:var(--nauvis-projects)}
+.command-chrome .nav-track>button[data-view="learn"]{--tab-prev:var(--nauvis-guide);--tab-next:var(--nauvis-factory)}
+.command-chrome .nav-track>button[data-view="setup"]{--tab-prev:var(--nauvis-guide);--tab-next:var(--nauvis-planner)}
+body[data-workspace="balance"] .command-chrome .nav-track>button[data-view="learn"]{--tab-next:var(--nauvis-balance)}
+body[data-workspace="balance"] .command-chrome .nav-track>button[data-view="setup"]{--tab-next:var(--nauvis-planner)}
+.command-chrome .nav-track>button[data-view="build"]{--tab-prev:var(--nauvis-factory);--tab-next:var(--nauvis-planner)}
+body[data-workspace="balance"] .command-chrome .nav-track>button[data-view="build"]{--tab-prev:var(--nauvis-balance)}
+body[data-workspace="factory"] .command-chrome .nav-track>button[data-view="build"]{--tab-next:var(--nauvis-projects)}
+.factory-balance-switch .plan-switch-caption{color:#f5f2ff}
+.factory-balance-switch button[data-factory-target="setup"] .factory-switch-light{
+ width:7px;height:7px;flex:0 0 7px;background:#ed91aa;border-radius:50%;box-shadow:0 0 10px #ed91aa;
+}
+.factory-balance-switch button[data-factory-target="balance"] .factory-switch-light{
+ width:7px;height:7px;flex:0 0 7px;background:#bba5e5;border-radius:50%;box-shadow:0 0 10px #bba5e5;
+}
+#setup>.factory-balance-switch,#balance>.factory-balance-switch{margin-top:8px}

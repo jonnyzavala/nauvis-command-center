@@ -22,10 +22,9 @@ const expr=html.match(/const R=(\{[\s\S]*?\});\nconst STOP_BUS/)?.[1];
 assert.ok(expr,'Could not find live R recipe model');
 const R=vm.runInNewContext('('+expr+')');
 
-test('all 33 live recipe IDs have intentionally designed item icons',()=>{
- assert.equal(Object.keys(R).length,33);
+test('all 182 modelable recipe IDs render original icon glyphs',()=>{
+ assert.equal(Object.keys(R).length,182);
  for(const id of Object.keys(R)){
-  assert.ok(specs[id],'Missing original art specification for '+id);
   const str=item(id,40);
   assert.match(str,/<svg class="item-icon-svg"/);
   assert.match(str,/viewBox="0 0 64 64"/);
@@ -102,7 +101,7 @@ test('four tabs have a warm-to-purple-to-blue spectrum and teal Construction mod
  const uiCSS=read('workspace-v025.css');
  const nav=html.match(/<nav class="nav"[\s\S]*?<\/nav>/)?.[0]||'';
  assert.deepEqual([...nav.matchAll(/<button data-view="([^"]+)"/g)].map(x=>x[1]),
-  ['learn','setup','balance','build']);
+  ['learn','setup','build']);
  const expected=[
   ['guide','#eec277','learn'],['factory','#ed91aa','setup'],
   ['balance','#bba5e5','balance'],['planner','#65b5ff','build'],
@@ -123,7 +122,7 @@ test('four tabs have a warm-to-purple-to-blue spectrum and teal Construction mod
 
 test('responsive gradient paints each real navigation segment',()=>{
  const uiCSS=read('workspace-v025.css');
- for(const name of ['learn','setup','balance','build'])
+ for(const name of ['learn','setup','build'])
   assert.ok(uiCSS.includes('.nav button[data-view="'+name+'"]'),name);
  assert.match(uiCSS,/\.command-chrome \.nav-track>button/);
  assert.match(uiCSS,/@media\(max-width:430px\)/);
@@ -142,8 +141,8 @@ test('gradient and icons still share the same iPhone-responsive background strat
 test('first render loads icon system before inline rendering and caches both files offline',()=>{
  assert.ok(html.indexOf('src="./item-icons.js"')<html.indexOf('/* Verified standard recipes.'));
  assert.match(html,/href="\.\/item-icons\.css"/);
- assert.match(sw,/nauvis-shell-v025/);
+ assert.match(sw,/nauvis-shell-v026/);
  assert.match(sw,/'\.\/item-icons\.js','\.\/item-icons\.css'/);
- assert.match(html,/Nauvis Command Center v0\.25/);
- assert.equal((html.match(/<button data-view=/g)||[]).length,4);
+ assert.match(html,/Nauvis Command Center v0\.26/);
+ assert.equal((html.match(/<button data-view=/g)||[]).length,3);
 });

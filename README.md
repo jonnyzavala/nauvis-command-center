@@ -6,12 +6,11 @@ A local-first Factorio 2.0 / Space Age factory planning dashboard. Built for des
 
 ## Workspaces
 
-- **Quick Guide** (gold): learning notes, examples and contextual help
-- **Factory** (rose): actual smelting, refinery, assembler and belt records
-- **Balance** (violet): potential production versus recorded consumption, with shortages kept visible
-- **Plan & Build**: one top-level workspace with **Blueprint Designer** (Factorio blue) and **Construction Queue** (blueprint placement teal). Explore a recipe, save a project, then track what you actually build.
+- **Quick Guide** (gold): learning notes, examples, and contextual help
+- **Factory & Balance**: one top-level workspace with **Inventory** (rose) and **Balance Analysis** (purple); these modes use the same underlying factory records.
+- **Plan & Build**: one top-level workspace with **Blueprint Designer** (Factorio blueprint blue) and **Construction Queue** (blueprint-placement teal). Explore a recipe, save a project, then track what you actually build.
 
-Each workspace has an overview, compact headline metrics and jump links. Secondary sections can be collapsed; the primary visual flow, Factory smelting/machine controls, and Balance warnings stay visible.
+Each workspace has an overview, compact headline metrics, jump links and collapsible secondary panels. The live model is still user-entered rated capacity, not automatic game telemetry.
 
 All throughput figures are estimates, not a live connection to Factorio. Modules, quality, beacons, inserters, circuit pumps and physical routing are not fully modeled.
 
@@ -97,6 +96,16 @@ NAUVIS includes its own **original vector item icon set** for all 33 modeled bas
 **Duplicate-entry warning:** Build events include hints when matching *unlinked* manual Factory rows exist. The journal doesn't automatically merge, delete, or reassign machines based on similarities. Existing protections against editing project-linked machine rows independently remain in place.
 
 **Backups, resets, and cloud:** The journal is an optional `plan.journal` array inside the existing local/cloud JSON snapshot. No new Supabase tables, migrations or RLS changes. Older snapshots without a journal still import. Resetting the **original circuit district** checklist now preserves saved Projects and the new journal; it does **not** reset actual Factory inventory. There is no automatic factory wipe or "fresh start" of existing counts. Before rebuilding a potentially inaccurate inventory, export a backup and reconcile entries rather than deleting historical evidence.
+
+## Three Workspaces and Expanded Nauvis Planner (v0.26)
+
+**Three top-level tabs:** Quick Guide, Factory & Balance, Plan & Build. Inventory/Analysis and Designer/Construction are each two modes of one workspace. Selecting a tab returns to the mode you last used during the current browser session. The background, gradient, indicator lights and accents follow the actual current mode: gold → rose/purple → blue/teal. None of the existing production, inventory, journal or Construction functionality was removed.
+
+**Expanded recipe catalog:** The search-enabled visual Designer now supports **182 deterministic, single-result, standard Nauvis recipes** rather than the original 33. This includes familiar circuits, modules, automation, batteries, accumulators, solar panels, laser turrets, robots, military materials and standard buildings. Each item is calculated with its recipe's ingredient quantities and base crafting time; the same recipe graph supports the flowchart and table. The catalog is derived from **Factorio 2.0.77 base-game recipe prototype metadata** (publicly available in Wube's `factorio-data` game files; the comparison dataset used was [2.0.77 extracted recipe data](https://github.com/0sdknum/factorio-live-planner/blob/main/internal/entities/factorio-recipe/config/catalog-2.0.77.json)). No game imagery was copied. Updated rocket fuel's crafting time to **15 seconds** per that metadata. This is not yet all Space Age planet-specific recipes, multi-product refinery/uranium processing, or probabilistic alternative results; those need richer production models.
+
+**Choose how much to make:** For every modeled item, select **Starter**, **Balanced** (default when choosing a new recipe), **More**, or **Custom**. The starting recommendation is either an explicitly curated practical quantity (e.g., 90 advanced circuits/min, 30 batteries/min, 10 accumulators/min) or a transparent rough two-machine heuristic. **Balanced is not derived from actual demand**, and it should not be mistaken for an optimal factory-wide rate. The exact chosen target remains editable. Options and rationale are available in the visual Designer; the detailed legacy calculator shares the same quantities.
+
+**Scope:** Items needing a different machine type (centrifuge, rocket silo production, crushers, foundries, biochambers, etc.), stochastic yields, unique planetary conditions, beacons, modules, quality and logistics constraints need further modeling. Space Age remains deliberately out of the initial 182-recipe catalog until those assumptions can be represented accurately.
 
 ## Sync and safety
 

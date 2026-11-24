@@ -13,12 +13,13 @@ const html=read('index.html'),ui=read('workspace-ui.js'),style=read('workspace-v
 const {normalizeJournal,groupedMachines,summarizeSetupDelta,MAX_ENTRIES}=require('../journal.js');
 const empty=()=>({smelt:{ironFurnaces:0},oil:{refineries:0},machines:[],feeds:[]});
 
-test('the top navigation has four tabs with blue designer and teal Construction sharing one entry',()=>{
+test('three tabs share Inventory/Analysis and Designer/Construction modes',()=>{
  const nav=html.match(/<nav class="nav"[\s\S]*?<\/nav>/)?.[0]||'';
- assert.deepEqual([...nav.matchAll(/<button data-view="([^"]+)"/g)].map(m=>m[1]),['learn','setup','balance','build']);
+ assert.deepEqual([...nav.matchAll(/<button data-view="([^"]+)"/g)].map(m=>m[1]),['learn','setup','build']);
  assert.match(nav,/>Plan &amp; Build<\/button>/);
  assert.doesNotMatch(nav,/data-view="factory"/);
- assert.match(html,/b\.dataset\.view===\(view==='factory'\?'build':view\)/);
+ assert.match(html,/b\.dataset\.view===\(view==='factory'\?'build':view==='balance'\?'setup':view\)/);
+ assert.match(ui,/data-factory-target="balance"/);
  assert.match(ui,/data-plan-target="build"/);
  assert.match(ui,/data-plan-target="factory"/);
  assert.match(ui,/aria-pressed/);
@@ -134,12 +135,12 @@ test('manual field notes cannot implicitly alter Factory counts',()=>{
  assert.doesNotMatch(journal,/setup\.machines\.push\(/);
 });
 test('new module assets and theme survive offline on iPhone',()=>{
- assert.match(sw,/nauvis-shell-v025/);
+ assert.match(sw,/nauvis-shell-v026/);
  for(const file of ['journal.js','workspace-ui.js','workspace-v025.css'])assert.ok(sw.includes("'./"+file+"'"),file);
  assert.match(html,/src="\.\/journal\.js"/);
  assert.match(html,/src="\.\/workspace-ui\.js"/);
  assert.match(html,/href="\.\/workspace-v025\.css"/);
  assert.match(style,/@media\(max-width:760px\)/);
  assert.match(style,/@media\(max-width:430px\)/);
- assert.match(html,/Nauvis Command Center v0\.25/);
+ assert.match(html,/Nauvis Command Center v0\.26/);
 });

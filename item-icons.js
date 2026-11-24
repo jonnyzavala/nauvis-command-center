@@ -174,6 +174,23 @@ function symbol(type,id,light,dark){
   line('12 18 H52 M11 29 H53 M10 41 H54 M9 51 H55',dark,5),
   line('15 12 L9 54 M49 12 L55 54',ink,2)
  ].join('');
+ if(type==='turret')return [
+  rect(10,39,44,14,5,dark,ink,2.8),rect(18,29,28,17,5,light,ink,2.7),
+  circle(32,31,10,dark,ink,2.5),circle(32,31,4,light,ink),
+  rect(29,11,7,16,3,light,ink),line('33 13 L40 8',silver,3)
+ ].join('');
+ if(type==='solar')return [
+  poly('7,23 47,16 56,37 15,44',dark,ink,2.6),poly('11,25 45,19 51,35 17,40',light,ink,1.6),
+  line('24 23 L29 39 M36 21 L41 37 M13 31 L49 26',ink,2),line('33 42 V52 M20 54 H45',silver,3)
+ ].join('');
+ if(type==='chest')return [
+  rect(14,23,37,32,5,dark,ink,3),poly('14,23 26,14 56,20 51,29',light,ink,2),
+  rect(27,32,14,9,2,light,ink,2),line('19 27 L19 50 M45 31 L45 51',shine,2)
+ ].join('');
+ if(type==='drill')return [
+  rect(12,29,41,25,5,dark,ink,3),poly('27,8 41,21 32,39 22,21',light,ink,2.5),
+  rect(17,44,31,9,2,light,ink),line('8 54 H57',ink,3)
+ ].join('');
  if(type==='module')return [
   rect(14,11,36,42,5,dark,ink,3),
   rect(19,17,26,27,3,light,ink,2),
@@ -212,9 +229,30 @@ function symbol(type,id,light,dark){
  ].join('');
  return [rect(14,14,36,36,7,dark,ink),circle(32,32,10,light,ink)].join('');
 }
+function derivedSpec(id){
+ if(/turret|cannon|artillery|gun-/.test(id))return ['turret','#e7aa7e','#996243'];
+ if(/solar-panel/.test(id))return ['solar','#89c7ee','#356d9e'];
+ if(/mining-drill|pumpjack/.test(id))return ['drill','#cbd4dd','#687c95'];
+ if(/chest|storage|container/.test(id))return ['chest','#c69d77','#765d47'];
+ if(/module|beacon/.test(id))return ['module','#ba9ae1','#6c55a5'];
+ if(/accumulator|battery/.test(id))return ['battery','#86d9c2','#368a86'];
+ if(/science-pack/.test(id))return ['science','#bda6ee','#634fa8'];
+ if(/robot|roboport/.test(id))return ['robot','#acc4dd','#537da5'];
+ if(/belt|splitter/.test(id))return ['belt','#eac576','#a47536'];
+ if(/inserter/.test(id))return ['inserter','#eac576','#a47536'];
+ if(/circuit|combinator|processor/.test(id))return ['circuit','#82c6db','#396c91'];
+ if(/engine|locomotive|wagon|car|tank/.test(id))return ['engine','#becbd5','#6b8196'];
+ if(/furnace|machine|refinery|plant|centrifuge|silo|boiler|generator/.test(id))return ['furnace','#b6c4d3','#627b9b'];
+ if(/plate|steel|concrete|brick|wall|stone/.test(id))return ['plate','#b9c5d4','#637a94'];
+ if(/pipe/.test(id))return ['pipe','#b9c7d8','#657e94'];
+ if(/rail|signal/.test(id))return ['rail','#b8c3d0','#63788e'];
+ if(/ammo|magazine|round|explosive|grenade|rocket|shell|bomb/.test(id))return ['rocketfuel','#e9ad83','#9f5e42'];
+ if(/gear|stick|cable/.test(id))return ['gear','#dfc89e','#9b7e56'];
+ return ['ore','#a7c4d5','#5c7891'];
+}
 function item(id,size=32){
  const safeId=String(id||'').toLowerCase().replace(/[^a-z0-9-]/g,'');
- const spec=S[safeId]||['ore','#a7c4d5','#5c7891'];
+ const spec=S[safeId]||derivedSpec(safeId);
  const px=Number.isFinite(Number(size))?Math.min(96,Math.max(16,Number(size))):32;
  const label=safeId.replace(/-/g,' ');
  return '<span class="item-icon" data-item-icon="'+safeId+'" style="--item-tone:'+spec[1]+';--item-back:'+spec[2]+';--icon-size:'+px+'px" aria-hidden="true">'+
@@ -222,5 +260,5 @@ function item(id,size=32){
  symbol(spec[0],safeId,spec[1],spec[2])+'</svg></span>';
 }
 root.NauvisIcons={item,ids:Object.freeze(Object.keys(S)),version:'original-1'};
-if(typeof module==='object'&&module.exports)module.exports={item,specs:S,symbol};
+if(typeof module==='object'&&module.exports)module.exports={item,specs:S,symbol,derivedSpec};
 })(typeof window==='undefined'?globalThis:window);

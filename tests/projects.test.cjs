@@ -23,11 +23,11 @@ const context={stopBus:getSet('STOP_BUS'),stopRaw:getSet('STOP_RAW'),fluids:getS
 const analyze=(rate=90,source='bus',id='advanced-circuit')=>
  analyzeRecipeRatios(R,{id,rate,machine:.75,source,belt:900},context);
 const make=(id='project_1')=>buildProject('Red circuit expansion',analyze(),id,'2026-11-22T18:00:00Z');
-test('four tabs share the expected order, with teal Construction behind Plan & Build',()=>{
+test('three tabs hold both Factory/Balance and Plan/Construction modes',()=>{
  const nav=html.match(/<nav class="nav"[\s\S]*?<\/nav>/)?.[0]||'';
  const names=[...nav.matchAll(/<button data-view="([^"]+)"[^>]*>[\s\S]*?<\/button>/g)].map(m=>m[1]);
- assert.deepEqual(names,['learn','setup','balance','build']);
- for(const label of ['Quick Guide','Factory','Balance','Plan &amp; Build'])assert.match(nav,new RegExp('>'+label+'<\\/button>'));
+ assert.deepEqual(names,['learn','setup','build']);
+ for(const label of ['Quick Guide','Factory &amp; Balance','Plan &amp; Build'])assert.match(nav,new RegExp('>'+label+'<\\/button>'));
  const newPalette=fs.readFileSync(path.join(base,'workspace-v025.css'),'utf8');
  for(const color of ['#eec277','#ed91aa','#bba5e5','#65b5ff','#6ce0d1'])assert.ok(newPalette.toLowerCase().includes(color));
  assert.match(css,/body\[data-workspace="build"\]/);
@@ -123,7 +123,7 @@ test('the cloud snapshot continues to include plan without new tables or sync co
  assert.match(html,/snapshot\(\)\{return JSON\.parse\(JSON\.stringify\(\{version:7,plan:factory,guide,setup,balancePrefs\}\)\)\}/);
  assert.match(html,/projects:Array\.isArray\(data\.plan\.projects\)\?data\.plan\.projects:\[\]/);
  assert.match(html,/factory\.projects=Array\.isArray\(factory\.projects\)\?factory\.projects:\[\]/);
- assert.match(worker,/nauvis-shell-v025/);
+ assert.match(worker,/nauvis-shell-v026/);
  assert.match(worker,/projects\.js/);
  assert.match(worker,/projects\.css/);
 });

@@ -605,6 +605,7 @@ body[data-workspace="build"]{
 <link rel="stylesheet" href="./projects.css" />
 <link rel="stylesheet" href="./item-icons.css" />
 <link rel="stylesheet" href="./workspace-v025.css" />
+<link rel="stylesheet" href="./preset-v026.css" />
 </head>
 <body data-workspace="balance">
 <div class="shell">
@@ -616,9 +617,9 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.25 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.26 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
-  <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory</button><button data-view="balance" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Balance</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Plan &amp; Build</button></div></nav>
+  <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory &amp; Balance</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Plan &amp; Build</button></div></nav>
  </div>
  <main>
  <section class="view" id="build">
@@ -827,9 +828,10 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v0.25 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.26 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script src="./item-icons.js"></script>
+<script src="./production-presets.js"></script>
 <script>
 'use strict';
 /* Verified standard recipes. Inputs for chemical fluids are in fluid units, not solid items. */
@@ -855,7 +857,7 @@ const R={
  'sulfuric-acid':['Sulfuric acid',1,50,'chem',{'iron-plate':1,'sulfur':5,'water':100}],
  'explosives':['Explosives',4,2,'chem',{'sulfur':1,'coal':1,'water':10}],
  'solid-fuel':['Solid fuel (light oil)',1,1,'chem',{'light-oil':10}],
- 'rocket-fuel':['Rocket fuel',30,1,'asm',{'solid-fuel':10,'light-oil':10}],
+ 'rocket-fuel':['Rocket fuel',15,1,'asm',{'solid-fuel':10,'light-oil':10}],
  'rail':['Rail',.5,2,'asm',{'steel-plate':1,'stone':1,'iron-stick':1}],
  'productivity-module':['Productivity module',15,1,'asm',{'electronic-circuit':5,'advanced-circuit':5}],
  'electric-furnace':['Electric furnace',5,1,'asm',{'steel-plate':10,'advanced-circuit':5,'stone-brick':10}],
@@ -866,7 +868,157 @@ const R={
  'logistic-science-pack':['Green science',6,1,'asm',{'transport-belt':1,'inserter':1}],
  'chemical-science-pack':['Blue science',24,2,'asm',{'advanced-circuit':3,'engine-unit':2,'sulfur':1}],
  'production-science-pack':['Purple science',21,3,'asm',{'electric-furnace':1,'productivity-module':1,'rail':30}],
- 'utility-science-pack':['Yellow science',21,3,'asm',{'flying-robot-frame':1,'low-density-structure':3,'processing-unit':2}]
+ 'utility-science-pack':['Yellow science',21,3,'asm',{'flying-robot-frame':1,'low-density-structure':3,'processing-unit':2}],
+ // v0.26: Additional deterministic base-game recipes, from 2.0.77 game prototype metadata.
+ 'accumulator':["Accumulator",10,1,'asm',{"iron-plate":2,"battery":5}],
+ 'active-provider-chest':["Active provider chest",0.5,1,'asm',{"steel-chest":1,"electronic-circuit":3,"advanced-circuit":1}],
+ 'arithmetic-combinator':["Arithmetic combinator",0.5,1,'asm',{"copper-cable":5,"electronic-circuit":5}],
+ 'artillery-shell':["Artillery shell",15,1,'asm',{"radar":1,"calcite":1,"tungsten-plate":4,"explosives":8}],
+ 'artillery-turret':["Artillery turret",40,1,'asm',{"tungsten-plate":60,"refined-concrete":60,"iron-gear-wheel":40,"processing-unit":10}],
+ 'artillery-wagon':["Artillery wagon",4,1,'asm',{"engine-unit":60,"tungsten-plate":60,"refined-concrete":60,"iron-gear-wheel":40,"processing-unit":10}],
+ 'assembling-machine-1':["Assembling machine 1",0.5,1,'asm',{"electronic-circuit":3,"iron-gear-wheel":5,"iron-plate":9}],
+ 'assembling-machine-2':["Assembling machine 2",0.5,1,'asm',{"steel-plate":2,"electronic-circuit":3,"iron-gear-wheel":5,"assembling-machine-1":1}],
+ 'assembling-machine-3':["Assembling machine 3",0.5,1,'asm',{"assembling-machine-2":2,"speed-module":4}],
+ 'atomic-bomb':["Atomic bomb",50,1,'asm',{"processing-unit":10,"explosives":10,"uranium-235":100}],
+ 'barrel':["Barrel",1,1,'asm',{"steel-plate":1}],
+ 'beacon':["Beacon",15,1,'asm',{"electronic-circuit":20,"advanced-circuit":20,"steel-plate":10,"copper-cable":10}],
+ 'belt-immunity-equipment':["Belt immunity equipment",10,1,'asm',{"advanced-circuit":5,"steel-plate":10}],
+ 'big-electric-pole':["Big electric pole",0.5,1,'asm',{"iron-stick":8,"steel-plate":5,"copper-cable":4}],
+ 'boiler':["Boiler",0.5,1,'asm',{"stone-furnace":1,"pipe":4}],
+ 'buffer-chest':["Buffer chest",0.5,1,'asm',{"steel-chest":1,"electronic-circuit":3,"advanced-circuit":1}],
+ 'bulk-inserter':["Bulk inserter",0.5,1,'asm',{"iron-gear-wheel":15,"electronic-circuit":15,"advanced-circuit":1,"fast-inserter":1}],
+ 'burner-inserter':["Burner inserter",0.5,1,'asm',{"iron-plate":1,"iron-gear-wheel":1}],
+ 'burner-mining-drill':["Burner mining drill",2,1,'asm',{"iron-gear-wheel":3,"stone-furnace":1,"iron-plate":3}],
+ 'cannon-shell':["Cannon shell",8,1,'asm',{"steel-plate":2,"plastic-bar":2,"explosives":1}],
+ 'car':["Car",2,1,'asm',{"engine-unit":8,"iron-plate":20,"steel-plate":5}],
+ 'cargo-landing-pad':["Cargo landing pad",30,1,'asm',{"concrete":200,"steel-plate":25,"processing-unit":10}],
+ 'cargo-wagon':["Cargo wagon",1,1,'asm',{"iron-gear-wheel":10,"iron-plate":20,"steel-plate":20}],
+ 'centrifuge':["Centrifuge",4,1,'asm',{"concrete":100,"steel-plate":50,"advanced-circuit":100,"iron-gear-wheel":100}],
+ 'chemical-plant':["Chemical plant",5,1,'asm',{"steel-plate":5,"iron-gear-wheel":5,"electronic-circuit":5,"pipe":5}],
+ 'cliff-explosives':["Cliff explosives",8,1,'asm',{"explosives":10,"calcite":10,"grenade":1,"barrel":1}],
+ 'cluster-grenade':["Cluster grenade",8,1,'asm',{"grenade":7,"explosives":5,"steel-plate":5}],
+ 'combat-shotgun':["Combat shotgun",10,1,'asm',{"steel-plate":15,"iron-gear-wheel":5,"copper-plate":10,"wood":10}],
+ 'concrete':["Concrete",10,10,'asm',{"stone-brick":5,"iron-ore":1,"water":100}],
+ 'constant-combinator':["Constant combinator",0.5,1,'asm',{"copper-cable":5,"electronic-circuit":2}],
+ 'construction-robot':["Construction robot",0.5,1,'asm',{"flying-robot-frame":1,"electronic-circuit":2}],
+ 'decider-combinator':["Decider combinator",0.5,1,'asm',{"copper-cable":5,"electronic-circuit":5}],
+ 'defender-capsule':["Defender capsule",8,1,'asm',{"piercing-rounds-magazine":3,"electronic-circuit":3,"iron-gear-wheel":3}],
+ 'destroyer-capsule':["Destroyer capsule",15,1,'asm',{"distractor-capsule":4,"steel-plate":4,"processing-unit":1}],
+ 'discharge-defense-equipment':["Discharge defense",10,1,'asm',{"processing-unit":5,"steel-plate":20,"laser-turret":10}],
+ 'display-panel':["Display panel",0.5,1,'asm',{"iron-plate":1,"electronic-circuit":1}],
+ 'distractor-capsule':["Distractor capsule",15,1,'asm',{"defender-capsule":4,"advanced-circuit":3}],
+ 'efficiency-module':["Efficiency module",15,1,'asm',{"advanced-circuit":5,"electronic-circuit":5}],
+ 'efficiency-module-2':["Efficiency module 2",30,1,'asm',{"efficiency-module":4,"advanced-circuit":5,"processing-unit":5}],
+ 'efficiency-module-3':["Efficiency module 3",60,1,'asm',{"efficiency-module-2":4,"advanced-circuit":5,"processing-unit":5,"spoilage":5}],
+ 'electric-mining-drill':["Electric mining drill",2,1,'asm',{"electronic-circuit":3,"iron-gear-wheel":5,"iron-plate":10}],
+ 'energy-shield-equipment':["Energy shield",10,1,'asm',{"advanced-circuit":5,"steel-plate":10}],
+ 'energy-shield-mk2-equipment':["Energy shield MK2",10,1,'asm',{"energy-shield-equipment":10,"processing-unit":5,"low-density-structure":5}],
+ 'exoskeleton-equipment':["Exoskeleton",10,1,'asm',{"processing-unit":10,"electric-engine-unit":30,"steel-plate":20}],
+ 'explosive-cannon-shell':["Explosive cannon shell",8,1,'asm',{"steel-plate":2,"plastic-bar":2,"explosives":2}],
+ 'explosive-rocket':["Explosive rocket",8,1,'asm',{"rocket":1,"explosives":2}],
+ 'explosive-uranium-cannon-shell':["Explosive uranium cannon shell",12,1,'asm',{"explosive-cannon-shell":1,"uranium-238":1}],
+ 'express-splitter':["Express splitter",2,1,'asm',{"fast-splitter":1,"iron-gear-wheel":10,"advanced-circuit":10,"lubricant":80}],
+ 'express-transport-belt':["Express transport belt",0.5,1,'asm',{"iron-gear-wheel":10,"fast-transport-belt":1,"lubricant":20}],
+ 'express-underground-belt':["Express underground belt",2,2,'asm',{"iron-gear-wheel":80,"fast-underground-belt":2,"lubricant":40}],
+ 'fast-inserter':["Fast inserter",0.5,1,'asm',{"electronic-circuit":2,"iron-plate":2,"inserter":1}],
+ 'fast-splitter':["Fast splitter",2,1,'asm',{"splitter":1,"iron-gear-wheel":10,"electronic-circuit":10}],
+ 'fast-underground-belt':["Fast underground belt",2,2,'asm',{"iron-gear-wheel":40,"underground-belt":2}],
+ 'crude-oil-barrel':["Fill Crude oil barrel",0.2,1,'asm',{"crude-oil":50,"barrel":1}],
+ 'heavy-oil-barrel':["Fill Heavy oil barrel",0.2,1,'asm',{"heavy-oil":50,"barrel":1}],
+ 'light-oil-barrel':["Fill Light oil barrel",0.2,1,'asm',{"light-oil":50,"barrel":1}],
+ 'lubricant-barrel':["Fill Lubricant barrel",0.2,1,'asm',{"lubricant":50,"barrel":1}],
+ 'petroleum-gas-barrel':["Fill Petroleum gas barrel",0.2,1,'asm',{"petroleum-gas":50,"barrel":1}],
+ 'sulfuric-acid-barrel':["Fill Sulfuric acid barrel",0.2,1,'asm',{"sulfuric-acid":50,"barrel":1}],
+ 'water-barrel':["Fill Water barrel",0.2,1,'asm',{"water":50,"barrel":1}],
+ 'firearm-magazine':["Firearm magazine",1,1,'asm',{"iron-plate":4}],
+ 'flamethrower':["Flamethrower",10,1,'asm',{"steel-plate":5,"iron-gear-wheel":10}],
+ 'flamethrower-ammo':["Flamethrower ammo",6,1,'chem',{"steel-plate":5,"crude-oil":100}],
+ 'flamethrower-turret':["Flamethrower turret",20,1,'asm',{"steel-plate":30,"iron-gear-wheel":15,"pipe":10,"engine-unit":5}],
+ 'fluid-wagon':["Fluid wagon",1.5,1,'asm',{"iron-gear-wheel":10,"steel-plate":16,"pipe":8,"storage-tank":1}],
+ 'gate':["Gate",0.5,1,'asm',{"stone-wall":1,"steel-plate":2,"electronic-circuit":2}],
+ 'grenade':["Grenade",8,1,'asm',{"iron-plate":5,"coal":10}],
+ 'gun-turret':["Gun turret",8,1,'asm',{"iron-gear-wheel":10,"copper-plate":10,"iron-plate":20}],
+ 'hazard-concrete':["Hazard concrete",0.25,10,'asm',{"concrete":10}],
+ 'heat-exchanger':["Heat exchanger",3,1,'asm',{"steel-plate":10,"copper-plate":100,"pipe":10}],
+ 'heat-pipe':["Heat pipe",1,1,'asm',{"steel-plate":10,"copper-plate":20}],
+ 'heavy-armor':["Heavy armor",8,1,'asm',{"copper-plate":100,"steel-plate":50}],
+ 'iron-chest':["Iron chest",0.5,1,'asm',{"iron-plate":8}],
+ 'lab':["Lab",2,1,'asm',{"electronic-circuit":10,"iron-gear-wheel":10,"transport-belt":4}],
+ 'small-lamp':["Lamp",0.5,1,'asm',{"electronic-circuit":1,"copper-cable":3,"iron-plate":1}],
+ 'land-mine':["Land mine",5,4,'asm',{"steel-plate":1,"explosives":2}],
+ 'landfill':["Landfill",0.5,1,'asm',{"stone":50}],
+ 'laser-turret':["Laser turret",20,1,'asm',{"steel-plate":20,"electronic-circuit":20,"battery":12}],
+ 'light-armor':["Light armor",3,1,'asm',{"iron-plate":40}],
+ 'locomotive':["Locomotive",4,1,'asm',{"engine-unit":20,"electronic-circuit":10,"steel-plate":30}],
+ 'logistic-robot':["Logistic robot",0.5,1,'asm',{"flying-robot-frame":1,"advanced-circuit":2}],
+ 'long-handed-inserter':["Long-handed inserter",0.5,1,'asm',{"iron-gear-wheel":1,"iron-plate":1,"inserter":1}],
+ 'lubricant':["Lubricant",1,10,'chem',{"heavy-oil":10}],
+ 'medium-electric-pole':["Medium electric pole",0.5,1,'asm',{"iron-stick":4,"steel-plate":2,"copper-cable":2}],
+ 'military-science-pack':["Military science pack",10,2,'asm',{"piercing-rounds-magazine":1,"grenade":1,"stone-wall":2}],
+ 'modular-armor':["Modular armor",15,1,'asm',{"advanced-circuit":30,"steel-plate":50}],
+ 'night-vision-equipment':["Nightvision",10,1,'asm',{"advanced-circuit":5,"steel-plate":10}],
+ 'nuclear-reactor':["Nuclear reactor",8,1,'asm',{"concrete":500,"steel-plate":500,"advanced-circuit":500,"copper-plate":500}],
+ 'offshore-pump':["Offshore pump",0.5,1,'asm',{"pipe":3,"iron-gear-wheel":2}],
+ 'oil-refinery':["Oil refinery",8,1,'asm',{"steel-plate":15,"iron-gear-wheel":10,"stone-brick":10,"electronic-circuit":10,"pipe":10}],
+ 'passive-provider-chest':["Passive provider chest",0.5,1,'asm',{"steel-chest":1,"electronic-circuit":3,"advanced-circuit":1}],
+ 'battery-equipment':["Personal battery",10,1,'asm',{"battery":5,"steel-plate":10}],
+ 'battery-mk2-equipment':["Personal battery MK2",10,1,'asm',{"battery-equipment":10,"processing-unit":15,"low-density-structure":5}],
+ 'personal-laser-defense-equipment':["Personal laser defense",10,1,'asm',{"processing-unit":20,"low-density-structure":5,"laser-turret":5}],
+ 'personal-roboport-equipment':["Personal roboport",10,1,'asm',{"advanced-circuit":10,"iron-gear-wheel":40,"steel-plate":20,"battery":45}],
+ 'personal-roboport-mk2-equipment':["Personal roboport MK2",20,1,'asm',{"personal-roboport-equipment":5,"processing-unit":50,"superconductor":50}],
+ 'piercing-rounds-magazine':["Piercing rounds magazine",6,2,'asm',{"firearm-magazine":2,"steel-plate":1,"copper-plate":2}],
+ 'piercing-shotgun-shell':["Piercing shotgun shells",8,1,'asm',{"shotgun-shell":2,"copper-plate":5,"steel-plate":2}],
+ 'pipe-to-ground':["Pipe to ground",0.5,2,'asm',{"pipe":10,"iron-plate":5}],
+ 'poison-capsule':["Poison capsule",8,1,'asm',{"steel-plate":3,"electronic-circuit":3,"coal":10}],
+ 'fission-reactor-equipment':["Portable fission reactor",10,1,'asm',{"processing-unit":200,"low-density-structure":50,"uranium-fuel-cell":4}],
+ 'solar-panel-equipment':["Portable solar panel",10,1,'asm',{"solar-panel":1,"advanced-circuit":2,"steel-plate":5}],
+ 'power-armor':["Power armor",20,1,'asm',{"processing-unit":40,"electric-engine-unit":20,"steel-plate":40}],
+ 'power-armor-mk2':["Power armor MK2",25,1,'asm',{"efficiency-module":100,"speed-module":100,"processing-unit":60,"electric-engine-unit":40,"low-density-structure":30}],
+ 'power-switch':["Power switch",2,1,'asm',{"iron-plate":5,"copper-cable":5,"electronic-circuit":2}],
+ 'productivity-module-2':["Productivity module 2",30,1,'asm',{"productivity-module":4,"advanced-circuit":5,"processing-unit":5}],
+ 'productivity-module-3':["Productivity module 3",60,1,'asm',{"productivity-module-2":4,"advanced-circuit":5,"processing-unit":5,"biter-egg":1}],
+ 'programmable-speaker':["Programmable speaker",2,1,'asm',{"iron-plate":3,"iron-stick":4,"copper-cable":5,"electronic-circuit":4}],
+ 'pump':["Pump",2,1,'asm',{"engine-unit":1,"steel-plate":1,"pipe":1}],
+ 'pumpjack':["Pumpjack",5,1,'asm',{"steel-plate":5,"iron-gear-wheel":10,"electronic-circuit":5,"pipe":10}],
+ 'radar':["Radar",0.5,1,'asm',{"electronic-circuit":5,"iron-gear-wheel":5,"iron-plate":10}],
+ 'rail-chain-signal':["Rail chain signal",0.5,1,'asm',{"electronic-circuit":1,"iron-plate":5}],
+ 'rail-signal':["Rail signal",0.5,1,'asm',{"electronic-circuit":1,"iron-plate":5}],
+ 'refined-concrete':["Refined concrete",15,10,'asm',{"concrete":20,"iron-stick":8,"steel-plate":1,"water":100}],
+ 'refined-hazard-concrete':["Refined hazard concrete",0.25,10,'asm',{"refined-concrete":10}],
+ 'repair-pack':["Repair pack",0.5,1,'asm',{"electronic-circuit":2,"iron-gear-wheel":2}],
+ 'requester-chest':["Requester chest",0.5,1,'asm',{"steel-chest":1,"electronic-circuit":3,"advanced-circuit":1}],
+ 'roboport':["Roboport",5,1,'asm',{"steel-plate":45,"iron-gear-wheel":45,"advanced-circuit":45}],
+ 'rocket':["Rocket",4,1,'asm',{"explosives":1,"iron-plate":2}],
+ 'rocket-launcher':["Rocket launcher",10,1,'asm',{"iron-plate":5,"iron-gear-wheel":5,"electronic-circuit":5}],
+ 'rocket-silo':["Rocket silo",30,1,'asm',{"steel-plate":1000,"concrete":1000,"pipe":100,"processing-unit":200,"electric-engine-unit":200}],
+ 'selector-combinator':["Selector combinator",0.5,1,'asm',{"advanced-circuit":2,"decider-combinator":5}],
+ 'shotgun':["Shotgun",10,1,'asm',{"iron-plate":15,"iron-gear-wheel":5,"copper-plate":10,"wood":5}],
+ 'shotgun-shell':["Shotgun shells",3,1,'asm',{"copper-plate":2,"iron-plate":2}],
+ 'slowdown-capsule':["Slowdown capsule",8,1,'asm',{"steel-plate":2,"electronic-circuit":2,"coal":5}],
+ 'small-electric-pole':["Small electric pole",0.5,2,'asm',{"wood":1,"copper-cable":2}],
+ 'solar-panel':["Solar panel",10,1,'asm',{"steel-plate":5,"electronic-circuit":15,"copper-plate":5}],
+ 'speed-module':["Speed module",15,1,'asm',{"advanced-circuit":5,"electronic-circuit":5}],
+ 'speed-module-2':["Speed module 2",30,1,'asm',{"speed-module":4,"advanced-circuit":5,"processing-unit":5}],
+ 'speed-module-3':["Speed module 3",60,1,'asm',{"speed-module-2":4,"advanced-circuit":5,"processing-unit":5,"tungsten-carbide":1}],
+ 'spidertron':["Spidertron",10,1,'asm',{"exoskeleton-equipment":4,"fission-reactor-equipment":2,"rocket-turret":1,"radar":2,"raw-fish":1}],
+ 'splitter':["Splitter",1,1,'asm',{"electronic-circuit":5,"iron-plate":5,"transport-belt":4}],
+ 'steam-engine':["Steam engine",0.5,1,'asm',{"iron-gear-wheel":8,"pipe":5,"iron-plate":10}],
+ 'steam-turbine':["Steam turbine",3,1,'asm',{"iron-gear-wheel":50,"copper-plate":50,"pipe":20}],
+ 'steel-chest':["Steel chest",0.5,1,'asm',{"steel-plate":8}],
+ 'steel-furnace':["Steel furnace",3,1,'asm',{"steel-plate":6,"stone-brick":10}],
+ 'stone-furnace':["Stone furnace",0.5,1,'asm',{"stone":5}],
+ 'storage-chest':["Storage chest",0.5,1,'asm',{"steel-chest":1,"electronic-circuit":3,"advanced-circuit":1}],
+ 'storage-tank':["Storage tank",3,1,'asm',{"iron-plate":20,"steel-plate":5}],
+ 'submachine-gun':["Submachine gun",10,1,'asm',{"iron-gear-wheel":10,"copper-plate":5,"iron-plate":10}],
+ 'substation':["Substation",0.5,1,'asm',{"steel-plate":10,"advanced-circuit":5,"copper-cable":6}],
+ 'tank':["Tank",5,1,'asm',{"engine-unit":32,"steel-plate":50,"iron-gear-wheel":15,"advanced-circuit":10}],
+ 'train-stop':["Train stop",0.5,1,'asm',{"electronic-circuit":5,"iron-plate":6,"iron-stick":6,"steel-plate":3}],
+ 'underground-belt':["Underground belt",1,2,'asm',{"iron-plate":10,"transport-belt":5}],
+ 'uranium-cannon-shell':["Uranium cannon shell",12,1,'asm',{"cannon-shell":1,"uranium-238":1}],
+ 'uranium-fuel-cell':["Uranium fuel cell",10,10,'asm',{"iron-plate":10,"uranium-235":1,"uranium-238":19}],
+ 'uranium-rounds-magazine':["Uranium rounds magazine",10,1,'asm',{"piercing-rounds-magazine":1,"uranium-238":1}],
+ 'stone-wall':["Wall",0.5,1,'asm',{"stone-brick":5}],
+ 'wooden-chest':["Wooden chest",0.5,1,'asm',{"wood":2}]
 };
 const STOP_BUS=new Set(['iron-plate','copper-plate','steel-plate','plastic-bar','sulfuric-acid','lubricant','sulfur','stone-brick','stone','coal','water','petroleum-gas','heavy-oil','light-oil','iron-ore','copper-ore']);
 const STOP_RAW=new Set(['iron-ore','copper-ore','stone','coal','water','petroleum-gas','heavy-oil','light-oil','lubricant']);
@@ -884,6 +1036,8 @@ const popular=[
 {id:'plastic-bar',group:'Oil product',defaults:[120,240,480]},
 {id:'fast-transport-belt',group:'Infrastructure',defaults:[30,60,120]}];
 const allOrder=['advanced-circuit','processing-unit','electronic-circuit','low-density-structure','production-science-pack','utility-science-pack','chemical-science-pack','automation-science-pack','logistic-science-pack','engine-unit','electric-engine-unit','flying-robot-frame','productivity-module','electric-furnace','rail','iron-gear-wheel','copper-cable','iron-stick','pipe','battery','plastic-bar','sulfur','sulfuric-acid','explosives','solid-fuel','rocket-fuel','transport-belt','fast-transport-belt','inserter','iron-plate','copper-plate','steel-plate','stone-brick'];
+// Searchable, catalogued additional recipes; preserve established shortcut order.
+allOrder.push(...["accumulator","active-provider-chest","arithmetic-combinator","artillery-shell","artillery-turret","artillery-wagon","assembling-machine-1","assembling-machine-2","assembling-machine-3","atomic-bomb","barrel","beacon","belt-immunity-equipment","big-electric-pole","boiler","buffer-chest","bulk-inserter","burner-inserter","burner-mining-drill","cannon-shell","car","cargo-landing-pad","cargo-wagon","centrifuge","chemical-plant","cliff-explosives","cluster-grenade","combat-shotgun","concrete","constant-combinator","construction-robot","decider-combinator","defender-capsule","destroyer-capsule","discharge-defense-equipment","display-panel","distractor-capsule","efficiency-module","efficiency-module-2","efficiency-module-3","electric-mining-drill","energy-shield-equipment","energy-shield-mk2-equipment","exoskeleton-equipment","explosive-cannon-shell","explosive-rocket","explosive-uranium-cannon-shell","express-splitter","express-transport-belt","express-underground-belt","fast-inserter","fast-splitter","fast-underground-belt","crude-oil-barrel","heavy-oil-barrel","light-oil-barrel","lubricant-barrel","petroleum-gas-barrel","sulfuric-acid-barrel","water-barrel","firearm-magazine","flamethrower","flamethrower-ammo","flamethrower-turret","fluid-wagon","gate","grenade","gun-turret","hazard-concrete","heat-exchanger","heat-pipe","heavy-armor","iron-chest","lab","small-lamp","land-mine","landfill","laser-turret","light-armor","locomotive","logistic-robot","long-handed-inserter","lubricant","medium-electric-pole","military-science-pack","modular-armor","night-vision-equipment","nuclear-reactor","offshore-pump","oil-refinery","passive-provider-chest","battery-equipment","battery-mk2-equipment","personal-laser-defense-equipment","personal-roboport-equipment","personal-roboport-mk2-equipment","piercing-rounds-magazine","piercing-shotgun-shell","pipe-to-ground","poison-capsule","fission-reactor-equipment","solar-panel-equipment","power-armor","power-armor-mk2","power-switch","productivity-module-2","productivity-module-3","programmable-speaker","pump","pumpjack","radar","rail-chain-signal","rail-signal","refined-concrete","refined-hazard-concrete","repair-pack","requester-chest","roboport","rocket","rocket-launcher","rocket-silo","selector-combinator","shotgun","shotgun-shell","slowdown-capsule","small-electric-pole","solar-panel","speed-module","speed-module-2","speed-module-3","spidertron","splitter","steam-engine","steam-turbine","steel-chest","steel-furnace","stone-furnace","storage-chest","storage-tank","submachine-gun","substation","tank","train-stop","underground-belt","uranium-cannon-shell","uranium-fuel-cell","uranium-rounds-magazine","stone-wall","wooden-chest"]);
 const gkey='nauvis-guide-v05',fkey='nauvis-command-center-v01';
 const oldGKey='nauvis-guide-v04';
 const load=(k)=>{try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}};
@@ -907,7 +1061,7 @@ function depth(id,stopped=new Set()){if(!R[id]||stopped.has(id))return 0;const s
 function swatch(m){return `<span class="swatch" style="background:${m.color}"></span>`}
 const nameOf=id=>R[id]?.[0]||names[id]||id;
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,k=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[k]));
-function scaleChoices(){const data=popular.find(x=>x.id===guide.goal);if(data)return data.defaults;const d=guide.goal.includes('science')?[15,30,60]:[30,60,120];return d}
+function scaleChoices(){const x=window.NauvisPresets?.recommendation(guide.goal,R,guide.machine);return x?[x.starter,x.balanced,x.expand]:[30,60,120]}
 function setGoal(id){if(!R[id])return;guide.goal=id;guide.rate=scaleChoices()[1];renderGuide()}
 function renderGoals(){el('goalGrid').innerHTML=popular.map(x=>`<button class="goal ${x.id===guide.goal?'active':''}" style="--accent:${csscolor(x.id,R[x.id][3])}" data-goal="${x.id}"><span class="dot"></span>${itemIcon(x.id,35)}<b>${escapeHTML(R[x.id][0])}</b><small>${x.group}</small></button>`).join('');el('goalGrid').querySelectorAll('button').forEach(x=>x.addEventListener('click',()=>setGoal(x.dataset.goal)));el('allRecipes').value=guide.goal}
 function beltAdvice(n){if(n<=900)return 'Yellow belt is enough';if(n<=1800)return 'A red belt is needed for one line';if(n<=2700)return 'A blue belt or parallel belts';return 'Parallel belts needed'}
@@ -1262,11 +1416,11 @@ function activateWorkspace(view,scrollPage=false){
  const allowed=new Set(['learn','setup','balance','factory','build']);
  if(!allowed.has(view))view='balance';
  document.body.dataset.workspace=view;
- const workspaceNames={learn:'Quick Guide',setup:'Factory',balance:'Balance',factory:'Plan & Build · Construction',build:'Plan & Build · Designer'};
+ const workspaceNames={learn:'Quick Guide',setup:'Factory & Balance · Inventory',balance:'Factory & Balance · Analysis',factory:'Plan & Build · Construction',build:'Plan & Build · Designer'};
  const workspaceLabel=document.getElementById('welcomeWorkspace');
  if(workspaceLabel)workspaceLabel.textContent=workspaceNames[view]||'Factory balance';
  document.querySelectorAll('.nav button').forEach(b=>{
-  const yes=b.dataset.view===(view==='factory'?'build':view);b.classList.toggle('active',yes);
+  const yes=b.dataset.view===(view==='factory'?'build':view==='balance'?'setup':view);b.classList.toggle('active',yes);
   if(yes)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
  });
  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===view));
@@ -1278,7 +1432,7 @@ function activateWorkspace(view,scrollPage=false){
  window.NauvisWorkspace?.onActivate?.(view);
  if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>{const c=document.querySelector('.command-chrome');if(c)document.documentElement.style.setProperty('--chrome-height',Math.ceil(c.getBoundingClientRect().height)+'px')});
 }
-function init(){el('balanceIncludeGoal').addEventListener('change',e=>{balancePrefs.includeGoal=e.target.checked;try{localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs))}catch(_e){}window.NauvisCloud?.changed();renderBalance()});el('balanceEditSetup').addEventListener('click',()=>document.querySelector('.nav button[data-view="setup"]').click());el('allRecipes').innerHTML=[...new Set(allOrder.filter(x=>R[x]))].map(k=>`<option value="${k}">${R[k][0]}</option>`).join('');el('allRecipes').addEventListener('change',e=>setGoal(e.target.value));el('goalNumber').addEventListener('change',e=>{guide.rate=Math.min(25000,Math.max(0,Number(e.target.value)||0));renderGuide()});for(const [id,key] of [['assemblyTier','machine'],['sourceMode','source'],['beltTier','belt']])el(id).addEventListener('change',e=>{guide[key]=key==='source'?e.target.value:Number(e.target.value);renderGuide()});document.querySelectorAll('.nav button').forEach(btn=>btn.addEventListener('click',()=>activateWorkspace(btn.dataset.view==='build'?(window.NauvisWorkspace?.lastPlanMode?.()||'build'):btn.dataset.view,true)));
+function init(){el('balanceIncludeGoal').addEventListener('change',e=>{balancePrefs.includeGoal=e.target.checked;try{localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs))}catch(_e){}window.NauvisCloud?.changed();renderBalance()});el('balanceEditSetup').addEventListener('click',()=>activateWorkspace('setup',true));el('allRecipes').innerHTML=[...new Set(allOrder.filter(x=>R[x]))].map(k=>`<option value="${k}">${R[k][0]}</option>`).join('');el('allRecipes').addEventListener('change',e=>setGoal(e.target.value));el('goalNumber').addEventListener('change',e=>{guide.rate=Math.min(25000,Math.max(0,Number(e.target.value)||0));renderGuide()});for(const [id,key] of [['assemblyTier','machine'],['sourceMode','source'],['beltTier','belt']])el(id).addEventListener('change',e=>{guide[key]=key==='source'?e.target.value:Number(e.target.value);renderGuide()});document.querySelectorAll('.nav button').forEach(btn=>btn.addEventListener('click',()=>activateWorkspace(btn.dataset.view==='build'?(window.NauvisWorkspace?.lastPlanMode?.()||'build'):btn.dataset.view==='setup'?(window.NauvisWorkspace?.lastFactoryMode?.()||'setup'):btn.dataset.view,true)));
  el('exportButton').addEventListener('click',()=>{const data=JSON.stringify({version:7,plan:factory,guide,setup,balancePrefs},null,2),u=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='nauvis-plan.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)});el('importButton').addEventListener('click',()=>el('importFile').click());el('importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const r=JSON.parse(await file.text());if(r.plan&&typeof r.plan.redBlocks==='number'){Object.assign(factory,fd,r.plan,{checked:{...(r.plan.checked||{})}});if(r.guide&&R[r.guide.goal])Object.assign(guide,r.guide);factory.projects=Array.isArray(factory.projects)?factory.projects:[];if(r.setup){Object.assign(setup.smelt,setupSeed.smelt,r.setup.smelt||{});Object.assign(setup.oil,setupSeed.oil,r.setup.oil||{});setup.machines=r.setup.machines||[];setup.feeds=r.setup.feeds||[];if(r.balancePrefs){balancePrefs.includeGoal=!!r.balancePrefs.includeGoal;localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs));el('balanceIncludeGoal').checked=balancePrefs.includeGoal}window.NauvisJournal?.refreshBaseline?.();saveSetup();renderSetup();}}else if(typeof r.redBlocks==='number'){Object.assign(factory,fd,r,{checked:{...(r.checked||{})}})}else throw Error('Not a dashboard backup');save();renderGuide();renderFactory();window.NauvisProjects?.refresh();window.NauvisJournal?.refreshBaseline?.();window.NauvisJournal?.render?.();window.NauvisWorkspace?.refresh?.();window.NauvisQuick?.invalidate();alert('Your plan was imported.')}catch(err){alert('Could not import plan: '+err.message)}e.target.value=''});el('resetButton').addEventListener('click',handleFactorySettingsReset);
  renderGuide();renderFactory();initSetup();activateWorkspace("balance");initStickyCommand();initGuide();}
 window.nauvisTest=(id,target,source='bus')=>{const prev=guide.source;guide.source=source;const output=calculate(id,target);guide.source=prev;return output};

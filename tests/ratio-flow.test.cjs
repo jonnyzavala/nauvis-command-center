@@ -53,8 +53,8 @@ test('stages order upstream producers to the final output, even with shared inpu
  assert.equal(node('m:advanced-circuit').stage,graph.maxLevel);
  assert.equal(node('s:copper-plate').stage,0);
 });
-test('all 33 recipes produce acyclic nodes and edges in both input modes',()=>{
- assert.equal(Object.keys(recipes).length,33);
+test('all 182 recipes produce acyclic nodes and edges in both input modes',()=>{
+ assert.equal(Object.keys(recipes).length,182);
  for(const source of ['bus','raw'])for(const id of Object.keys(recipes)){
   const result=calc(id,30,source),graph=buildFlowGraph(result);
   const allIds=new Set(graph.nodes.map(n=>n.key));
@@ -99,10 +99,10 @@ test('layout stays inside explorer and switches to vertical diagram on iPhone',(
  assert.match(style,/\.ratio-flow-node-label strong\{font-size:11px\}/);
 });
 test('version and offline caching include the visual graph without editing cloud sync',()=>{
- assert.match(html,/Nauvis Command Center v0\.25/);
+ assert.match(html,/Nauvis Command Center v0\.26/);
  assert.match(html,/href="\.\/ratio-flow\.css"/);
  assert.match(html,/src="\.\/ratio-flow\.js" defer/);
- assert.match(worker,/nauvis-shell-v025/);
+ assert.match(worker,/nauvis-shell-v026/);
  assert.match(worker,/ratio-flow\.css/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(html,/sync\/cloud-sync\.js/);

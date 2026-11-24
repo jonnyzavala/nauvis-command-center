@@ -82,8 +82,11 @@ const escape=s=>String(s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&
 const number=n=>Number(n).toLocaleString(undefined,{maximumFractionDigits:2});
 const precision=n=>Number(n).toLocaleString(undefined,{maximumFractionDigits:3});
 const machineName=kind=>kind==='asm'?'assemblers':kind==='chem'?'chemical plants':'furnaces';
-const state={id:guide.goal,rate:guide.rate,machine:guide.machine,source:guide.source,belt:guide.belt};
+const state={id:guide.goal,rate:guide.rate,machine:guide.machine,source:guide.source,belt:guide.belt,preset:'custom'};
 const recipes=R,contexts={stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names};
+let recipeFilter='';
+const recommendation=()=>root.NauvisPresets?.recommendation(state.id,recipes,state.machine)||{starter:30,balanced:60,expand:120,rationale:'Choose an item and target.'};
+state.preset=root.NauvisPresets?.modeFor(state.rate,recommendation())||'custom';
 const colorFor=(id,kind)=>csscolor(id,kind);
 const itemGlyph=(id,size)=>root.NauvisIcons?.item?.(id,size)||'';
 const cards=[...document.querySelectorAll('[data-ratio-explorer]')];
@@ -95,14 +98,22 @@ function buildView(result,card){
  const cardKey=card.dataset.ratioExplorer;
  const id=key=>'ratio-'+cardKey+'-'+key;
  const tiers=[['0.75','Assembler 2 · 0.75×'],['1.25','Assembler 3 · 1.25×']];
- const options=allOrder.filter(k=>recipes[k]).map(k=>[k,recipes[k][0]]);
+ const options=allOrder.filter(k=>recipes[k]&&(!recipeFilter||k===state.id||recipes[k][0].toLowerCase().includes(recipeFilter)||k.includes(recipeFilter))).map(k=>[k,recipes[k][0]]);
+ const rec=recommendation();
+ const presetButtons=[['starter','Starter',rec.starter,'Smaller start'],['balanced','Balanced',rec.balanced,'Recommended baseline'],['expand','More',rec.expand,'Additional capacity'],['custom','Custom',state.rate,'Choose your output']].map(([key,name,rate,detail])=>
+  '<button type="button" data-ratio-preset="'+key+'" class="ratio-preset-btn" aria-pressed="'+(state.preset===key)+'"><b>'+name+'</b><span>'+number(rate)+'/min</span><small>'+detail+'</small></button>').join('');
+
  const selectField=(key,title,opts,value)=>'<div class="ratio-field"><label for="'+id(key)+'">'+escape(title)+'</label><select id="'+id(key)+'" data-ratio-field="'+key+'">'+select(opts,value)+'</select></div>';
- const fieldset='<div class="ratio-fields">'+
+ const fieldset='<div class="ratio-picker"><label for="'+id('search')+'">Find anything to produce (standard Nauvis recipes)</label>'+
+    '<input id="'+id('search')+'" data-ratio-search type="search" placeholder="Search recipes, modules, military, belts…" value="'+escape(recipeFilter)+'" autocomplete="off"></div>'+
+    '<div class="ratio-fields">'+
     selectField('id','Recipe',options,state.id)+
     '<div class="ratio-field"><label for="'+id('rate')+'">Output target / min</label><input id="'+id('rate')+'" data-ratio-field="rate" type="number" inputmode="decimal" min="0" max="25000" step="0.1" value="'+state.rate+'"></div>'+
     selectField('machine','Assembler tier',tiers,state.machine)+
     selectField('source','Include upstream production?',[['bus','Bus-fed: produce local intermediates'],['raw','Raw: include smelting + chemicals']],state.source)+
-    selectField('belt','Belt throughput',[['900','Yellow · 900/min'],['1800','Red · 1,800/min'],['2700','Blue · 2,700/min']],state.belt)+'</div>';
+    selectField('belt','Belt throughput',[['900','Yellow · 900/min'],['1800','Red · 1,800/min'],['2700','Blue · 2,700/min']],state.belt)+'</div>'+
+    '<section class="ratio-preset-panel" aria-label="Output target recommendation"><div class="ratio-preset-intro"><strong>How much should I produce?</strong><small>Balanced is the default starting recommendation, not a live demand prediction.</small></div>'+
+    '<div class="ratio-preset-options">'+presetButtons+'</div><p class="ratio-preset-explanation">'+escape(rec.rationale)+'</p></section>';
  const percentRows=result.entries.map(x=>{
   const pct=x.exact>0?Math.min(100,Math.max(2,100*x.exact/Math.max(1,x.count))):0;
   const color=colorFor(x.key,x.kind);
@@ -138,7 +149,7 @@ function buildView(result,card){
  const outputDesc=output.isFluid?'Output uses pipes; pipe throughput not modeled':(output.belts+' × '+(result.belt===900?'yellow':result.belt===1800?'red':'blue')+' belt'+(output.belts===1?'':'s')+' for final output');
  return fieldset+
   '<div data-ratio-flow-root class="ratio-flow-root"></div>'+
-  '<div class="ratio-save-strip"><button class="ratio-save-project" data-ratio-project-save type="button">Save this build to Projects <span aria-hidden="true">→</span></button><span>Turn this recipe calculation into a saved construction checklist.</span></div>'+
+  '<div class="ratio-save-strip"><button class="ratio-save-project" data-ratio-project-save type="button">Save to Construction Queue <span aria-hidden="true">→</span></button><span>Turn this recipe calculation into a saved construction checklist.</span></div>'+
   '<div data-ratio-legacy-table hidden>'+
   '<div class="ratio-overview">'+
    '<div class="ratio-number-box"><span class="ratio-kicker">ROUNDED MACHINE COUNT</span><strong>'+result.roundedTotal+'</strong><small>'+number(result.rate)+' '+escape(result.name)+'/min</small></div>'+
@@ -158,7 +169,7 @@ function buildView(result,card){
   '<details class="ratio-explain"><summary><span>Why this ratio? <small>Show recipe math and rounding for each machine group</small></span><span>⌄</span></summary>'+
   '<div class="ratio-explain-body"><p class="ratio-caveat">Machine output = items per craft × crafting speed × 60 ÷ recipe seconds. Divide needed items/min by output per machine/min, then round each group up.</p>'+detailed+'</div></details>'+
   '<div class="ratio-actions"><button type="button" class="ratio-send" data-ratio-send>Open detailed planner with this goal <span aria-hidden="true">→</span></button><small>Updates the hypothetical planning goal only. Your Existing Factory inventory remains untouched.</small></div>'+
-  '<p class="ratio-caveat">Model limits: default/base Nauvis recipes only; no alternative Space Age recipes, quality, modules, beacons, productivity bonuses, inserter constraints, mining throughput, pump control or physical routing. Furnaces are modeled at 2× and chemical plants at 1×.</p>';
+  '<p class="ratio-caveat">Model scope: deterministic standard Nauvis recipes and default crafting machines. Planet-specific Space Age processing, stochastic/byproduct recipes, modules, beacons, quality, inserters, mining supply and physical routing still require separate modeling. Furnace speed is 2× and chemical plant speed is 1×.</p>';
 }
 function renderCard(card){
  if(!card.open)return;
@@ -167,11 +178,32 @@ function renderCard(card){
   const result=analyzeRecipeRatios(recipes,state,contexts);
   target.innerHTML=buildView(result,card);
   root.NauvisRatioFlow?.mount(target,result,card.dataset.ratioExplorer);
+  const search=target.querySelector('[data-ratio-search]');
+  search?.addEventListener('input',event=>{
+   recipeFilter=event.target.value.trim().toLowerCase();
+   const match=allOrder.filter(key=>recipes[key]&&(!recipeFilter||key===state.id||
+    recipes[key][0].toLowerCase().includes(recipeFilter)||key.includes(recipeFilter)));
+   const pick=target.querySelector('[data-ratio-field="id"]');
+   if(pick){pick.innerHTML=select(match.map(key=>[key,recipes[key][0]]),state.id);pick.value=state.id}
+  });
+  target.querySelectorAll('[data-ratio-preset]').forEach(button=>button.addEventListener('click',()=>{
+   const next=button.dataset.ratioPreset,rec=recommendation();
+   state.preset=next;
+   if(next!=='custom')state.rate=rec[next];
+   renderAll();
+  }));
   target.querySelectorAll('[data-ratio-field]').forEach(input=>input.addEventListener('change',event=>{
    const kind=event.target.dataset.ratioField,prev=state[kind],raw=event.target.value;
    if(kind==='rate'){
     try{state.rate=assertFiniteRate(raw,'Target')}catch(err){state.rate=prev;target.querySelector('[data-ratio-error]').textContent=err.message;target.querySelector('[data-ratio-error]').hidden=false;event.target.value=String(prev);return}
-   }else state[kind]=kind==='machine'||kind==='belt'?Number(raw):raw;
+    state.preset=root.NauvisPresets?.modeFor(state.rate,recommendation())||'custom';
+   }else if(kind==='id'){
+    state.id=raw;state.preset='balanced';state.rate=recommendation().balanced;
+    recipeFilter='';
+   }else{
+    state[kind]=kind==='machine'||kind==='belt'?Number(raw):raw;
+    if(kind==='machine'&&state.preset!=='custom')state.rate=recommendation()[state.preset];
+   }
    renderAll();
   }));
   target.querySelector('[data-ratio-project-save]')?.addEventListener('click',()=>root.NauvisProjects?.createFromRatio(result));
@@ -198,6 +230,8 @@ cards.forEach(card=>card.addEventListener('toggle',()=>{if(card.open)renderCard(
 root.NauvisRatioExplorer={refresh:renderAll,setGoal(goal){
   if(!goal||!recipes[goal.id])return;
   for(const key of ['id','rate','machine','source','belt'])if(goal[key]!==undefined)state[key]=goal[key];
+  state.preset=root.NauvisPresets?.modeFor(state.rate,recommendation())||'custom';
+  recipeFilter='';
   renderAll();
  },openAt(view){
  const card=document.querySelector('[data-ratio-explorer="'+view+'"]');

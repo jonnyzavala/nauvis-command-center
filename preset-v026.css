@@ -1,0 +1,43 @@
+/* v0.26 production targeting: compact presets and searchable 2.0 Nauvis recipes. */
+.ratio-picker{display:grid;gap:6px;margin:5px 0 11px}
+.ratio-picker label{font-size:11px;font-weight:850;color:#d5eaff}
+.ratio-picker input{
+ width:100%;min-height:43px;padding:9px 12px;border-radius:10px;
+ border:1px solid #5a84a1;background:#122a43;color:#eaf7fe;
+ font:inherit;font-size:13px;box-shadow:inset 0 2px 8px #06111c60;
+}
+.ratio-picker input::placeholder{color:#9fbbce}
+.ratio-picker input:focus-visible{outline:2px solid #65b5ff;outline-offset:2px}
+.ratio-preset-panel{
+ margin:10px 0 13px;border:1px solid #507896;border-radius:13px;
+ background:linear-gradient(145deg,#123352,#12273d);padding:12px;
+ box-shadow:inset 0 1px 0 #ffffff10;
+}
+.ratio-preset-intro{display:flex;gap:6px;flex-direction:column;margin-bottom:10px}
+.ratio-preset-intro strong{color:#effaff;font-size:13px}
+.ratio-preset-intro small{color:#9dbdd2;font-size:11px;line-height:1.45}
+.ratio-preset-options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.ratio-preset-btn{
+ min-width:0;min-height:79px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;
+ padding:10px 9px;color:#d5eafa;border-radius:10px;border:1px solid #456a85;
+ background:linear-gradient(145deg,#26445f,#172d42);text-align:left;
+}
+.ratio-preset-btn b{font-size:11px;letter-spacing:.02em}
+.ratio-preset-btn>span{font-weight:900;color:#b0d4ec;font-size:14px;font-variant-numeric:tabular-nums}
+.ratio-preset-btn small{font-size:9px;color:#afc3d5;line-height:1.2}
+.ratio-preset-btn[aria-pressed="true"]{
+ background:linear-gradient(140deg,#2b6799,#17486c);border-color:#7cc6ff;
+ box-shadow:inset 0 2px 0 #a2d9ff70,0 0 13px #1d6aab30;
+}
+.ratio-preset-btn[aria-pressed="true"]>span{color:#fff}
+.ratio-preset-btn:focus-visible{outline:2px solid #a2d9ff;outline-offset:2px}
+.ratio-preset-explanation{font-size:11px;color:#a9cade;margin:11px 0 1px;line-height:1.48}
+@media(max-width:720px){
+ .ratio-preset-options{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .ratio-preset-btn{min-height:66px}
+ .ratio-preset-btn>span{font-size:14px}
+}
+@media(max-width:390px){
+ .ratio-preset-btn{padding:9px 7px}
+ .ratio-preset-panel{padding:9px}
+}
