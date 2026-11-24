@@ -60,7 +60,7 @@ function deploymentProject(name,item,planned,id,area='Nauvis'){
   tasks:[{recipe,kind:'asset',planned:count,built:0}]};
 }
 function applyAssetBuildDelta(project,recipe,delta,assets){
- if(!project?.tasks||!['+1','-1'].includes(delta>0?'+1':'-1')||Math.abs(delta)!==1)throw Error('Expected a one-item deployment change.');
+ if(!project?.tasks||!Number.isSafeInteger(delta)||Math.abs(delta)!==1)throw Error('Expected a one-item deployment change.');
  const task=project.tasks.find(t=>t.recipe===recipe&&t.kind==='asset');
  if(!task)throw Error('Deployment task not found.');
  const next=task.built+delta;
@@ -91,7 +91,6 @@ if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id);
 const escape=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const itemName=id=>R?.[id]?.[0]||String(id).replace(/-/g,' ');
-const pick=([{id,label}])=>{};
 let showAll=false;
 const uuid=()=>root.crypto?.randomUUID?.()||Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);
 const itemIDs=[...new Set([...starterItems.filter(x=>R?.[x]),...Object.keys(R||{})])];
