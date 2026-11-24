@@ -27,7 +27,9 @@ function buildProject(name,analysis,id,createdAt){
  });
  if(new Set(tasks.map(x=>x.recipe)).size!==tasks.length)throw Error('Duplicate recipe in project.');
  return {id,name:validateProjectName(name),status:'active',createdAt:String(createdAt),
-  goal:{id:analysis.id,rate:analysis.rate,machine:analysis.machine,source:analysis.source,belt:analysis.belt},
+  goal:{id:analysis.id,rate:analysis.rate,machine:analysis.machine,source:analysis.source,belt:analysis.belt,
+   moduleType:analysis.moduleType||'none',moduleCount:analysis.moduleCount||0,
+   machineQuality:analysis.machineQuality||'normal',beaconSpeed:analysis.beaconSpeed||0},
   tasks};
 }
 function projectProgress(project){
@@ -41,7 +43,13 @@ function recordedForTask(project,task,rows){
  const matching=(Array.isArray(rows)?rows:[]).filter(row=>row?.projectId===project.id&&row?.projectTask===task.recipe);
  const count=matching.reduce((sum,row)=>sum+clampInt(row.count),0);
  const mismatch=matching.some(row=>row.recipe!==task.recipe||
-  (task.kind==='asm'&&Math.abs(Number(row.tier)-Number(project.goal.machine))>1e-8));
+  (task.kind==='asm'&&Math.abs(Number(row.tier)-Number(project.goal.machine))>1e-8)||
+  (task.kind!=='asset'&&(
+   (row.moduleType||'none')!==(project.goal.moduleType||'none')||
+   Number(row.moduleCount||0)!==Number(project.goal.moduleCount||0)||
+   (row.machineQuality||'normal')!==(project.goal.machineQuality||'normal')||
+   Number(row.beaconSpeed||0)!==Number(project.goal.beaconSpeed||0)
+  )));
  return {count,mismatch};
 }
 function applyBuildDelta(project,recipe,delta,rows){
@@ -67,7 +75,9 @@ function applyBuildDelta(project,recipe,delta,rows){
   if(next===0)nextRows.splice(index,1);
   else nextRows[index]={...nextRows[index],count:next};
  }else if(next>0){
-  nextRows.push({recipe,count:next,tier,destination:'Other',projectId:project.id,projectTask:recipe});
+  nextRows.push({recipe,count:next,tier,destination:'Other',projectId:project.id,projectTask:recipe,
+   moduleType:project.goal.moduleType||'none',moduleCount:project.goal.moduleCount||0,
+   machineQuality:project.goal.machineQuality||'normal',beaconSpeed:project.goal.beaconSpeed||0});
  }
  return {project:{...project,tasks:project.tasks.map(t=>t.recipe===recipe?{...t,built:next}:t)},rows:nextRows};
 }
@@ -148,7 +158,11 @@ function projectHTML(p){
  return '<article class="project-card" data-project-card="'+escape(p.id)+'" style="--project-card-accent:'+colorFor(p.goal.id,'asm')+'">'+
   '<div class="project-card-top"><span class="project-card-icon" aria-hidden="true">'+itemGlyph(p.goal.id,34)+'</span>'+
   '<div class="project-card-intro"><h3>'+escape(p.name)+'</h3><p>'+escape(R[p.goal.id]?.[0]||p.goal.id)+
- (p.type==='deployment'?' · '+escape(p.goal.area||'Nauvis')+' · deployment':' · '+fmt(p.goal.rate)+'/min · '+(p.goal.source==='bus'?'Bus fed':'Raw inputs'))+'</p></div>'+
+ (p.type==='deployment'?' · '+escape(p.goal.area||'Nauvis')+' · deployment':
+ ' · '+fmt(p.goal.rate)+'/min · '+(p.goal.source==='bus'?'Bus fed':'Raw inputs')+
+ (p.goal.moduleType&&p.goal.moduleType!=='none'?' · '+escape(p.goal.moduleType)+' ×'+Number(p.goal.moduleCount||0):'')+
+ (p.goal.machineQuality&&p.goal.machineQuality!=='normal'?' · '+escape(p.goal.machineQuality)+' machines':'')+
+ (p.goal.beaconSpeed?' · +'+Number(p.goal.beaconSpeed)+'% effective beacon speed':''))+'</p></div>'+
   '<span class="project-card-status">'+(archived?'ARCHIVED':pct===100?'BUILT':'IN PROGRESS')+'</span></div>'+
   '<div class="project-card-progress"><div class="project-card-progress-top"><strong>'+progress.built+' / '+progress.planned+(p.type==='deployment'?' items placed':' machines built')+'</strong><span>'+pct+'%</span></div>'+
   '<div class="project-progress-track"><span style="width:'+pct+'%"></span></div></div>'+
