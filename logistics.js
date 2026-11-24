@@ -48,7 +48,7 @@ function analyze(graph,lookup=()=>null){
   if(n.link)usedLinks.add(n.kind+'|'+n.item+'|'+(n.link==='smelt:iron-gross'?'smelt:iron-plate':n.link));
   const missing=!!n.link&&(!linked||duplicate);
   const supply=n.kind==='source'?(missing?0:n.link?num(linked.rate):num(n.amount)*(TIERS[n.tier]||1800)):received.get(k);
-  const demand=n.kind==='destination'?(missing?null:n.link?num(linked.rate):n.amount===''||n.amount==null?null:num(n.amount)*(TIERS[n.tier]||1800)):null;
+  const demand=n.kind==='destination'?(missing||n.entityAnchor&&!edges.some(e=>e.to===k)?null:n.link?num(linked.rate):n.amount===''||n.amount==null?null:num(n.amount)*(TIERS[n.tier]||1800)):null;
   const outgoing=out.get(k),totalCapacity=outgoing.reduce((s,e)=>s+cap(e),0),budget=Math.min(supply,totalCapacity);
   // Equal splitter shares by default; ordinary sources/mergers distribute in
   // proportion to route capacity. Explicit positive weights override defaults.
@@ -65,11 +65,11 @@ function analyze(graph,lookup=()=>null){
  return {nodes:results,routes,stage,warnings};
 }
 // Distinct physical belts: separate ports, tracks and bypass lanes, no shared trunks.
-function layoutBelts(graph,stage){
- const pitch=5,margin=20,nodeH=82,ins=new Map(graph.nodes.map(n=>[n.id,[]])),outs=new Map(graph.nodes.map(n=>[n.id,[]]));
+function layoutBelts(graph,stage,options={}){
+ const pitch=5,margin=20,nodeH=options.nodeHeight||82,ins=new Map(graph.nodes.map(n=>[n.id,[]])),outs=new Map(graph.nodes.map(n=>[n.id,[]]));
  for(const e of graph.edges){outs.get(e.from).push(e);ins.get(e.to).push(e)}
  const count=l=>l.reduce((s,e)=>s+e.belts,0);
- const nodeW=Math.max(156,...graph.nodes.map(n=>Math.max(count(ins.get(n.id)),count(outs.get(n.id)))*pitch+28));
+ const nodeW=Math.max(options.nodeWidth||156,...graph.nodes.map(n=>Math.max(count(ins.get(n.id)),count(outs.get(n.id)))*pitch+28));
  const max=Math.max(0,...stage.values()),columns=Array.from({length:max+1},(_,i)=>graph.nodes.filter(n=>stage.get(n.id)===i));
  const gap=24,span=Math.max(nodeW,...columns.map(c=>c.length*(nodeW+gap)-gap));
  const tracks=Array.from({length:max},()=>0),assign=new Map();let rails=0;
@@ -201,13 +201,39 @@ function diagnostics(graph,a,lookup){
  }
  return {findings,totalDemand,totalSupply,productionGap:Math.max(0,totalDemand-totalSupply),knownShort:missing.length,unknown:sinks.length-known.length,unrouted:sum(sources.map(n=>a.nodes[n.id].remaining)),unknownSources:sources.filter(n=>a.nodes[n.id].missing).length};
 }
-if(typeof module==='object'&&module.exports)module.exports={normalize,connect,analyze,order,TIERS,layoutBelts,groupKey,networkResults,diagnostics,scenarioGraph};
+// Entity projection is deliberately non-destructive: existing endpoint IDs and
+// physical routes remain the storage model, linked groups become a single card.
+function entityProjection(raw,records=[]){
+ const g=normalize(raw),groups=new Map(),nodeToEntity=new Map(),catalog=new Map(records.map(r=>[r.key,r]));
+ for(const n of g.nodes){
+  const key=groupKey(n)||'node:'+n.id;
+  if(!groups.has(key)){
+   const record=catalog.get(key);
+   groups.set(key,{key,label:record?.label||n.label,ports:(record?.ports||[]).map(p=>({...p,nodeId:null})),nodes:[],linked:!!groupKey(n)});
+  }
+  const entity=groups.get(key);entity.nodes.push(n);nodeToEntity.set(n.id,key);
+  // Gross and bus iron are alternate representations, never additional output.
+  const port=entity.ports.find(p=>p.kind===n.kind&&p.item===n.item&&(p.link===n.link||key==='smelt:iron'&&p.kind==='source'&&p.item==='iron-plate'));
+  if(port){port.nodeId=n.id;port.link=n.link;}
+  else entity.ports.push({kind:n.kind,item:n.item,link:n.link||'',nodeId:n.id,rate:null});
+ }
+ const edges=g.edges.map(e=>({...e,from:nodeToEntity.get(e.from),to:nodeToEntity.get(e.to),item:g.nodes.find(n=>n.id===e.from)?.item,sourceEndpoint:e.from,targetEndpoint:e.to}));
+ return {entities:[...groups.values()],edges};
+}
+function ensureEntityPort(graph,port,entity,idFactory){
+ if(port.nodeId){if(!graph.nodes.some(n=>n.id===port.nodeId))throw Error('That port is no longer available.');return port.nodeId}
+ if(!port.link||!['source','destination'].includes(port.kind))throw Error('Select a compatible recorded input or output.');
+ const existing=graph.nodes.find(n=>n.kind===port.kind&&n.item===port.item&&n.link===port.link);
+ if(existing)return existing.id;
+ const key=idFactory();graph.nodes.push({id:key,item:port.item,kind:port.kind,label:entity.label,link:port.link,autoLabel:true,amount:'',tier:'red',entityAnchor:port.kind==='destination'});return key;
+}
+if(typeof module==='object'&&module.exports)module.exports={normalize,connect,analyze,order,TIERS,layoutBelts,groupKey,networkResults,diagnostics,scenarioGraph,entityProjection,ensureEntityPort};
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 const fmt=n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:1}),opts=(arr,v)=>arr.map(([a,b])=>'<option value="'+esc(a)+'"'+(a===v?' selected':'')+'>'+esc(b)+'</option>').join('');
 const materialName=k=>R[k]?.[0]||names[k]||k.replaceAll('-',' ');
 const itemColor=k=>root.NauvisIcons?.color?.(k)||'#86c2f1';
-let includeScenario=false;
+let includeScenario=false,entityMode=true,entityPicker=false,entityPending=null,entityFilter='all',entityView=null;
 let item='iron-plate',selected=null,connecting=null,undo=null,notice='',brushTier='red',brushCount=1,drag=null,picker=false,ignoreClickUntil=0;
 const materials=[...new Set([...Object.keys(R),...Object.keys(names),'uranium-ore'])].filter(k=>!FLUID.has(k)&&!['crude-oil','sulfuric-acid'].includes(k)).sort((a,b)=>materialName(a).localeCompare(materialName(b)));
 function data(){return normalize(setup.logistics)}
@@ -351,13 +377,96 @@ function diagnosticPanel(g,a,report,network){
  (rows||'<p class="log-muted">Add a destination with known demand to diagnose the network.</p>')+
  '<p class="log-muted">Predictions use recorded routes only. Missing input networks, fluids, power, fuel and inserters are unverified. Tested changes are local counterfactuals, not automatic edits or guarantees of full downstream performance.</p></section>';
 }
+function entityCatalog(){
+ const resourceSet=new Set(['iron-ore','copper-ore','stone','iron-plate','copper-plate','steel-plate','stone-brick']);
+ for(const row of setup.machines){if(!R[row.recipe]||!num(row.count))continue;resourceSet.add(row.recipe);for(const k of Object.keys(R[row.recipe][4]||{}))resourceSet.add(k)}
+ const groups=new Map();
+ for(const resource of resourceSet)for(const kind of ['source','destination'])for(const rec of catalog(kind,resource)){
+  const key=groupKey({link:rec.key});if(!key)continue;
+  // The gross iron output is the natural starting port for a new entity.
+  if(rec.key==='smelt:iron-plate')continue;
+  if(!groups.has(key))groups.set(key,{key,label:rec.label,ports:[]});
+  const entity=groups.get(key);if(kind==='source')entity.label=rec.label.replace(' · before steel allocation','');
+  entity.ports.push({kind,item:resource,link:rec.key,rate:rec.rate,solid:materials.includes(resource)});
+ }
+ return [...groups.values()].filter(e=>e.ports.some(p=>p.solid&&p.rate>0)).sort((a,b)=>a.label.localeCompare(b.label));
+}
+function modeBar(){return '<div class="log-mode"><button data-log-mode="entities" aria-pressed="'+entityMode+'">Production network</button><button data-log-mode="resource" aria-pressed="'+!entityMode+'">Resource detail</button></div>'}
+function entityPort(key,index){const entity=entityView?.entities.find(e=>e.key===key);return entity&&entity.ports[index]?{entity,port:entity.ports[index]}:null}
+function addEntity(key){
+ const record=entityCatalog().find(e=>e.key===key);if(!record)return;
+ const g=data(),projection=entityProjection(g,[record]);if(projection.entities.some(e=>e.key===key)){notice='Already represented in this network.';render();return}
+ const port=record.ports.find(p=>p.solid&&p.kind==='source'&&p.rate>0)||record.ports.find(p=>p.solid&&p.rate>0);
+ if(!port)return;ensureEntityPort(g,port,record,id);entityPicker=false;commit(g,'Production entity linked. Actual Inventory unchanged.');
+}
+function connectEntity(from,to){
+ const a=entityPort(from.key,from.index),b=entityPort(to.key,to.index);
+ if(!a||!b||a.entity.key===b.entity.key||a.port.item!==b.port.item) {notice='Choose a matching input on a different entity.';render();return}
+ const g=data();try{
+  const source=ensureEntityPort(g,a.port,a.entity,id),dest=ensureEntityPort(g,b.port,b.entity,id);
+  const next=connect(g,{id:id(),from:source,to:dest,tier:brushTier,belts:brushCount,weight:''});entityPending=null;commit(next,'Connected '+materialName(a.port.item)+'. Inventory unchanged.');
+ }catch(err){notice=err.message;render()}
+}
+function inspectResource(resource,key=null){
+ entityMode=false;item=resource;selected=key;connecting=null;entityPending=null;picker=false;render();
+}
+function renderEntities(host){
+ const graph=scenarioGraph(data(),includeScenario),records=entityCatalog(),projection=entityProjection(graph,records);
+ entityView=projection;
+ const network=networkResults(graph,lookup),linked=new Set(projection.entities.map(e=>e.key));
+ const candidates=records.filter(e=>!linked.has(e.key)&&(entityFilter==='all'||(entityFilter==='smelt'?e.key.startsWith('smelt:'):e.key.startsWith('machine:'))));
+ const pending=entityPending&&entityPort(entityPending.key,entityPending.index);
+ if(!pending)entityPending=null;
+ const controls=brush({edges:[]});
+ const pickerHTML=entityPicker?'<div class="log-picker"><div class="log-brush-head"><strong>Select an existing array</strong><button data-log-entity-action="picker">Close</button></div><div class="log-mode">'+[['all','All'],['smelt','Smelting'],['machine','Production']].map(([key,label])=>'<button data-log-entity-filter="'+key+'" aria-pressed="'+(key===entityFilter)+'">'+label+'</button>').join('')+'</div><div class="log-picker-list">'+(candidates.map(e=>'<button data-log-entity-add="'+esc(e.key)+'"><b>'+esc(e.label)+'</b><small>'+esc(e.ports.filter(p=>p.kind==='source').map(p=>materialName(p.item)).join(', ')||'Input group')+'</small></button>').join('')||'<p class="log-muted">No unused recorded groups in this category.</p>')+'</div><button data-log-entity-action="manual">Manual supply, demand, splitter or merger → Resource detail</button></div>':'';
+ const cards=projection.entities.map(e=>{
+  const factor=network.factors.get(e.key)??1;
+  const requiredInputs=e.ports.filter(p=>p.kind==='destination'),verifiedInputs=requiredInputs.filter(p=>p.nodeId&&graph.edges.some(x=>x.to===p.nodeId)&&!network.results.get(p.item)?.nodes?.[p.nodeId]?.missing),unknownInputs=requiredInputs.length-verifiedInputs.length;
+  const ports=e.ports.map((p,i)=>{
+   const v=p.nodeId?network.results.get(p.item)?.nodes?.[p.nodeId]:null;
+   const linkedPort=p.nodeId&&graph.edges.some(x=>p.kind==='source'?x.from===p.nodeId:p.kind==='destination'?x.to===p.nodeId:x.from===p.nodeId||x.to===p.nodeId);
+   const solid=p.solid??materials.includes(p.item),compatible=pending&&pending.entity.key!==e.key&&pending.port.item===p.item&&p.kind==='destination';
+   const rate=p.kind==='destination'?(v?.demand??p.rate):p.kind==='source'?(v?.supply??(p.rate===null?null:p.rate*factor)):v?.sent;
+   const label=p.kind==='destination'?(linkedPort?fmt(v?.received)+' / '+(rate==null?'?':fmt(rate)):'Required '+(rate==null?'?':fmt(rate))):rate==null?'Unknown':fmt(rate);
+   const active=entityPending?.key===e.key&&entityPending?.index===i;
+   return '<div class="log-entity-port'+(compatible?' compatible':'')+(active?' active':'')+'"><span class="log-port-dot" style="background:'+esc(itemColor(p.item))+'"></span><span><b>'+esc(materialName(p.item))+'</b><small>'+esc(label)+'/min · '+(!solid?'pipe not modeled':linkedPort?'connected':'unverified')+'</small></span>'+
+    (solid&&['source','destination'].includes(p.kind)?'<button data-log-entity-port="'+esc(e.key)+'" data-port-index="'+i+'" aria-label="'+(p.kind==='source'?'Connect output ':'Connect input ')+esc(materialName(p.item))+'" '+(p.kind==='destination'&&!compatible&&!p.nodeId?'disabled':'')+'>'+(p.kind==='source'?'＋':compatible?'＋':'↗')+'</button>':'')+
+    (p.nodeId?'<button data-log-resource-open="'+esc(p.item)+'" data-port-node="'+esc(p.nodeId)+'" aria-label="Inspect resource route">↗</button>':'')+'</div>';
+  });
+  const inputs=ports.filter((_,i)=>e.ports[i].kind==='destination'),outputs=ports.filter((_,i)=>e.ports[i].kind==='source'),other=ports.filter((_,i)=>!['source','destination'].includes(e.ports[i].kind));
+  return '<article class="log-entity-card" data-entity-card="'+esc(e.key)+'"><header><small>'+(e.linked?'RECORDED ARRAY':'NETWORK ASSUMPTION')+'</small><strong>'+esc(e.label)+'</strong>'+(e.linked?'<span class="'+(factor<.999?'log-danger':'')+'">'+(verifiedInputs.length?fmt(factor*100)+'% supported by modeled inputs':'Input supply unverified')+(verifiedInputs.length&&unknownInputs?' · '+unknownInputs+' unverified':'')+'</span>':'')+'</header>'+
+   (inputs.length?'<div class="log-entity-section">INPUTS</div>'+inputs.join(''):'')+(outputs.length?'<div class="log-entity-section">OUTPUTS</div>'+outputs.join(''):'')+other.join('')+
+   '<button class="log-entity-remove" data-log-entity-remove="'+esc(e.key)+'">Remove from network</button></article>';
+ }).join('');
+ const routes=projection.edges.map(e=>'<button data-log-resource-open="'+esc(e.item)+'" data-port-node="'+esc(e.id)+'"><span>'+esc(projection.entities.find(x=>x.key===e.from)?.label)+' → '+esc(projection.entities.find(x=>x.key===e.to)?.label)+'</span><b style="color:'+({yellow:'#dfbf65',red:'#e17b71',blue:'#79b5f6'}[e.tier])+'">'+esc(materialName(e.item))+' · '+e.belts+' '+e.tier+' · '+fmt(network.results.get(e.item)?.routes?.[e.id]?.delivered)+'/min</b></button>').join('');
+ // A compact map collapses endpoints belonging to one recorded production
+ // array. If the cross-resource projection contains a cycle, preserve the
+ // graph and show its explicit route list instead of inventing a layout.
+ let map='';
+ if(projection.entities.length&&projection.edges.length)try{
+  const visual={nodes:projection.entities.map(e=>({id:e.key})),edges:projection.edges};
+  const stage=order(visual.nodes,visual.edges).stage,layout=layoutBelts(visual,stage,{nodeWidth:164,nodeHeight:60}),scale=Math.max(.65,Math.min(1,((host.clientWidth||root.innerWidth)-24)/layout.width));
+  const paths=layout.routes.map(r=>r.lanes.map(points=>'<path d="'+root.NauvisRatioFlow.roundedPath(points,5)+'" stroke="'+({yellow:'#e5c35f',red:'#e17b71',blue:'#79b5f6'}[r.edge.tier])+'" stroke-width="2.5" fill="none"/>').join('')).join('');
+  const boxes=layout.boxes.map(b=>{const e=projection.entities.find(x=>x.key===b.key);return '<button data-log-entity-focus="'+esc(e.key)+'" class="log-map-node" style="left:'+b.x+'px;top:'+b.y+'px;width:'+b.w+'px;height:'+b.h+'px">'+esc(e.label)+'</button>'}).join('');
+  map='<div class="log-graph log-entity-map"><div class="log-scaled" style="width:'+Math.ceil(layout.width*scale)+'px;height:'+Math.ceil(layout.height*scale)+'px"><div class="log-canvas" style="width:'+layout.width+'px;height:'+layout.height+'px;transform:scale('+scale+')"><svg width="'+layout.width+'" height="'+layout.height+'" viewBox="0 0 '+layout.width+' '+layout.height+'">'+paths+'</svg>'+boxes+'</div></div></div>';
+ }catch(_e){map='<p class="log-muted">Cross-resource cycle: inspect the connected entity cards and route list below.</p>'}
+ host.innerHTML=modeBar()+'<div class="log-brush-head"><strong>Production entities · '+projection.entities.length+'</strong><button data-log-action="undo" '+(!undo?'disabled':'')+'>↶ Undo</button></div>'+
+ '<label class="log-scenario-toggle"><input type="checkbox" data-log-scenario '+(includeScenario?'checked':'')+'> Include queued project demand (hypothetical)</label>'+
+ '<button class="log-primary log-add-main" data-log-entity-action="picker">＋ Add recorded array</button>'+pickerHTML+controls+
+ (pending?'<div class="log-connect-status">Connect '+esc(materialName(pending.port.item))+' from '+esc(pending.entity.label)+' <button data-log-entity-action="cancel">Cancel</button></div>':'')+
+ map+'<div class="log-entity-grid">'+(cards||'<div class="log-empty"><strong>Choose a recorded production array</strong><p>Inputs and outputs are generated from your inventory and recipe. Adding an entity does not add machines.</p></div>')+'</div>'+
+ '<details class="log-routes"><summary>Physical resource routes · '+projection.edges.length+'</summary><div class="log-route-list">'+routes+'</div></details>'+
+ '<p class="log-message" role="status">'+esc(notice||'Tap an output +, then a matching input +. Tap ↗ to inspect or edit its resource-specific network.')+'</p>'+
+ '<p class="log-muted">One card per linked production group. Unconnected ingredient ports are unverified, not assumed supplied or starved. Pipe transport, mixed lanes and proposed arrays are not yet supported. All existing resource routes remain editable in Resource detail. Network changes do not modify Inventory.</p>';
+}
 function render(){
  const host=$('logisticsEditor');if(!host||!$('logistics')?.classList.contains('active'))return;
+ if(entityMode){renderEntities(host);return}
  const oldGraph=$('logGraph'),sx=oldGraph?.scrollLeft||0,sy=oldGraph?.scrollTop||0;const g=sub(scenarioGraph(data(),includeScenario));if(!g.nodes.some(n=>n.id===selected)&&!g.edges.some(e=>e.id===selected))selected=null;
  let a,network;try{network=networkResults(scenarioGraph(data(),includeScenario),lookup);a=network.results.get(item)||analyze(g,lookup);if(a.error)throw Error(a.error)}catch(e){host.innerHTML='<p class="log-danger">'+esc(e.message)+'</p><button data-log-action="clear-graph">Clear this resource diagram</button>';return}
  const report=diagnostics(g,a,network.effective);
  const src=g.nodes.filter(n=>n.kind==='source').reduce((s,n)=>s+a.nodes[n.id].supply,0),sinks=g.nodes.filter(n=>n.kind==='destination'),short=sinks.filter(n=>a.nodes[n.id].margin!==null&&a.nodes[n.id].margin<-.01).length;
- host.innerHTML='<div class="log-top"><label>Resource<select data-log-resource>'+opts(materials.map(k=>[k,materialName(k)+(data().nodes.some(n=>n.item===k)?' · network':'')]),item)+'</select></label><button data-log-action="undo" '+(!undo?'disabled':'')+'>↶ Undo</button></div>'+
+ host.innerHTML=modeBar()+'<div class="log-top"><label>Resource<select data-log-resource>'+opts(materials.map(k=>[k,materialName(k)+(data().nodes.some(n=>n.item===k)?' · network':'')]),item)+'</select></label><button data-log-action="undo" '+(!undo?'disabled':'')+'>↶ Undo</button></div>'+
  '<label class="log-scenario-toggle"><input type="checkbox" data-log-scenario '+(includeScenario?'checked':'')+'> Include queued project demand (hypothetical; may overlap built machines)</label><div class="log-stat-grid"><div><small>Rated supply/min</small><b>'+fmt(src)+'</b></div><div><small>Destinations</small><b>'+sinks.length+'</b></div><div><small>Known shortages</small><b class="'+(short?'log-danger':'')+'">'+short+'</b></div></div>'+
  '<button type="button" class="log-primary log-add-main" data-log-action="picker">＋ Add to network</button>'+addPicker(g)+brush(g)+splitControl(g,a)+
  '<div class="log-connect-status" '+(!connecting?'hidden':'')+'>Select a receiving node, or add a new node <button data-log-action="cancel">Cancel</button></div>'+
@@ -370,6 +479,15 @@ function init(){
  const host=$('logisticsEditor');if(!host)return;
  host.addEventListener('click',ev=>{
   if(Date.now()<ignoreClickUntil){ev.preventDefault();return}
+  const mode=ev.target.closest('[data-log-mode]');if(mode){entityMode=mode.dataset.logMode==='entities';selected=null;connecting=null;entityPending=null;picker=false;render();return}
+  const ef=ev.target.closest('[data-log-entity-filter]');if(ef){entityFilter=ef.dataset.logEntityFilter;render();return}
+  const ea=ev.target.closest('[data-log-entity-add]');if(ea){addEntity(ea.dataset.logEntityAdd);return}
+  const ep=ev.target.closest('[data-log-entity-port]');if(ep){const target={key:ep.dataset.logEntityPort,index:Number(ep.dataset.portIndex)},p=entityPort(target.key,target.index);if(!p)return;if(p.port.kind==='source'){entityPending=target;render()}else if(entityPending)connectEntity(entityPending,target);else if(p.port.nodeId)inspectResource(p.port.item,p.port.nodeId);return}
+  const focus=ev.target.closest('[data-log-entity-focus]');if(focus){[...host.querySelectorAll('[data-entity-card]')].find(x=>x.dataset.entityCard===focus.dataset.logEntityFocus)?.scrollIntoView({block:'center',behavior:'smooth'});return}
+  const remove=ev.target.closest('[data-log-entity-remove]');if(remove){const e=entityView?.entities.find(x=>x.key===remove.dataset.logEntityRemove);if(!e||!root.confirm('Remove this entity and its attached routes from the network? Actual Inventory is unchanged.'))return;const ids=new Set(e.nodes.map(n=>n.id)),g=data();g.nodes=g.nodes.filter(n=>!ids.has(n.id));g.edges=g.edges.filter(x=>!ids.has(x.from)&&!ids.has(x.to));entityPending=null;commit(g,'Removed network reference only.');return}
+  const resource=ev.target.closest('[data-log-resource-open]');if(resource){inspectResource(resource.dataset.logResourceOpen,resource.dataset.portNode||null);return}
+  const entityAction=ev.target.closest('[data-log-entity-action]')?.dataset.logEntityAction;
+  if(entityAction){if(entityAction==='picker')entityPicker=!entityPicker;else if(entityAction==='cancel')entityPending=null;else if(entityAction==='manual'){entityMode=false;picker=true;entityPending=null}render();return}
   const plan=ev.target.closest('[data-log-plan]');if(plan){const rate=Number(plan.dataset.logPlan);if(R[item]&&rate>0&&rate<=25000){root.NauvisRatioExplorer?.setGoal({id:item,rate,source:'bus',belt:TIERS[brushTier],machine:guide.machine===1.25?1.25:.75,moduleType:'none',moduleCount:0,moduleType2:'none',moduleCount2:0,machineQuality:'normal',beaconSpeed:0});activateWorkspace('build',true);root.NauvisRatioExplorer?.openAt('build')}return}
   const select=ev.target.closest('[data-log-select]');if(select){selected=select.dataset.logSelect;connecting=null;render();$('logGraph')?.scrollIntoView({block:'nearest',behavior:'smooth'});return}
   const addBtn=ev.target.closest('[data-log-add]');if(addBtn){add(addBtn.dataset.logAdd,addBtn.dataset.logLink||'');return}
@@ -383,7 +501,7 @@ function init(){
   if(action==='picker'){picker=!picker;render();return}
   if(action==='connect'){connecting=selected;notice='';render();return}
   if(action==='cancel'||action==='clear'){connecting=null;if(action==='clear')selected=null;render();return}
-  if(action==='undo'&&undo){const next=undo;undo=null;setup.logistics=normalize(next);saveSetup();selected=null;connecting=null;notice='Last logistics edit undone.';root.NauvisWorkspace?.refresh?.('logistics');render();return}
+  if(action==='undo'&&undo){const next=undo;undo=null;entityPending=null;setup.logistics=normalize(next);saveSetup();selected=null;connecting=null;notice='Last logistics edit undone.';root.NauvisWorkspace?.refresh?.('logistics');render();return}
   if(action==='delete'){const g=data();g.nodes=g.nodes.filter(n=>n.id!==selected);g.edges=g.edges.filter(e=>e.id!==selected&&e.from!==selected&&e.to!==selected);selected=null;connecting=null;commit(g,'Removed. Undo is available.');return}
   if(action==='clear-graph'&&root.confirm('Clear only this resource network?')){const g=data(),ids=new Set(g.nodes.filter(n=>n.item===item).map(n=>n.id));g.nodes=g.nodes.filter(n=>!ids.has(n.id));g.edges=g.edges.filter(e=>!ids.has(e.from)&&!ids.has(e.to));commit(g,'Resource diagram cleared.');}
  });
@@ -418,7 +536,7 @@ function init(){
  });
  host.addEventListener('pointercancel',()=>{drag=null;render()});
  let lastWidth=root.innerWidth;root.addEventListener('resize',()=>{if(root.innerWidth!==lastWidth){lastWidth=root.innerWidth;if($('logistics')?.classList.contains('active'))render()}},{passive:true});
- root.NauvisLogistics={render,invalidate(){undo=null;selected=null;connecting=null;picker=false;drag=null;includeScenario=false;notice='';render()}};
+ root.NauvisLogistics={render,invalidate(){undo=null;selected=null;connecting=null;picker=false;drag=null;includeScenario=false;entityPending=null;entityPicker=false;notice='';render()}};
  render();
 }
 init();

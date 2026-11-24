@@ -95,3 +95,22 @@ test('queued demand is excluded from actual network by default without deleting 
  assert.equal(scenarioGraph(g).nodes.length,1);assert.equal(scenarioGraph(g).edges.length,0);
  assert.equal(scenarioGraph(g,true).edges.length,1);assert.equal(g.edges.length,1);
 });
+
+test('entity projection combines steel input and output without changing underlying saved routes',()=>{
+ const {entityProjection}=require('../logistics.js');
+ const g={nodes:[{id:'i',kind:'destination',item:'iron-plate',link:'smelt:steel-input'},{id:'o',kind:'source',item:'steel-plate',link:'smelt:steel-plate'}],edges:[]},before=JSON.stringify(g);
+ const p=entityProjection(g,[{key:'smelt:steel',label:'48 steel furnaces',ports:[{kind:'destination',item:'iron-plate',link:'smelt:steel-input',rate:1800},{kind:'source',item:'steel-plate',link:'smelt:steel-plate',rate:360}]}]);
+ assert.equal(p.entities.length,1);assert.equal(p.entities[0].ports.length,2);assert.equal(p.entities[0].ports[0].nodeId,'i');assert.equal(p.entities[0].ports[1].nodeId,'o');assert.equal(JSON.stringify(g),before);
+});
+test('entity ports are materialized only when needed and do not duplicate linked endpoints',()=>{
+ const {ensureEntityPort,analyze}=require('../logistics.js'),g={nodes:[],edges:[]},entity={label:'48 steel furnaces'},port={kind:'destination',item:'iron-plate',link:'smelt:steel-input'};
+ assert.equal(ensureEntityPort(g,port,entity,()=> 'input'),'input');assert.equal(ensureEntityPort(g,port,entity,()=> 'duplicate'),'input');assert.equal(g.nodes.length,1);
+ assert.equal(analyze(g,()=>({rate:1800})).nodes.input.demand,null);
+ g.nodes.push({id:'s',kind:'source',item:'iron-plate',amount:1,tier:'yellow'});g.edges.push({id:'r',from:'s',to:'input',tier:'yellow',belts:1});
+ assert.equal(analyze(g,()=>({rate:1800})).nodes.input.demand,1800);
+});
+test('production network and resource detail share saved endpoints and edge identities',()=>{
+ const {entityProjection}=require('../logistics.js');
+ const g={nodes:[{id:'s',kind:'source',item:'iron-plate',link:'smelt:iron-gross'},{id:'d',kind:'destination',item:'iron-plate',link:'smelt:steel-input'}],edges:[{id:'r',from:'s',to:'d',tier:'red',belts:2}]};
+ const p=entityProjection(g);assert.equal(p.edges[0].id,'r');assert.equal(p.edges[0].from,'smelt:iron');assert.equal(p.edges[0].to,'smelt:steel');assert.equal(p.edges[0].sourceEndpoint,'s');assert.equal(p.edges[0].belts,2);
+});
