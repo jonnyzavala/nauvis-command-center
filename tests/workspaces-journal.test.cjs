@@ -135,12 +135,23 @@ test('manual field notes cannot implicitly alter Factory counts',()=>{
  assert.doesNotMatch(journal,/setup\.machines\.push\(/);
 });
 test('new module assets and theme survive offline on iPhone',()=>{
- assert.match(sw,/nauvis-shell-v042/);
+ assert.match(sw,/nauvis-shell-v043/);
  for(const file of ['journal.js','workspace-ui.js','workspace-v025.css'])assert.ok(sw.includes("'./"+file+"'"),file);
  assert.match(html,/src="\.\/journal\.js"/);
  assert.match(html,/src="\.\/workspace-ui\.js"/);
  assert.match(html,/href="\.\/workspace-v025\.css"/);
  assert.match(style,/@media\(max-width:760px\)/);
  assert.match(style,/@media\(max-width:430px\)/);
- assert.match(html,/Nauvis Command Center v0\.42/);
+ assert.match(html,/Nauvis Command Center v0\.43/);
+});
+
+test('six-mode spectrum retains blue and teal anchors and a continuous stable rail',()=>{
+ for(const [name,color] of [['guide','#eec277'],['factory','#efa08e'],['balance','#e5a1cf'],['logistics','#b6a6f1'],['planner','#65b5ff'],['projects','#6ce0d1']]){
+  assert.ok(style.includes('--nauvis-'+name+':'+color));
+ }
+ assert.match(style,/body\[data-workspace="logistics"\]\{\s*--workspace-accent:var\(--nauvis-logistics\)/);
+ assert.match(style,/body\[data-workspace="logistics"\] \.nav button\[data-view="setup"\]\{--tab-color:var\(--nauvis-logistics\)/);
+ assert.match(style,/button\[data-view="setup"\]::after\{[\s\S]*?var\(--nauvis-factory\) 18%,var\(--nauvis-balance\) 50%,var\(--nauvis-logistics\) 82%/);
+ assert.match(style,/button\[data-view="build"\]::after\{[\s\S]*?var\(--nauvis-planner\) 30%,var\(--nauvis-projects\) 100%/);
+ assert.doesNotMatch(read('logistics.css'),/--workspace-accent:/);
 });

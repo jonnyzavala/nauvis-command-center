@@ -204,3 +204,8 @@ Normal-quality speed, efficiency and productivity modules now support tiers 1–
 ## Editable Logistics (v0.42)
 
 Factory & Balance has a third Logistics mode. Create separate resource networks, link producers and destinations to recorded machine groups or saved project external demand, or enter manual full-belt-equivalent assumptions. Connect nodes with integer physical yellow/red/blue belts; splitters use equal allocation by default and ordinary branches distribute by route capacity. Relative share weights can override defaults. Directed acyclic graphs cap each route by transport capacity and never create supply at a junction. Linked iron smelting uses main-bus output after the existing steel allocation. No live throughput, downstream backpressure redistribution, train/fluid simulation, or automatic deduction from the global ledger. Projects are full planned scenarios. Graphs live inside the existing setup snapshot, participate in sync/backups, and are cleared by Fresh Start. Undo is session-local and invalidated on incoming snapshots.
+
+
+## Six-mode spectrum (v0.43)
+
+The workspace palette is amber Guide, coral Inventory, rose Balance, violet Logistics, blueprint blue Designer, and teal Construction. The three parent tabs retain their existing grouping; the spectrum rail displays all six hues in order regardless of active mode, while the active parent dot and workspace chrome follow the selected mode. Resource, belt and warning colors are unchanged.

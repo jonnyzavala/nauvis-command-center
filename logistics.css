@@ -1,7 +1,5 @@
 /* v0.42 · Logistics: shared command-center design, touch-first route editing. */
-body[data-workspace="logistics"]{--workspace-accent:#82d6c9;--workspace-ambient:rgba(30,110,122,.48);--workspace-ambient2:rgba(27,77,97,.37);--workspace-bg-start:#0d1b25;--workspace-bg-mid:#18303a;--workspace-bg-end:#101922}
 #logistics>.factory-balance-switch{margin-top:8px}
-.factory-balance-switch button[data-factory-target="logistics"] .factory-switch-light{background:#82d6c9;box-shadow:0 0 8px #82d6c988}
 .log-panel{min-width:0;overflow:hidden}
 .log-top,.log-inspect-head,.log-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .log-top label{flex:1;min-width:0}

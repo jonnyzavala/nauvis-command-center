@@ -1,8 +1,9 @@
 /* NAUVIS v0.25 · streamlined workspaces and color-matched design/construction modes. */
 :root{
  --nauvis-guide:#eec277;
- --nauvis-factory:#ed91aa;
- --nauvis-balance:#bba5e5;
+ --nauvis-factory:#efa08e;
+ --nauvis-balance:#e5a1cf;
+ --nauvis-logistics:#b6a6f1;
  --nauvis-planner:#65b5ff;
  --nauvis-projects:#6ce0d1;
 }
@@ -14,15 +15,15 @@ body[data-workspace="learn"]{
 }
 body[data-workspace="setup"]{
  --workspace-accent:var(--nauvis-factory);
- --workspace-ambient:rgba(181,73,112,.33);--workspace-ambient2:rgba(119,52,100,.27);
- --workspace-bg-start:#211922;--workspace-bg-mid:#2d222f;--workspace-bg-end:#171d29;
- --workspace-grid:rgba(236,135,170,.061)
+ --workspace-ambient:rgba(181,85,66,.35);--workspace-ambient2:rgba(128,60,61,.24);
+ --workspace-bg-start:#241a1d;--workspace-bg-mid:#332326;--workspace-bg-end:#191d28;
+ --workspace-grid:rgba(239,160,142,.070)
 }
 body[data-workspace="balance"]{
  --workspace-accent:var(--nauvis-balance);
- --workspace-ambient:rgba(122,87,177,.39);--workspace-ambient2:rgba(78,70,154,.27);
- --workspace-bg-start:#181a2c;--workspace-bg-mid:#272240;--workspace-bg-end:#121925;
- --workspace-grid:rgba(178,151,228,.074)
+ --workspace-ambient:rgba(168,77,135,.38);--workspace-ambient2:rgba(114,59,129,.27);
+ --workspace-bg-start:#21192b;--workspace-bg-mid:#32233c;--workspace-bg-end:#151928;
+ --workspace-grid:rgba(229,161,207,.074)
 }
 body[data-workspace="build"]{
  --workspace-accent:var(--nauvis-planner);
@@ -163,8 +164,9 @@ button[data-plan-target="factory"] .plan-switch-light{background:#6ce0d1;box-sha
    navigation segment, just like blue Designer and teal Construction. */
 :root{
  --nauvis-guide:#eec277;
- --nauvis-factory:#ed91aa;
- --nauvis-balance:#bba5e5;
+ --nauvis-factory:#efa08e;
+ --nauvis-balance:#e5a1cf;
+ --nauvis-logistics:#b6a6f1;
  --nauvis-planner:#65b5ff;
  --nauvis-projects:#6ce0d1;
 }
@@ -187,9 +189,33 @@ body[data-workspace="balance"] .command-chrome .nav-track>button[data-view="buil
 body[data-workspace="factory"] .command-chrome .nav-track>button[data-view="build"]{--tab-next:var(--nauvis-projects)}
 .factory-balance-switch .plan-switch-caption{color:#f5f2ff}
 .factory-balance-switch button[data-factory-target="setup"] .factory-switch-light{
- width:7px;height:7px;flex:0 0 7px;background:#ed91aa;border-radius:50%;box-shadow:0 0 10px #ed91aa;
+ width:7px;height:7px;flex:0 0 7px;background:var(--nauvis-factory);border-radius:50%;box-shadow:0 0 10px var(--nauvis-factory);
 }
 .factory-balance-switch button[data-factory-target="balance"] .factory-switch-light{
- width:7px;height:7px;flex:0 0 7px;background:#bba5e5;border-radius:50%;box-shadow:0 0 10px #bba5e5;
+ width:7px;height:7px;flex:0 0 7px;background:var(--nauvis-balance);border-radius:50%;box-shadow:0 0 10px var(--nauvis-balance);
 }
 #setup>.factory-balance-switch,#balance>.factory-balance-switch{margin-top:8px}
+
+/* v0.43: six-mode warm-to-cool spectrum, anchored at blueprint blue and teal.
+   The rail is stable across active modes; each of the three parent tabs owns
+   the appropriate segment of the complete six-color spectrum. */
+body[data-workspace="logistics"]{
+ --workspace-accent:var(--nauvis-logistics);
+ --workspace-ambient:rgba(105,86,184,.42);--workspace-ambient2:rgba(69,65,146,.30);
+ --workspace-bg-start:#19192e;--workspace-bg-mid:#282644;--workspace-bg-end:#131a2a;
+ --workspace-grid:rgba(182,166,241,.085)
+}
+body[data-workspace="logistics"] .nav button[data-view="setup"]{--tab-color:var(--nauvis-logistics)}
+body[data-workspace="logistics"] .nav button[data-view="setup"] .nav-dot{background:var(--nauvis-logistics)}
+.command-chrome .nav-track>button[data-view="learn"]::after{
+ background:linear-gradient(90deg,var(--nauvis-guide) 0%,var(--nauvis-guide) 45%,color-mix(in srgb,var(--nauvis-guide) 50%,var(--nauvis-factory)) 100%);
+}
+.command-chrome .nav-track>button[data-view="setup"]::after{
+ background:linear-gradient(90deg,color-mix(in srgb,var(--nauvis-guide) 50%,var(--nauvis-factory)) 0%,var(--nauvis-factory) 18%,var(--nauvis-balance) 50%,var(--nauvis-logistics) 82%,color-mix(in srgb,var(--nauvis-logistics) 50%,var(--nauvis-planner)) 100%);
+}
+.command-chrome .nav-track>button[data-view="build"]::after{
+ background:linear-gradient(90deg,color-mix(in srgb,var(--nauvis-logistics) 50%,var(--nauvis-planner)) 0%,var(--nauvis-planner) 30%,var(--nauvis-projects) 100%);
+}
+.factory-balance-switch button[data-factory-target="logistics"] .factory-switch-light{
+ width:7px;height:7px;flex:0 0 7px;background:var(--nauvis-logistics);border-radius:50%;box-shadow:0 0 10px var(--nauvis-logistics);
+}
