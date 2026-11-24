@@ -268,7 +268,40 @@ function navigateToPlan(id){
  if(explorer)explorer.open=true;
  root.NauvisRatioExplorer?.setGoal?.(goal);
 }
+function initializeDeployment(){
+ const pick=$('deploymentItem');if(!pick)return;
+ const preferred=root.NauvisAssets?.starterItems||[];
+ const all=[...new Set([...preferred,...allOrder])].filter(x=>R[x]);
+ pick.innerHTML=all.map(id=>'<option value="'+escape(id)+'">'+escape(R[id][0])+'</option>').join('');
+ pick.value=R['laser-turret']?'laser-turret':all[0];
+ $('projectsNewDeployment')?.addEventListener('click',()=>{
+  $('deploymentError').hidden=true;
+  $('deploymentDialog')?.showModal();
+ });
+ $('deploymentCancel')?.addEventListener('click',()=>$('deploymentDialog')?.close());
+ $('deploymentForm')?.addEventListener('submit',event=>{
+  event.preventDefault();
+  try{
+   const item=pick.value;
+   const project=root.NauvisAssets?.createProject?.(
+    $('deploymentName').value,item,Number($('deploymentCount').value),
+    uniqueId(),$('deploymentArea').value
+   );
+   if(!project)throw Error('Infrastructure project handler unavailable.');
+   setProjects([...allProjects(),project],{
+    type:'project',source:'Construction Queue',recipe:item,projectId:project.id,
+    title:'Planned infrastructure deployment',detail:project.name+' · '+project.tasks[0].planned+
+     ' '+(R[item]?.[0]||item)+' to place in '+project.goal.area+'. No Factory counts changed.'
+   });
+   $('deploymentDialog').close();
+   $('deploymentName').value='';
+   notice='Created '+project.name+'. Mark structures placed only after they exist in-game.';
+   render();activateWorkspace('factory',true);
+  }catch(err){$('deploymentError').textContent=err.message;$('deploymentError').hidden=false}
+ });
+}
 function attachEvents(){
+ initializeDeployment();
  $('projectsSaveForm')?.addEventListener('submit',saveDialog);
  $('projectsDialogClose')?.addEventListener('click',()=>{$('projectsDialog').close();editing=null;pending=null});
  $('projectsArchivedWrapper')?.addEventListener('toggle',event=>{showArchived=event.target.open});
