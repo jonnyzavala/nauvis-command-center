@@ -122,15 +122,16 @@ function uniqueId(){
  if(root.crypto?.randomUUID)return 'p_'+root.crypto.randomUUID();
  return 'p_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,10);
 }
-function selectedProject(id){return allProjects().find(p=>p.id===id)}
+function visibleProjects(){return allProjects().filter(p=>p.type!=='deployment'&&!p.tasks.some(t=>t.kind==='asset'))}
+function selectedProject(id){return visibleProjects().find(p=>p.id===id)}
 function stats(){
- const all=allProjects(),active=all.filter(p=>p.status!=='archived');
+ const all=visibleProjects(),active=all.filter(p=>p.status!=='archived');
  const summary=active.reduce((a,p)=>{const progress=projectProgress(p);a.planned+=progress.planned;a.built+=progress.built;return a;},{planned:0,built:0});
  return {active:active.length,archived:all.length-active.length,...summary};
 }
 function legacyStats(){
  const tasks=[];for(let i=1;i<=Math.max(0,Number(factory.redBlocks)||0);i++)tasks.push('red'+i);
- tasks.push('blue','greenbus','lds','purple','yellow');
+ for(const [key,field] of [['blue','blueMachines'],['greenbus','greenBus'],['lds','ldsMachines'],['purple','purpleSPM'],['yellow','yellowSPM']])if(Number(factory[field])>0)tasks.push(key);
  const done=tasks.filter(k=>factory.checked?.[k]).length;
  return {done,total:tasks.length};
 }
@@ -176,13 +177,13 @@ function render(){
  factory.projects=normalizeProjects(factory.projects);
  const total=stats(),legacy=legacyStats();
  if($('projectsSummary'))$('projectsSummary').innerHTML=[
-  [total.active,'ACTIVE PROJECTS'],[total.planned,'QUANTITY PLANNED'],[total.built,'BUILT / PLACED'],[total.archived,'ARCHIVED']
+  [total.active,'ACTIVE PROJECTS'],[total.planned,'QUANTITY PLANNED'],[total.built,'MACHINES BUILT'],[total.archived,'ARCHIVED']
  ].map(([n,label])=>'<div class="project-stat"><strong>'+fmt(n)+'</strong><small>'+label+'</small></div>').join('');
  if($('projectsLegacyStatus'))$('projectsLegacyStatus').textContent=legacy.done+'/'+legacy.total+' construction milestones complete';
  if($('projectsLegacyFill'))$('projectsLegacyFill').style.width=(legacy.total?Math.min(100,legacy.done/legacy.total*100):0)+'%';
- const active=allProjects().filter(p=>p.status!=='archived'),archived=allProjects().filter(p=>p.status==='archived');
+ const active=visibleProjects().filter(p=>p.status!=='archived'),archived=visibleProjects().filter(p=>p.status==='archived');
  if($('projectsList'))$('projectsList').innerHTML=active.length?active.map(projectHTML).join(''):
-  '<div class="project-empty"><strong>No saved builds yet</strong><p>Start in Planner, pick an item and a production rate, then use Save to Projects. Your old circuit district is preserved below.</p><button type="button" data-project-go-planner>Open Visual Planner</button></div>';
+  '<div class="project-empty"><strong>No saved builds yet</strong><p>Start in Planner, pick an item and a production rate, then use Save to Projects. The optional circuit district is available below.</p><button type="button" data-project-go-planner>Open Visual Planner</button></div>';
  if($('projectsArchived'))$('projectsArchived').innerHTML=archived.map(projectHTML).join('')||'<p class="small">No archived projects.</p>';
  if($('projectsArchivedWrapper')){
   $('projectsArchivedWrapper').hidden=archived.length===0;
@@ -315,7 +316,6 @@ function initializeDeployment(){
  });
 }
 function attachEvents(){
- initializeDeployment();
  $('projectsSaveForm')?.addEventListener('submit',saveDialog);
  $('projectsDialogClose')?.addEventListener('click',()=>{$('projectsDialog').close();editing=null;pending=null});
  $('projectsArchivedWrapper')?.addEventListener('toggle',event=>{showArchived=event.target.open});

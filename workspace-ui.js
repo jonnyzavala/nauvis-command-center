@@ -5,7 +5,7 @@ const ids=['learn','setup','balance','build','factory'];
 let lastPlanMode='build',lastFactoryMode='balance';
 const config={
  learn:{title:'Guide overview',intro:'The concepts behind the ratios, construction tracking and actual Factory.',links:[['Basics','.rulegrid'],['Circuit example','#guide-example'],['Belt capacity','#guide-belts']]},
- setup:{title:'Inventory overview',intro:'Records you entered, not live game telemetry.',links:[['Smelting','#setupSmeltingPanel'],['Oil','#setupOilPanel'],['Machines','#setupMachinesPanel'],['Infrastructure','#setupAssetsPanel'],['Belts','#setupBeltsPanel'],['Compare','#setupComparePanel'],['Inventory tools','#setupStorePanel']]},
+ setup:{title:'Inventory overview',intro:'Records you entered, not live game telemetry.',links:[['Smelting','#setupSmeltingPanel'],['Oil','#setupOilPanel'],['Machines','#setupMachinesPanel'],['Belts','#setupBeltsPanel'],['Compare','#setupComparePanel'],['Inventory tools','#setupStorePanel']]},
  balance:{title:'Balance analysis',intro:'Rated capacity versus recorded demand. Physical routing remains unmodeled.',links:[['Capacity ledger','.balance-ledger-panel'],['Warnings','.balance-insights'],['Recipe ratios','[data-ratio-explorer="balance"]'],['Explanation','#workspace-balance-interpret']]},
  build:{title:'Blueprint overview',intro:'Experiment with recipes and machine counts, then save a design to Construction.',links:[['Visual production flow','[data-ratio-explorer="build"]'],['Detailed calculator','#buildClassic']]},
  factory:{title:'Construction overview',intro:'Each built-machine check updates the project and the actual Factory record together.',links:[['Projects','#projectsListPanel'],['Journal','#journalPanel'],['Original circuit district','#legacyDistrict'],['Archived','#projectsArchivedWrapper']]}
@@ -18,7 +18,6 @@ function stats(view){
  if(view==='learn')return [[Object.keys(R||{}).length,'Recipes modeled'],['3','Top-level workspaces'],['1','Factory inventory']];
  if(view==='setup')return [[(setup.machines||[]).length,'Production lines'],
  [(setup.machines||[]).reduce((n,x)=>n+Math.max(0,Number(x.count)||0),0),'Production machines'],
- [(setup.assets||[]).reduce((n,x)=>n+Math.max(0,Number(x.count)||0),0),'Placed infrastructure'],
  [(setup.feeds||[]).length,'Belt routes']];
  if(view==='balance'){
   const values=[...document.querySelectorAll('#balanceSummary .balance-kpi b')].map(x=>x.textContent.trim());
@@ -28,7 +27,7 @@ function stats(view){
   const c=document.querySelector('#build .ratio-flow-total')?.textContent.match(/^\d[\d,.]*/)?.[0]||'—';
   return [[c,'Design machines'],[Object.keys(R||{}).length,'Available recipes'],['Flow','Default view']];
  }
- const projects=(p.projects||[]).filter(x=>x.status!=='archived'),built=projects.reduce((t,x)=>t+(x.tasks||[]).reduce((a,z)=>a+Math.max(0,Number(z.built)||0),0),0);
+ const projects=(p.projects||[]).filter(x=>x.status!=='archived'&&x.type!=='deployment'&&!(x.tasks||[]).some(t=>t.kind==='asset')),built=projects.reduce((t,x)=>t+(x.tasks||[]).reduce((a,z)=>a+Math.max(0,Number(z.built)||0),0),0);
  return [[projects.length,'Active projects'],[built,'Built machines'],[root.NauvisJournal?.count?.()||0,'Journal entries']];
 }
 function injectOverview(view){
@@ -79,7 +78,7 @@ function initFolds(){
  const learn=el('learn');if(learn){const sections=[...learn.querySelectorAll(':scope > .section.panel')];if(sections[0])sections[0].id='guide-example';if(sections[1])sections[1].id='guide-belts'}
  const balance=el('balance');
  if(balance){const explain=[...balance.querySelectorAll(':scope > .section.panel')].find(x=>x.textContent.includes('How to interpret this'));if(explain)explain.id='workspace-balance-interpret'}
- for(const [id,closed] of [['setupOilPanel',true],['setupAssetsPanel',true],['setupBeltsPanel',true],['setupComparePanel',true],['setupStorePanel',true],['workspace-balance-interpret',true],['guide-example',false],['guide-belts',true]])makeFold(el(id),closed);
+ for(const [id,closed] of [['setupOilPanel',true],['setupBeltsPanel',true],['setupComparePanel',true],['setupStorePanel',true],['workspace-balance-interpret',true],['guide-example',false],['guide-belts',true]])makeFold(el(id),closed);
 }
 function jump(view,selector){
  const host=el(view),target=host?.querySelector(selector);if(!target||target.hidden)return;

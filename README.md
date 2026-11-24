@@ -147,3 +147,10 @@ node --test tests/*.test.cjs
 ```
 
 The in-memory tests do not connect to live Supabase or substitute for visual testing on iPhone Safari.
+
+
+## Factory-focused Fresh Start (v0.29)
+
+The manually maintained installed-infrastructure ledger and new deployment projects are retired from the UI. Historical asset records and old deployment projects remain in exported snapshots until an explicit Fresh Start; they are excluded from active construction and overview statistics. Production of infrastructure items remains available through the recipe catalog and normal production projects.
+
+Fresh Start now clears all factory-specific production and route records, legacy installed assets, active/archived projects, district targets and checklist, and journal history. The hypothetical Balance scenario is disabled. Calculator settings, reusable presets, code, and cloud pairing are unchanged. The backup must match the current snapshot; changes since download require a new backup. Applying the cleared snapshot suppresses intermediate change logs and cloud uploads, then queues the complete snapshot for normal revision-aware sync. No schema changes. New local installations start with empty counts; sample layouts require explicit user action. No reset is performed by deploying v0.29.

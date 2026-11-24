@@ -9,7 +9,7 @@ const html=read('index.html'),projects=read('projects.js'),journal=read('journal
  assetsUI=read('inventory-assets.js'),resetUI=read('factory-reset.js'),
  workspaces=read('workspace-ui.js'),sw=read('service-worker.js');
 const {categoryFor,validateAsset,normalizeAssets,deploymentProject,applyAssetBuildDelta,cleanFactorySetup}=require('../inventory-assets.js');
-const {resetPlanBuiltCounts,resetSnapshotData,RESET_PHRASE}=require('../factory-reset.js');
+const {resetSnapshotData,RESET_PHRASE}=require('../factory-reset.js');
 const {summarizeSetupDelta}=require('../journal.js');
 const stub={smelt:{ironFurnaces:48,copperFurnaces:24,steelFurnaces:28,furnaceSpeed:2,beltTier:1800,ironBelts:2},
  oil:{refineries:12,heavyCrackers:3,lightCrackers:11},machines:[{recipe:'advanced-circuit',count:19,tier:.75,destination:'Main bus'}],
@@ -92,43 +92,47 @@ test('clean factory setup zeros counts while preserving machine/furnace configur
  assert.equal(clean.oil.refineries,0);
  assert.deepEqual(clean.machines,[]);assert.deepEqual(clean.feeds,[]);assert.deepEqual(clean.assets,[]);
 });
-test('data-only fresh reset preserves projects, plans, journal, and guide; resets only built quantities',()=>{
- const plan={projects:[deploymentProject('Solar bank','solar-panel',40,'p4'),{id:'red',name:'Circuits',tasks:[{recipe:'advanced-circuit',kind:'asm',planned:19,built:13}]}],
-   journal:[{id:'event',title:'Older note'}],redBlocks:4,checked:{red1:true}};
+test('Fresh Start clears all factory-specific records without changing original snapshot',()=>{
+ const plan={projects:[deploymentProject('Solar bank','solar-panel',40,'p4'),{id:'red',name:'Circuits',status:'archived',tasks:[{recipe:'advanced-circuit',kind:'asm',planned:19,built:13}]}],
+   journal:[{id:'event',title:'Older note'}],redBlocks:4,blueMachines:8,checked:{red1:true},customTarget:123};
  plan.projects[0].tasks[0].built=20;
- const before={version:7,plan,guide:{goal:'accumulator',rate:10},setup:stub,balancePrefs:{includeGoal:true}};
- const result=resetSnapshotData(before);
- assert.equal(result.plan.projects[0].tasks[0].built,0);
- assert.equal(result.plan.projects[1].tasks[0].built,0);
- assert.equal(result.plan.projects[1].tasks[0].planned,19);
- assert.equal(result.plan.redBlocks,4);assert.deepEqual(result.plan.checked,{red1:true});
- assert.deepEqual(result.plan.journal,plan.journal);
- assert.deepEqual(result.guide,before.guide);
- assert.equal(result.setup.machines.length,0);
- assert.equal(before.setup.machines.length,1,'original snapshot unchanged');
+ const before={version:7,plan,guide:{goal:'accumulator',rate:10},setup:{...stub,assets:[{id:'legacy',count:15}]},balancePrefs:{includeGoal:true}};
+ const original=JSON.stringify(before),result=resetSnapshotData(before);
+ assert.deepEqual(result.plan.projects,[]);assert.deepEqual(result.plan.journal,[]);
+ assert.deepEqual(result.plan.checked,{});assert.equal(result.plan.redBlocks,0);assert.equal(result.plan.blueMachines,0);
+ assert.equal(result.plan.customTarget,undefined);
+ assert.deepEqual(result.guide,before.guide);assert.equal(result.balancePrefs.includeGoal,false);
+ for(const k of ['machines','feeds','assets'])assert.deepEqual(result.setup[k],[]);
+ assert.equal(result.setup.smelt.ironFurnaces,0);assert.equal(result.setup.oil.refineries,0);
+ assert.equal(result.setup.smelt.furnaceSpeed,2);assert.equal(result.setup.smelt.beltTier,1800);
+ assert.equal(JSON.stringify(before),original);assert.deepEqual(resetSnapshotData(result),result);
+ assert.deepEqual(JSON.parse(JSON.stringify(result)),result);
 });
-test('reset requires explicit backup download, saved-file acknowledgment, and typed phrase',()=>{
+test('reset requires current backup, saved-file acknowledgment, and exact typed phrase',()=>{
  assert.equal(RESET_PHRASE,'RESET FACTORY');
- assert.match(html,/id="factoryBackupBtn"/);assert.match(html,/id="factoryBackupConfirmed" disabled/);
- assert.match(html,/id="factoryResetLaunch" disabled/);assert.match(html,/id="factoryResetPhrase"/);
- assert.match(resetUI,/backedUp&&agree\.checked/);
- assert.match(resetUI,/phrase\.value\.trim\(\)!==RESET_PHRASE/);
- assert.match(resetUI,/root\.NauvisLocal\?\.snapshot\?\.\(\)/);
- assert.match(resetUI,/new Blob\(\[JSON\.stringify\(snapshot,null,2\)\]/);
- assert.match(resetUI,/NauvisJournal\?\.record\?\.\(\{type:'reset'/);
- assert.doesNotMatch(resetUI,/localStorage\.clear\(/);
+ for(const id of ['factoryBackupBtn','factoryBackupConfirmed','factoryResetLaunch','factoryResetPhrase'])assert.ok(html.includes('id="'+id+'"'));
+ assert.match(resetUI,/backedUp&&agree\.checked/);assert.match(resetUI,/phrase\.value\.trim\(\)!==RESET_PHRASE/);
+ assert.match(resetUI,/JSON\.stringify\(before\)!==backupJSON/);
+ assert.match(resetUI,/root\.NauvisLocal\.apply\(next\)/);
+ assert.match(resetUI,/NauvisCloud\?\.changed\?\.\(\)/);
+ assert.doesNotMatch(resetUI,/NauvisJournal\?\.record|localStorage\.clear/);
 });
-test('asset register and deployment controls are in existing three-tab app, not a new tab',()=>{
+test('no live infrastructure ledger or deployment entry controls; legacy records retained for backup',()=>{
  assert.equal((html.match(/<button data-view=/g)||[]).length,3);
  for(const id of ['setupAssetsPanel','setupAssetRows','setupAssetStats','assetAdd','deploymentDialog','deploymentForm','projectsNewDeployment'])
-  assert.ok(html.includes('id="'+id+'"'),id);
- assert.match(workspaces,/setupAssetsPanel/);
- assert.match(projects,/type==='deployment'/);
- assert.match(projects,/NauvisAssets\?\.applyBuildDelta/);
+  assert.ok(!html.includes('id="'+id+'"'),id);
+ assert.doesNotMatch(workspaces,/setupAssetsPanel|Placed infrastructure/);
+ assert.match(projects,/function visibleProjects\(\)/);
+ assert.match(projects,/function selectedProject\(id\)\{return visibleProjects\(\)/);
  assert.match(html,/setup\.assets=Array\.isArray\(data\.setup\.assets\)\?data\.setup\.assets:\[\]/);
+ assert.doesNotMatch(html,/src="\.\/inventory-assets\.js"/);
 });
-test('no Supabase migration; optional assets reside in existing Factory snapshot and precache offline',()=>{
- assert.match(html,/snapshot\(\)\{return JSON\.parse\(JSON\.stringify\(\{version:7,plan:factory,guide,setup,balancePrefs\}\)\)\}/);
- for(const file of ['inventory-assets.js','factory-reset.js','inventory-v027.css'])assert.ok(sw.includes("'./"+file+"'"),file);
- assert.match(sw,/nauvis-shell-v028/);assert.match(html,/Nauvis Command Center v0\.28/);
+test('empty defaults do not repopulate historical counts after reload or sync',()=>{
+ assert.match(html,/const factory=\{\.\.\.blankDistrict/);
+ assert.match(html,/smelt:\{\.\.\.blankSmelt/);assert.match(html,/oil:\{\.\.\.blankOil/);
+ assert.match(html,/Object\.assign\(factory,blankDistrict,data\.plan/);
+ assert.match(html,/Object\.assign\(setup\.smelt,blankSmelt,data\.setup\.smelt/);
+ assert.match(html,/tasks\.length\?complete\/tasks\.length\*100:0/);
+ assert.match(html,/window\.NauvisCloudApplying=true/);
+ assert.match(sw,/nauvis-shell-v029/);assert.match(html,/Nauvis Command Center v0\.29/);
 });
