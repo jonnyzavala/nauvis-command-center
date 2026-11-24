@@ -107,7 +107,7 @@ test('journal normalization rejects corrupt and duplicate IDs and caps old histo
 test('project build actions log one construction event and preserve journal baseline during paired save',()=>{
  assert.match(projects,/type:'construction',source:'Construction Queue'/);
  assert.match(projects,/root\.NauvisJournal\?\.record\?\.\(\{/);
- assert.match(projects,/before:task\.built-delta,after:task\.built/);
+ assert.match(projects,/before:next\.built-delta,after:next\.built/);
  assert.match(projects,/setup\.machines=change\.rows/);
  assert.match(projects,/saveSetup\(\);save\(\);renderSetup\(\)/);
  assert.match(journal,/baseline=JSON\.stringify\(setup\)/);
