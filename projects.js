@@ -89,7 +89,7 @@ const colorFor=(recipe,kind)=>{
  if(typeof csscolor==='function'&&R?.[recipe])return csscolor(recipe,kind);
  return '#bba5e5';
 };
-const noun=kind=>kind==='asm'?'assemblers':kind==='chem'?'chemical plants':'furnaces';
+const noun=kind=>kind==='asm'?'assemblers':kind==='chem'?'chemical plants':kind==='asset'?'placed items':'furnaces';
 const fmt=n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:1});
 let pending=null,editing=null,showArchived=false,notice='';
 const reviewedOverlaps=new Set();
@@ -97,6 +97,9 @@ function matchingUnlinked(recipe,machine){
  const matches=(setup.machines||[]).filter(row=>!row.projectId&&row.recipe===recipe&&
    (R[recipe]?.[3]!=='asm'||Math.abs(Number(row.tier)-Number(machine))<1e-8));
  return matches.reduce((sum,row)=>sum+Math.max(0,Number(row.count)||0),0);
+}
+function matchingUnlinkedAssets(recipe,area){
+ return (setup.assets||[]).filter(a=>!a.projectId&&a.recipe===recipe&&(a.area||'Nauvis')===(area||'Nauvis')).reduce((n,a)=>n+Math.max(0,Number(a.count)||0),0);
 }
 function allProjects(){return normalizeProjects(factory.projects)}
 function setProjects(projects,event){
@@ -125,17 +128,18 @@ function projectHTML(p){
  const progress=projectProgress(p),pct=progress.planned?Math.round(100*progress.built/progress.planned):0;
  const archived=p.status==='archived';
  const lineItems=p.tasks.map(task=>{
-  const saved=recordedForTask(p,task,setup.machines);
+  const isAsset=task.kind==='asset';
+  const saved=recordedForTask(p,task,isAsset?setup.assets:setup.machines);
   const color=colorFor(task.recipe,task.kind);
   const mismatch=saved.mismatch||saved.count!==task.built;
   const cannotRecord=task.kind==='furnace';
-  const possibleDuplicates=matchingUnlinked(task.recipe,p.goal.machine);
+  const possibleDuplicates=isAsset?matchingUnlinkedAssets(task.recipe,p.goal.area):matchingUnlinked(task.recipe,p.goal.machine);
   return '<div class="project-task" style="--project-task-accent:'+color+'">'+
    '<div class="project-task-identity"><span class="project-task-led" aria-hidden="true"></span>'+itemGlyph(task.recipe,32)+'<div><strong>'+escape(R[task.recipe]?.[0]||task.recipe)+'</strong><small>'+escape(noun(task.kind))+' · '+task.planned+' planned'+(task.kind==='asm'?' · Assembler '+(p.goal.machine===1.25?'3':'2'):'')+'</small></div></div>'+
    '<div class="project-task-controls"><button type="button" data-project-minus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Mark one fewer '+escape(task.recipe)+' built" '+(archived||task.built<=0||mismatch?'disabled':'')+'>−</button>'+
-   '<span class="project-task-counter"><b>'+task.built+'</b><small>/ '+task.planned+' built</small></span>'+
+   '<span class="project-task-counter"><b>'+task.built+'</b><small>/ '+task.planned+(isAsset?' placed':' built')+'</small></span>'+
    '<button type="button" data-project-plus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Mark one more '+escape(task.recipe)+' built" '+(archived||task.built>=task.planned||mismatch||cannotRecord?'disabled':'')+'>+</button></div>'+
-   '<div class="project-task-foot"><span class="project-task-recorded">'+saved.count+' in Factory · linked to this project</span>'+
+   '<div class="project-task-foot"><span class="project-task-recorded">'+saved.count+(isAsset?' deployed in Factory':' in Factory')+' · linked to this project</span>'+
    (mismatch?'<span class="project-task-warning">Factory and project counts differ. Review the linked line in Factory.</span>':
     cannotRecord?'<span class="project-task-warning">Save a bus-fed project to record machines automatically.</span>':
     possibleDuplicates?'<span class="project-task-warning">Check for duplicates: '+possibleDuplicates+' matching unlinked machines already in Factory.</span>':'')+
@@ -143,12 +147,13 @@ function projectHTML(p){
  }).join('');
  return '<article class="project-card" data-project-card="'+escape(p.id)+'" style="--project-card-accent:'+colorFor(p.goal.id,'asm')+'">'+
   '<div class="project-card-top"><span class="project-card-icon" aria-hidden="true">'+itemGlyph(p.goal.id,34)+'</span>'+
-  '<div class="project-card-intro"><h3>'+escape(p.name)+'</h3><p>'+escape(R[p.goal.id]?.[0]||p.goal.id)+' · '+fmt(p.goal.rate)+'/min · '+(p.goal.source==='bus'?'Bus fed':'Raw inputs')+'</p></div>'+
+  '<div class="project-card-intro"><h3>'+escape(p.name)+'</h3><p>'+escape(R[p.goal.id]?.[0]||p.goal.id)+
+ (p.type==='deployment'?' · '+escape(p.goal.area||'Nauvis')+' · deployment':' · '+fmt(p.goal.rate)+'/min · '+(p.goal.source==='bus'?'Bus fed':'Raw inputs'))+'</p></div>'+
   '<span class="project-card-status">'+(archived?'ARCHIVED':pct===100?'BUILT':'IN PROGRESS')+'</span></div>'+
-  '<div class="project-card-progress"><div class="project-card-progress-top"><strong>'+progress.built+' / '+progress.planned+' machines built</strong><span>'+pct+'%</span></div>'+
+  '<div class="project-card-progress"><div class="project-card-progress-top"><strong>'+progress.built+' / '+progress.planned+(p.type==='deployment'?' items placed':' machines built')+'</strong><span>'+pct+'%</span></div>'+
   '<div class="project-progress-track"><span style="width:'+pct+'%"></span></div></div>'+
-  '<details class="project-task-details"><summary>Machine checklist <span>'+progress.complete+' / '+progress.tasks+' recipes complete</span></summary><div class="project-task-list">'+lineItems+'</div></details>'+
-  '<div class="project-card-actions"><button type="button" data-project-visit="'+escape(p.id)+'">Open in Planner</button>'+
+  '<details class="project-task-details"><summary>'+(p.type==='deployment'?'Placement checklist':'Machine checklist')+' <span>'+progress.complete+' / '+progress.tasks+' groups complete</span></summary><div class="project-task-list">'+lineItems+'</div></details>'+
+  '<div class="project-card-actions"><button type="button" data-project-visit="'+escape(p.id)+'">'+(p.type==='deployment'?'View placed inventory':'Open in Planner')+'</button>'+
   '<button type="button" data-project-rename="'+escape(p.id)+'">Rename</button>'+
   '<button type="button" data-project-archive="'+escape(p.id)+'">'+(archived?'Restore':'Archive')+'</button></div>'+
  '</article>';
@@ -157,7 +162,7 @@ function render(){
  factory.projects=normalizeProjects(factory.projects);
  const total=stats(),legacy=legacyStats();
  if($('projectsSummary'))$('projectsSummary').innerHTML=[
-  [total.active,'ACTIVE PROJECTS'],[total.planned,'MACHINES PLANNED'],[total.built,'MACHINES BUILT'],[total.archived,'ARCHIVED']
+  [total.active,'ACTIVE PROJECTS'],[total.planned,'QUANTITY PLANNED'],[total.built,'BUILT / PLACED'],[total.archived,'ARCHIVED']
  ].map(([n,label])=>'<div class="project-stat"><strong>'+fmt(n)+'</strong><small>'+label+'</small></div>').join('');
  if($('projectsLegacyStatus'))$('projectsLegacyStatus').textContent=legacy.done+'/'+legacy.total+' construction milestones complete';
  if($('projectsLegacyFill'))$('projectsLegacyFill').style.width=(legacy.total?Math.min(100,legacy.done/legacy.total*100):0)+'%';
