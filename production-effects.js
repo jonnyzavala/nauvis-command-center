@@ -3,7 +3,7 @@
    https://wiki.factorio.com/Module
    https://wiki.factorio.com/Quality
    https://wiki.factorio.com/Beacon
-   Only normal-quality tier-1 modules. Machine quality affects crafting speed,
+   Normal-quality speed, efficiency and productivity modules, tiers 1–3. Machine quality affects crafting speed,
    NOT the product quality/rarity. Beacon speed is the effective bonus read in game,
    NOT calculated from beacon count (which has diminishing returns in 2.0).
 */
@@ -11,18 +11,24 @@
 'use strict';
 const PROD_ALLOWED=new Set(["advanced-circuit","advanced-oil-processing","automation-science-pack","barrel","basic-oil-processing","battery","chemical-science-pack","coal-liquefaction","copper-cable","copper-plate","electric-engine-unit","electronic-circuit","engine-unit","explosives","flying-robot-frame","heavy-oil-cracking","iron-gear-wheel","iron-plate","iron-stick","kovarex-enrichment-process","light-oil-cracking","logistic-science-pack","low-density-structure","lubricant","military-science-pack","nuclear-fuel","nuclear-fuel-reprocessing","parameter-0","parameter-1","parameter-2","parameter-3","parameter-4","parameter-5","parameter-6","parameter-7","parameter-8","parameter-9","plastic-bar","processing-unit","production-science-pack","rocket-fuel","rocket-part","solid-fuel","solid-fuel-from-heavy-oil","solid-fuel-from-light-oil","solid-fuel-from-petroleum-gas","steel-plate","stone-brick","sulfur","sulfuric-acid","uranium-fuel-cell","uranium-processing","utility-science-pack"]);
 const QUALITIES=Object.freeze({normal:1,uncommon:1.3,rare:1.6,epic:1.9,legendary:2.5});
-const MODULE_TYPES=Object.freeze(['none','speed1','efficiency1','productivity1']);
+const MODULE_DATA=Object.freeze({none:[0,0,0],speed1:[.2,0,.5],speed2:[.3,0,.6],speed3:[.5,0,.7],efficiency1:[0,0,-.3],efficiency2:[0,0,-.4],efficiency3:[0,0,-.5],productivity1:[-.05,.04,.4],productivity2:[-.1,.06,.6],productivity3:[-.15,.1,.8]});
+const MODULE_TYPES=Object.freeze(Object.keys(MODULE_DATA));
+const MODULE_OPTIONS=Object.freeze(MODULE_TYPES.map(type=>type==='none'?['none','No modules']:[type,type.replace(/^(speed|efficiency|productivity)(\d)$/,(_,name,tier)=>name[0].toUpperCase()+name.slice(1)+' '+tier)]));
 const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
 function settings(input={}){
  const type=String(input.moduleType??'none');
- if(!MODULE_TYPES.includes(type))throw Error('Choose None, Speed 1, Efficiency 1, or Productivity 1.');
+ if(!MODULE_TYPES.includes(type))throw Error('Choose a supported module type.');
  const count=Number(input.moduleCount??0);
  if(!Number.isSafeInteger(count)||count<0||count>4)throw Error('Module count must be a whole number from 0 to 4.');
+ const secondType=String(input.moduleType2??'none'),secondCount=Number(input.moduleCount2??0);
+ if(!MODULE_TYPES.includes(secondType))throw Error('Choose a supported second module type.');
+ if(!Number.isSafeInteger(secondCount)||secondCount<0||secondCount>4)throw Error('Second module count must be a whole number from 0 to 4.');
+ if((type==='none'?0:count)+(secondType==='none'?0:secondCount)>4)throw Error('A machine profile can request at most four modules in total.');
  const quality=String(input.machineQuality??'normal');
  if(!own(QUALITIES,quality))throw Error('Unsupported crafting-machine quality.');
  const beacon=Number(input.beaconSpeed??0);
  if(!Number.isFinite(beacon)||beacon<0||beacon>300)throw Error('Effective beacon speed bonus must be between 0 and +300%.');
- return {moduleType:type,moduleCount:count,machineQuality:quality,beaconSpeed:beacon};
+ return {moduleType:type,moduleCount:count,moduleType2:secondType,moduleCount2:secondCount,machineQuality:quality,beaconSpeed:beacon};
 }
 function forRecipe(id,kind,input={}){
  const cfg=settings(input);
@@ -31,18 +37,20 @@ function forRecipe(id,kind,input={}){
  const qualityFactor=kind==='asm'||kind==='chem'?QUALITIES[cfg.machineQuality]:1;
  const speedBase=kind==='asm'?(tier||.75):kind==='chem'?1:2;
  if(kind==='asm'&&![.5,.75,1.25].includes(tier))throw Error('Unsupported assembler crafting speed.');
- const allowed=cfg.moduleType!=='productivity1'||PROD_ALLOWED.has(id);
- const applied=slots&&allowed&&cfg.moduleType!=='none'?Math.min(cfg.moduleCount,slots):0;
- const speedBonus=(cfg.moduleType==='speed1'?.2*applied:0)+
-  (cfg.moduleType==='productivity1'?-.05*applied:0)+
-  (slots?cfg.beaconSpeed/100:0);
+ const groups=[[cfg.moduleType,cfg.moduleCount],[cfg.moduleType2,cfg.moduleCount2]];
+ let remaining=slots,applied=0,eligible=true,speedBonus=slots?cfg.beaconSpeed/100:0,productivityBonus=0,energyBonus=0;
+ const moduleGroups=groups.map(([type,requested])=>{
+  const allowed=type==='none'||!type.startsWith('productivity')||PROD_ALLOWED.has(id);
+  if(requested>0&&!allowed)eligible=false;
+  const count=type==='none'||!allowed?0:Math.min(requested,remaining);
+  remaining-=count;applied+=count;
+  const [speed,prod,energy]=MODULE_DATA[type];
+  speedBonus+=speed*count;productivityBonus+=prod*count;energyBonus+=energy*count;
+  return {type,requested,applied:count,eligible:allowed};
+ });
  const speedFactor=Math.max(.2,1+speedBonus);
- const productivityBonus=cfg.moduleType==='productivity1'?.04*applied:0;
- const energyBonus=cfg.moduleType==='speed1'?.5*applied:
-  cfg.moduleType==='efficiency1'?-.3*applied:
-  cfg.moduleType==='productivity1'?.4*applied:0;
- return {moduleType:cfg.moduleType,moduleRequested:cfg.moduleCount,moduleApplied:applied,
-   moduleSlots:slots,moduleEligible:allowed,quality:cfg.machineQuality,
+ return {moduleType:cfg.moduleType,moduleRequested:groups.reduce((n,[t,c])=>n+(t==='none'?0:c),0),moduleApplied:applied,moduleGroups,
+   moduleSlots:slots,moduleEligible:eligible,quality:cfg.machineQuality,
    qualityFactor,beaconSpeed:slots?cfg.beaconSpeed:0,productivityBonus,
    machineSpeed:speedBase*qualityFactor*speedFactor,speedFactor,
    energyFactor:Math.max(.2,1+energyBonus),baseSpeed:speedBase};
@@ -53,6 +61,6 @@ function effectiveOutputPerCraft(quantity,effects){
  return out;
 }
 if(typeof module==='object'&&module.exports)
- module.exports={forRecipe,settings,effectiveOutputPerCraft,PROD_ALLOWED,QUALITIES,MODULE_TYPES};
-root.NauvisEffects={forRecipe,settings,effectiveOutputPerCraft,PROD_ALLOWED,QUALITIES,MODULE_TYPES};
+ module.exports={forRecipe,settings,effectiveOutputPerCraft,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
+root.NauvisEffects={forRecipe,settings,effectiveOutputPerCraft,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
 })(typeof window==='undefined'?globalThis:window);

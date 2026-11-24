@@ -28,7 +28,7 @@ function buildProject(name,analysis,id,createdAt){
  if(new Set(tasks.map(x=>x.recipe)).size!==tasks.length)throw Error('Duplicate recipe in project.');
  return {id,name:validateProjectName(name),status:'active',createdAt:String(createdAt),
   goal:{id:analysis.id,rate:analysis.rate,machine:analysis.machine,source:analysis.source,belt:analysis.belt,
-   moduleType:analysis.moduleType||'none',moduleCount:analysis.moduleCount||0,
+   moduleType:analysis.moduleType||'none',moduleCount:analysis.moduleCount||0,moduleType2:analysis.moduleType2||'none',moduleCount2:analysis.moduleCount2||0,
    machineQuality:analysis.machineQuality||'normal',beaconSpeed:analysis.beaconSpeed||0},
   tasks};
 }
@@ -47,6 +47,7 @@ function recordedForTask(project,task,rows){
   (task.kind!=='asset'&&(
    (row.moduleType||'none')!==(project.goal.moduleType||'none')||
    Number(row.moduleCount||0)!==Number(project.goal.moduleCount||0)||
+   (row.moduleType2||'none')!==(project.goal.moduleType2||'none')||Number(row.moduleCount2||0)!==Number(project.goal.moduleCount2||0)||
    (row.machineQuality||'normal')!==(project.goal.machineQuality||'normal')||
    Number(row.beaconSpeed||0)!==Number(project.goal.beaconSpeed||0)
   )));
@@ -76,7 +77,7 @@ function applyBuildDelta(project,recipe,delta,rows){
   else nextRows[index]={...nextRows[index],count:next};
  }else if(next>0){
   nextRows.push({recipe,count:next,tier,destination:'Other',projectId:project.id,projectTask:recipe,
-   moduleType:project.goal.moduleType||'none',moduleCount:project.goal.moduleCount||0,
+   moduleType:project.goal.moduleType||'none',moduleCount:project.goal.moduleCount||0,moduleType2:project.goal.moduleType2||'none',moduleCount2:project.goal.moduleCount2||0,
    machineQuality:project.goal.machineQuality||'normal',beaconSpeed:project.goal.beaconSpeed||0});
  }
  return {project:{...project,tasks:project.tasks.map(t=>t.recipe===recipe?{...t,built:next}:t)},rows:nextRows};
@@ -162,7 +163,8 @@ function projectHTML(p){
  (p.type==='deployment'?' · '+escape(p.goal.area||'Nauvis')+' · deployment':
  ' · '+fmt(p.goal.rate)+'/min · '+(p.goal.source==='bus'?'Bus fed':'Raw inputs')+
  (p.goal.moduleType&&p.goal.moduleType!=='none'?' · '+escape(p.goal.moduleType)+' ×'+Number(p.goal.moduleCount||0):'')+
- (p.goal.machineQuality&&p.goal.machineQuality!=='normal'?' · '+escape(p.goal.machineQuality)+' machines':'')+
+ (p.goal.moduleType2&&p.goal.moduleType2!=='none'?' · '+escape(p.goal.moduleType2)+' ×'+Number(p.goal.moduleCount2||0):'')+
+  (p.goal.machineQuality&&p.goal.machineQuality!=='normal'?' · '+escape(p.goal.machineQuality)+' machines':'')+
  (p.goal.beaconSpeed?' · +'+Number(p.goal.beaconSpeed)+'% effective beacon speed':''))+'</p></div>'+
   '<span class="project-card-status">'+(archived?'ARCHIVED':pct===100?'BUILT':'IN PROGRESS')+'</span></div>'+
   '<div class="project-card-progress"><div class="project-card-progress-top"><strong>'+progress.built+' / '+progress.planned+(p.type==='deployment'?' items placed':' machines built')+'</strong><span>'+pct+'%</span></div>'+

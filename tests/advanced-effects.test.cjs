@@ -80,7 +80,7 @@ test('beacon bonus is an explicit effective additive speed modifier and never an
 });
 test('bad module configuration fails fast instead of silently manufacturing numbers',()=>{
  for(const input of [
-  {moduleType:'speed2'},{moduleCount:-1},{moduleCount:2.5},{moduleCount:5},
+  {moduleType:'speed4'},{moduleCount:-1},{moduleCount:2.5},{moduleCount:5},
   {machineQuality:'mythic'}
  ])assert.throws(()=>effects.settings(input));
 });
@@ -140,10 +140,45 @@ test('advanced assets load offline and preserved cloud snapshot shape is unchang
  const sw=read('service-worker.js');
  for(const file of ['production-effects.js','machine-upgrades.js','advanced-v028.css'])
   assert.ok(sw.includes("'./"+file+"'"),file);
- assert.match(sw,/nauvis-shell-v040/);
- assert.match(html,/Nauvis Command Center v0\.40/);
+ assert.match(sw,/nauvis-shell-v041/);
+ assert.match(html,/Nauvis Command Center v0\.41/);
  assert.match(html,/src="\.\/production-effects\.js"/);
  assert.match(html,/src="\.\/machine-upgrades\.js"/);
  assert.match(html,/href="\.\/advanced-v028\.css"/);
  assert.match(html,/snapshot\(\)\{return JSON\.parse\(JSON\.stringify\(\{version:7,plan:factory,guide,setup,balancePrefs\}\)\)\}/);
+});
+
+test('tier 2 and 3 modules use the verified additive effects',()=>{
+ const a=effects.forRecipe('advanced-circuit','asm',{machine:1.25,moduleType:'speed2',moduleCount:4});
+ close(a.machineSpeed,2.75);close(a.energyFactor,3.4);
+ const b=effects.forRecipe('advanced-circuit','asm',{machine:1.25,moduleType:'productivity3',moduleCount:4});
+ close(b.machineSpeed,.5);close(b.productivityBonus,.4);close(b.energyFactor,4.2);
+ const c=effects.forRecipe('battery','chem',{moduleType:'efficiency3',moduleCount:2});
+ close(c.energyFactor,.2);close(c.machineSpeed,1);
+});
+test('mixed modules share physical slots and skip ineligible productivity',()=>{
+ const config={moduleType:'productivity3',moduleCount:2,moduleType2:'speed3',moduleCount2:2};
+ const a=effects.forRecipe('advanced-circuit','asm',{machine:1.25,...config});
+ close(a.machineSpeed,2.125);close(a.productivityBonus,.2);assert.equal(a.moduleApplied,4);
+ const b=effects.forRecipe('advanced-circuit','asm',{machine:.75,...config});
+ close(b.machineSpeed,.525);assert.equal(b.moduleApplied,2);
+ const c=effects.forRecipe('laser-turret','asm',{machine:.75,...config});
+ assert.equal(c.moduleEligible,false);close(c.machineSpeed,1.5);close(c.productivityBonus,0);
+ assert.throws(()=>effects.settings({...config,moduleCount2:3}),/four modules/);
+});
+test('second module profile survives planner, project, linked factory rows and resource ledger',()=>{
+ const config={moduleType:'productivity2',moduleCount:1,moduleType2:'speed2',moduleCount2:1};
+ const result=calc('advanced-circuit',config);
+ const row=result.entries.find(x=>x.key==='advanced-circuit');
+ close(row.machineSpeed,.9);close(row.productivityBonus,.06);
+ const project=buildProject('Mixed circuit line',result,'mixed','2026-11-24');
+ const built=applyBuildDelta(project,'advanced-circuit',1,[]);
+ assert.equal(project.goal.moduleType2,'speed2');assert.equal(built.rows[0].moduleCount2,1);
+ assert.equal(recordedForTask(built.project,built.project.tasks.find(t=>t.recipe==='advanced-circuit'),built.rows).mismatch,false);
+ const a=html.indexOf('function resourceAuditEngine('),b=html.indexOf('function renderBalance()',a);
+ const fn=Function('window',html.slice(a,b)+';return resourceAuditEngine;')({NauvisEffects:effects});
+ const ledger=fn({base:{busIron:0,copper:0,steel:0,bricks:0},oil:{refineries:0,heavyCrackers:0,lightCrackers:0},recipes:R,machines:built.rows,includeGoal:false});
+ close(ledger.rows.find(x=>x.id==='advanced-circuit').produced,row.perMachine);
+ assert.match(ratioJs,/data-ratio-field="moduleCount2"/);
+ assert.match(read('machine-upgrades.js'),/data-upgrade-field="moduleType2"/);
 });

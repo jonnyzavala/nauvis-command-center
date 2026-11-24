@@ -85,7 +85,7 @@ function analyzeRecipeRatios(recipes,query,context){
  const roundedTotal=entries.reduce((sum,row)=>sum+row.count,0);
  const exactTotal=entries.reduce((sum,row)=>sum+row.exact,0);
  return {id,name:recipe[0],rate,machine:speed,source,belt,
-   moduleType:query.moduleType||'none',moduleCount:query.moduleCount||0,
+   moduleType:query.moduleType||'none',moduleCount:query.moduleCount||0,moduleType2:query.moduleType2||'none',moduleCount2:query.moduleCount2||0,
    machineQuality:query.machineQuality||'normal',beaconSpeed:query.beaconSpeed||0,
    entries,external,outputStream,roundedTotal,exactTotal,
    kinds:entries.reduce((out,row)=>{out[row.kind]=(out[row.kind]||0)+row.count;return out},{asm:0,chem:0,furnace:0})};
@@ -117,7 +117,7 @@ const number=n=>Number(n).toLocaleString(undefined,{maximumFractionDigits:2});
 const precision=n=>Number(n).toLocaleString(undefined,{maximumFractionDigits:3});
 const machineName=kind=>kind==='asm'?'assemblers':kind==='chem'?'chemical plants':'furnaces';
 const state={id:guide.goal,rate:guide.rate,machine:guide.machine,source:guide.source,belt:guide.belt,
- moduleType:guide.moduleType||'none',moduleCount:guide.moduleCount||0,
+ moduleType:guide.moduleType||'none',moduleCount:guide.moduleCount||0,moduleType2:guide.moduleType2||'none',moduleCount2:guide.moduleCount2||0,
  machineQuality:guide.machineQuality||'normal',beaconSpeed:guide.beaconSpeed||0,preset:'custom'};
 const recipes=R,contexts={stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names};
 let recipeFilter='',recipeCategory='all';
@@ -152,18 +152,20 @@ function buildView(result,card){
  const tiers=[['0.75','Assembler 2 · 0.75×'],['1.25','Assembler 3 · 1.25×']];
  const rec=recommendation();
  const advancedOn=state.moduleType!=='none'&&state.moduleCount>0||
-  state.machineQuality!=='normal'||state.beaconSpeed>0;
+  state.moduleType2!=='none'&&state.moduleCount2>0||state.machineQuality!=='normal'||state.beaconSpeed>0;
  const presetButtons=[['starter','Starter',rec.starter,'Smaller start'],['balanced','Balanced',rec.balanced,'Recommended baseline'],['expand','More',rec.expand,'Additional capacity'],['custom','Custom',state.rate,'Choose your output']].map(([key,name,rate,detail])=>
   '<button type="button" data-ratio-preset="'+key+'" class="ratio-preset-btn" aria-pressed="'+(state.preset===key)+'"><b>'+name+'</b><span>'+number(rate)+'/min</span><small>'+detail+'</small></button>').join('');
 
  const selectField=(key,title,opts,value)=>'<div class="ratio-field"><label for="'+id(key)+'">'+escape(title)+'</label><select id="'+id(key)+'" data-ratio-field="'+key+'">'+select(opts,value)+'</select></div>';
  const advanced='<details class="ratio-advanced"'+(advancedOn?' open':'')+'>'+
   '<summary>Machine upgrades & module effects <small>'+(advancedOn?'CUSTOM PROFILE':'OPTIONAL · BASE CASE')+'</small></summary>'+
-  '<div class="ratio-advanced-body"><p>Apply a uniform profile to compatible machine groups. Each recipe clamps module counts to its available slots. Productivity is skipped automatically when the recipe forbids it.</p>'+
+  '<div class="ratio-advanced-body"><p>Apply a uniform profile to compatible machine groups. Primary modules fill slots first, then secondary modules. Ineligible productivity modules are skipped.</p>'+
   '<div class="ratio-advanced-fields">'+
-  selectField('moduleType','Tier-1 modules',[['none','No modules'],['speed1','Speed 1 · +20% speed each'],['efficiency1','Efficiency 1 · −30% energy each'],['productivity1','Productivity 1 · +4% yield each']],state.moduleType)+
+  selectField('moduleType','Primary module',root.NauvisEffects.MODULE_OPTIONS,state.moduleType)+
   '<div class="ratio-field"><label for="'+id('moduleCount')+'">Modules per machine (up to slots)</label><input data-ratio-field="moduleCount" id="'+id('moduleCount')+'" type="number" inputmode="numeric" min="0" max="4" step="1" value="'+state.moduleCount+'"></div>'+
-  selectField('machineQuality','Crafting machine quality',[['normal','Normal · 1.0×'],['uncommon','Uncommon · 1.3×'],['rare','Rare · 1.6×'],['epic','Epic · 1.9×'],['legendary','Legendary · 2.5×']],state.machineQuality)+
+  selectField('moduleType2','Second module',root.NauvisEffects.MODULE_OPTIONS,state.moduleType2)+
+   '<div class="ratio-field"><label for="'+id('moduleCount2')+'">Second module count</label><input data-ratio-field="moduleCount2" id="'+id('moduleCount2')+'" type="number" inputmode="numeric" min="0" max="4" step="1" value="'+state.moduleCount2+'"></div>'+
+   selectField('machineQuality','Crafting machine quality',[['normal','Normal · 1.0×'],['uncommon','Uncommon · 1.3×'],['rare','Rare · 1.6×'],['epic','Epic · 1.9×'],['legendary','Legendary · 2.5×']],state.machineQuality)+
   '<div class="ratio-field"><label for="'+id('beaconSpeed')+'">Effective beacon speed bonus (%)</label><input data-ratio-field="beaconSpeed" id="'+id('beaconSpeed')+'" type="number" inputmode="decimal" min="0" max="300" step="1" value="'+state.beaconSpeed+'"></div></div>'+
   '<p class="ratio-advanced-note">Use the actual additive speed bonus contributed by beacons, not the number of beacons. Factorio 2.0 beacon transmission has diminishing returns. Machine quality changes crafting speed, not the quality of products. Generic furnaces are held at 2× speed without module assumptions.</p></div></details>';
  const fieldset='<div class="ratio-picker"><label for="'+id('search')+'">Find a recipe</label>'+
@@ -236,7 +238,7 @@ function buildView(result,card){
   '<details class="ratio-explain"><summary><span>Why this ratio? <small>Show recipe math and rounding for each machine group</small></span><span>⌄</span></summary>'+
   '<div class="ratio-explain-body"><p class="ratio-caveat">Machine output = items per craft × crafting speed × 60 ÷ recipe seconds. Divide needed items/min by output per machine/min, then round each group up.</p>'+detailed+'</div></details>'+
   '<div class="ratio-actions"><button type="button" class="ratio-send" data-ratio-send>Open detailed planner with this goal <span aria-hidden="true">→</span></button><small>Updates the hypothetical planning goal only. Your Existing Factory inventory remains untouched.</small></div>'+
-  '<p class="ratio-caveat">Scope: 182 deterministic Nauvis base recipes; normal tier-1 modules, supported machine quality speed, and user-entered effective beacon speed are calculated on compatible machines. No probabilistic product-quality output, beacon count/placement geometry, module level 2/3, mixed modules, uranium byproducts, planetary Space Age recipe chains, inserter constraints, mining supply or physical routing. Chemical plants have base speed 1×; generic furnaces remain 2×.</p>';
+  '<p class="ratio-caveat">Scope: 182 deterministic Nauvis base recipes; normal-quality speed, efficiency and productivity modules (tiers 1–3; two types per machine), supported machine quality speed, and user-entered effective beacon speed are calculated on compatible machines. No probabilistic product-quality output, beacon count/placement geometry, uranium byproducts, planetary Space Age recipe chains, inserter constraints, mining supply or physical routing. Chemical plants have base speed 1×; generic furnaces remain 2×.</p>';
 }
 function renderCard(card){
  if(!card.open)return;
@@ -272,15 +274,16 @@ function renderCard(card){
     state.id=raw;state.preset='balanced';state.rate=recommendation().balanced;
     recipeFilter='';recipeCategory='all';
    }else{
-    if(kind==='moduleCount'||kind==='beaconSpeed'){
+    if(kind==='moduleCount'||kind==='moduleCount2'||kind==='beaconSpeed'){
      const value=Number(raw);
-     if(!Number.isFinite(value)||value<0||value>(kind==='moduleCount'?4:300)||
-      (kind==='moduleCount'&&!Number.isSafeInteger(value))){
+     if(!Number.isFinite(value)||value<0||value>(kind==='beaconSpeed'?300:4)||
+      (kind!=='beaconSpeed'&&!Number.isSafeInteger(value))){
       const error=target.querySelector('[data-ratio-error]');if(error){error.textContent='Invalid module count or beacon bonus.';error.hidden=false}
       event.target.value=String(prev);return;
      }
      state[kind]=value;
     }else state[kind]=kind==='machine'||kind==='belt'?Number(raw):raw;
+    try{root.NauvisEffects.settings(state)}catch(err){state[kind]=prev;const error=target.querySelector('[data-ratio-error]');if(error){error.textContent=err.message;error.hidden=false}event.target.value=String(prev);return}
     if(kind==='machine'&&state.preset!=='custom')state.rate=recommendation()[state.preset];
    }
    renderAll();
@@ -289,14 +292,14 @@ function renderCard(card){
   const button=target.querySelector('[data-ratio-send]');
   button.addEventListener('click',()=>{
    guide.goal=state.id;guide.rate=state.rate;guide.machine=state.machine;guide.source=state.source;guide.belt=state.belt;
-   for(const key of ['moduleType','moduleCount','machineQuality','beaconSpeed'])guide[key]=state[key];
+   for(const key of ['moduleType','moduleCount','moduleType2','moduleCount2','machineQuality','beaconSpeed'])guide[key]=state[key];
    renderGuide();
    activateWorkspace('build',true);
    const buildCard=document.querySelector('[data-ratio-explorer="build"]');
    if(buildCard&&!buildCard.open)buildCard.open=true;
    const classic=document.getElementById('buildClassic');
    if(classic){
-    if(state.moduleType!=='none'||state.machineQuality!=='normal'||state.beaconSpeed>0)
+    if(state.moduleType!=='none'||state.moduleType2!=='none'||state.machineQuality!=='normal'||state.beaconSpeed>0)
      root.alert?.('The legacy detailed calculator uses base recipe speeds. The active module/quality/beacon profile is only applied to the visual Ratio Explorer above and to saved compatible Factory lines.');
     classic.open=true;
     if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>classic.scrollIntoView({behavior:'smooth',block:'start'}));
@@ -311,7 +314,7 @@ function renderAll(){cards.forEach(renderCard)}
 cards.forEach(card=>card.addEventListener('toggle',()=>{if(card.open)renderCard(card)}));
 root.NauvisRatioExplorer={refresh:renderAll,setGoal(goal){
   if(!goal||!recipes[goal.id])return;
-  for(const key of ['id','rate','machine','source','belt','moduleType','moduleCount','machineQuality','beaconSpeed'])
+  for(const key of ['id','rate','machine','source','belt','moduleType','moduleCount','moduleType2','moduleCount2','machineQuality','beaconSpeed'])
    if(goal[key]!==undefined)state[key]=goal[key];
   state.preset=root.NauvisPresets?.modeFor(state.rate,recommendation())||'custom';
   recipeFilter='';recipeCategory='all';
