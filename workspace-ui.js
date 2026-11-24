@@ -2,11 +2,11 @@
 (function(root){
 'use strict';
 const ids=['learn','setup','balance','build','factory'];
-let lastPlanMode='build';
+let lastPlanMode='build',lastFactoryMode='balance';
 const config={
  learn:{title:'Guide overview',intro:'The concepts behind the ratios, construction tracking and actual Factory.',links:[['Basics','.rulegrid'],['Circuit example','#guide-example'],['Belt capacity','#guide-belts']]},
- setup:{title:'Factory overview',intro:'Records you entered, not live game telemetry.',links:[['Smelting','#setupSmeltingPanel'],['Oil','#setupOilPanel'],['Machines','#setupMachinesPanel'],['Belts','#setupBeltsPanel'],['Compare','#setupComparePanel'],['Inventory tools','#setupStorePanel']]},
- balance:{title:'Balance overview',intro:'Rated capacity versus recorded demand. Physical routing remains unmodeled.',links:[['Capacity ledger','.balance-ledger-panel'],['Warnings','.balance-insights'],['Recipe ratios','[data-ratio-explorer="balance"]'],['Explanation','#workspace-balance-interpret']]},
+ setup:{title:'Inventory overview',intro:'Records you entered, not live game telemetry.',links:[['Smelting','#setupSmeltingPanel'],['Oil','#setupOilPanel'],['Machines','#setupMachinesPanel'],['Belts','#setupBeltsPanel'],['Compare','#setupComparePanel'],['Inventory tools','#setupStorePanel']]},
+ balance:{title:'Balance analysis',intro:'Rated capacity versus recorded demand. Physical routing remains unmodeled.',links:[['Capacity ledger','.balance-ledger-panel'],['Warnings','.balance-insights'],['Recipe ratios','[data-ratio-explorer="balance"]'],['Explanation','#workspace-balance-interpret']]},
  build:{title:'Blueprint overview',intro:'Experiment with recipes and machine counts, then save a design to Construction.',links:[['Visual production flow','[data-ratio-explorer="build"]'],['Detailed calculator','#buildClassic']]},
  factory:{title:'Construction overview',intro:'Each built-machine check updates the project and the actual Factory record together.',links:[['Projects','#projectsListPanel'],['Journal','#journalPanel'],['Original circuit district','#legacyDistrict'],['Archived','#projectsArchivedWrapper']]}
 };
@@ -15,7 +15,7 @@ const fmt=n=>(Number(n)||0).toLocaleString();
 const escape=s=>String(s??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 function stats(view){
  const snapshot=root.NauvisLocal?.snapshot?.()||{},p=snapshot.plan||{},setup=snapshot.setup||{};
- if(view==='learn')return [[Object.keys(R||{}).length,'Recipes modeled'],['4','Top-level workspaces'],['1','Factory inventory']];
+ if(view==='learn')return [[Object.keys(R||{}).length,'Recipes modeled'],['3','Top-level workspaces'],['1','Factory inventory']];
  if(view==='setup')return [[(setup.machines||[]).length,'Recorded lines'],[(setup.machines||[]).reduce((n,x)=>n+Math.max(0,Number(x.count)||0),0),'Recorded machines'],[(setup.feeds||[]).length,'Belt routes']];
  if(view==='balance'){
   const values=[...document.querySelectorAll('#balanceSummary .balance-kpi b')].map(x=>x.textContent.trim());
@@ -42,6 +42,16 @@ function injectOverview(view){
   const button=e.target.closest('[data-workspace-jump]');if(!button)return;
   const next=cfg.links[Number(button.dataset.workspaceJump)]?.[1];if(next)jump(view,next);
  });
+}
+function makeFactoryModeSwitch(view){
+ const host=el(view);if(!host||host.querySelector(':scope > .factory-balance-switch'))return;
+ const bar=document.createElement('div');bar.className='plan-build-switch factory-balance-switch';
+ bar.setAttribute('role','group');bar.setAttribute('aria-label','Factory and Balance modes');
+ bar.innerHTML='<div class="plan-switch-caption"><span class="plan-switch-led" aria-hidden="true"></span> FACTORY & BALANCE <small>Record → Analyze</small></div>'+
+ '<div class="plan-switch-options"><button type="button" data-factory-target="setup" aria-pressed="'+(view==='setup')+'"><span class="factory-switch-light"></span>Inventory</button>'+
+ '<button type="button" data-factory-target="balance" aria-pressed="'+(view==='balance')+'"><span class="factory-switch-light"></span>Balance Analysis</button></div>';
+ host.insertBefore(bar,host.firstElementChild);
+ bar.addEventListener('click',e=>{const b=e.target.closest('[data-factory-target]');if(b)root.activateWorkspace(b.dataset.factoryTarget,true)});
 }
 function makeModeSwitch(view){
  const host=el(view);if(!host||host.querySelector(':scope > .plan-build-switch'))return;
@@ -85,14 +95,17 @@ function refresh(view){
 }
 function onActivate(view){
  if(view==='build'||view==='factory')lastPlanMode=view;
+ if(view==='setup'||view==='balance')lastFactoryMode=view;
  for(const id of ['build','factory'])el(id)?.querySelectorAll('[data-plan-target]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.planTarget===view)));
+ for(const id of ['setup','balance'])el(id)?.querySelectorAll('[data-factory-target]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.factoryTarget===view)));
  refresh(view);root.NauvisJournal?.render?.();
 }
 function init(){
  for(const id of ['build','factory'])makeModeSwitch(id);
+ for(const id of ['setup','balance'])makeFactoryModeSwitch(id);
  ids.forEach(injectOverview);
  initFolds();
- root.NauvisWorkspace={onActivate,refresh,jump,lastPlanMode:()=>lastPlanMode};
+ root.NauvisWorkspace={onActivate,refresh,jump,lastPlanMode:()=>lastPlanMode,lastFactoryMode:()=>lastFactoryMode};
  refresh();root.NauvisJournal?.render?.();
  onActivate(document.querySelector('.view.active')?.id||'balance');
 }
