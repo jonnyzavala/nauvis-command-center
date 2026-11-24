@@ -28,7 +28,7 @@ function forRecipe(id,kind,input={}){
  const cfg=settings(input);
  const tier=Number(input.machine??input.tier??.75);
  const slots=kind==='asm'?(tier===1.25?4:tier===.75?2:0):kind==='chem'?3:0;
- const qualityFactor=slots?QUALITIES[cfg.machineQuality]:1;
+ const qualityFactor=kind==='asm'||kind==='chem'?QUALITIES[cfg.machineQuality]:1;
  const speedBase=kind==='asm'?(tier||.75):kind==='chem'?1:2;
  if(kind==='asm'&&![.5,.75,1.25].includes(tier))throw Error('Unsupported assembler crafting speed.');
  const allowed=cfg.moduleType!=='productivity1'||PROD_ALLOWED.has(id);
