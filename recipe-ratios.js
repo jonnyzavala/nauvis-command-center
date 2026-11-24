@@ -91,6 +91,7 @@ function analyzeRecipeRatios(recipes,query,context){
    kinds:entries.reduce((out,row)=>{out[row.kind]=(out[row.kind]||0)+row.count;return out},{asm:0,chem:0,furnace:0})};
 }
 if(typeof module==='object'&&module.exports)module.exports={analyzeRecipeRatios,assertFiniteRate};
+root.NauvisRecipeMath=analyzeRecipeRatios;
 if(typeof document==='undefined')return;
 
 const $=id=>document.getElementById(id);
