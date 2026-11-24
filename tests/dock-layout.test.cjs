@@ -64,3 +64,9 @@ test('context guide is the left corner icon, quick change is the right, and pane
  assert.match(css,/\.command-dock \.context-help-detail\{left:0;right:auto/);
  assert.match(css,/\.quick-add-panel\{\s*position:fixed;right:/);
 });
+
+test('corner buttons have no decorative LED, while the cloud sync indicator remains',()=>{
+ assert.doesNotMatch(html,/class="(?:context-help|quick-add)-led"/);
+ assert.doesNotMatch(css,/\.(?:context-help|quick-add)-led/);
+ assert.match(html,/class="cloud-led"/);
+});

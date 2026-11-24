@@ -189,3 +189,8 @@ Direct focus highlights the selected node, its immediate inputs and consumers, a
 ## Neutral overview and compact corner tools (v0.39)
 
 The flowchart starts with no focused item and all cards and routes at normal visibility. Tap an item to focus it, tap it again to clear; changing recipes clears the selection. Upstream tree is a checkbox alongside Show inputs, and keeps its session setting. The contextual guide is a compact left-corner button with an on-demand upward panel; Quick Change is on the right. Existing contextual help, inventory edits and sync are preserved.
+
+
+## Corner button cleanup (v0.40)
+
+Removed decorative dots from Quick Guide and Quick Change. Actual cloud sync status and navigation indicators remain unchanged.
