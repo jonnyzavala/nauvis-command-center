@@ -715,7 +715,17 @@ body[data-workspace="build"]{
     <div id="setupComparison"></div>
     <div class="notice warn" style="margin-top:12px">Existing machines assigned to blue science, robots, or the military mall are <b>not spare machines</b>. Only lines marked “Available for new build” are considered reusable. Shared raw materials can still be bottlenecks.</div>
   </section>
-  <div class="section panel" id="setupStorePanel"><div class="section-head"><h2>Keep this inventory</h2></div><button class="btn" type="button" id="setupExample">Show a six-belt / two-to-steel example</button><button class="btn ghost" type="button" id="setupRestore" style="margin-left:8px">Restore reported smelting layout</button><p class="small">These values are saved locally in your browser. Use the export control under Construction Queue → Original circuit district to back up everything, including this inventory.</p></div>
+  <div class="section panel" id="setupStorePanel"><div class="section-head"><h2>Keep this inventory</h2></div><button class="btn" type="button" id="setupExample">Show a six-belt / two-to-steel example</button><button class="btn ghost" type="button" id="setupRestore" style="margin-left:8px">Restore reported smelting layout</button><p class="small">These values are saved locally first and included in your synced NAUVIS snapshot. Use the backup controls below before replacing old counts.</p>
+  <div class="factory-reset-box">
+   <h3>Data-only Fresh Start</h3>
+   <p>Keep all app functions, saved blueprint designs, preferences, cloud pairing, and Activity Journal. Clear only the recorded active Factory inventory and reset Construction's built progress.</p>
+   <button type="button" id="factoryBackupBtn">1. Download complete JSON backup</button>
+   <label><input type="checkbox" id="factoryBackupConfirmed" disabled> 2. I have saved the downloaded backup file</label>
+   <button type="button" id="factoryResetLaunch" disabled>3. Clear active Factory inventory…</button>
+   <p class="factory-reset-warning">This zeroes production lines, smelting, oil counts, belts, placed infrastructure, and project built counts. It also syncs the new empty inventory to your paired devices. Your historical backup, journal, and blueprint designs are preserved.</p>
+   <p id="factoryResetStatus" role="status"></p>
+  </div>
+ </div>
  </section>
 
  <section class="view" id="factory">
@@ -770,6 +780,15 @@ body[data-workspace="build"]{
   <div class="section panel"><h2>Before upgrading a belt</h2><div style="display:grid;gap:12px"><div><div class="inline"><b>Yellow</b><b>900/min</b></div><div class="track"><div style="width:33.333%;background:#e9bd61"></div></div></div><div><div class="inline"><b>Red</b><b>1,800/min</b></div><div class="track"><div style="width:66.666%;background:#e67b78"></div></div></div><div><div class="inline"><b>Blue</b><b>2,700/min</b></div><div class="track"><div style="width:100%;background:#76b3e2"></div></div></div></div><p class="small">If your furnaces produce only 700 plates/min, any of these belts will still carry only 700. Upgrade when the belt is saturated, not just because you've researched the next color.</p></div>
  </section>
  </main>
+<dialog id="factoryResetDialog" class="factory-deployment-dialog" aria-labelledby="factoryResetTitle">
+ <form id="factoryResetForm">
+  <h2 id="factoryResetTitle">Confirm data-only Factory reset</h2>
+  <p>All existing production, infrastructure, and routing records in this factory will be replaced with zero/empty values on this device and, after synchronization, paired devices. Project designs and journal history stay intact. This cannot be undone without importing your backup.</p>
+  <label>Type <strong>RESET FACTORY</strong> to confirm<input type="text" id="factoryResetPhrase" autocomplete="off" placeholder="RESET FACTORY" required></label>
+  <p id="factoryResetError" role="alert"></p>
+  <div class="project-dialog-buttons"><button type="button" id="factoryResetCancel">Cancel</button><button type="submit" id="factoryResetCommit" disabled>Clear recorded Factory data</button></div>
+ </form>
+</dialog>
 <dialog id="deploymentDialog" class="factory-deployment-dialog" aria-labelledby="deploymentDialogTitle">
  <form id="deploymentForm">
   <h2 id="deploymentDialogTitle">New infrastructure deployment</h2>
