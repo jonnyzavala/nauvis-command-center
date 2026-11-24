@@ -61,13 +61,8 @@ function buildFlowGraph(result){
 if(typeof module==='object'&&module.exports)module.exports={buildFlowGraph};
 if(typeof document==='undefined')return;
 const browserViews=new Map();
-const colors={
-  'advanced-circuit':'#f18b86','electronic-circuit':'#79d0ad',
-  'processing-unit':'#82bdf0','copper-cable':'#eec277',
-  asm:'#bba5e5',chem:'#7cc7d4',furnace:'#c4c9d3'
-};
 function nodeColor(node){
- return colors[node.recipe]||colors[node.kind]||(node.type==='supply'?'#94b6c9':'#bba5e5');
+ return root.NauvisIcons?.color?.(node.recipe)||(node.type==='supply'?'#94b6c9':'#bba5e5');
 }
 const itemGlyph=(id,size)=>root.NauvisIcons?.item?.(id,size)||'';
 function nodeMarkup(node){

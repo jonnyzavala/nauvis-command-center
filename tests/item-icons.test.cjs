@@ -141,8 +141,30 @@ test('gradient and icons still share the same iPhone-responsive background strat
 test('first render loads icon system before inline rendering and caches both files offline',()=>{
  assert.ok(html.indexOf('src="./item-icons.js"')<html.indexOf('/* Verified standard recipes.'));
  assert.match(html,/href="\.\/item-icons\.css"/);
- assert.match(sw,/nauvis-shell-v031/);
+ assert.match(sw,/nauvis-shell-v032/);
  assert.match(sw,/'\.\/item-icons\.js','\.\/item-icons\.css'/);
- assert.match(html,/Nauvis Command Center v0\.31/);
+ assert.match(html,/Nauvis Command Center v0\.32/);
  assert.equal((html.match(/<button data-view=/g)||[]).length,3);
+});
+
+test('every modeled item has an explicit visual identity with no duplicate artwork',()=>{
+ const {glyph,color}=require('../item-icons.js');
+ const ids=[...new Set([...Object.keys(R),...Object.values(R).flatMap(x=>Object.keys(x[4]))])];
+ assert.equal(ids.length,202);
+ const drawings=new Set();
+ for(const id of ids){
+  assert.ok(Object.hasOwn(specs,id),id);
+  const drawing=glyph(id);
+  assert.ok(drawing.length>30,id);
+  assert.ok(!drawings.has(drawing),'duplicate drawing: '+id);
+  drawings.add(drawing);
+  assert.match(color(id),/^#[0-9a-f]{6}$/i,id);
+  assert.ok(item(id).includes('--item-tone:'+color(id)),id);
+ }
+ assert.equal(color('copper-cable'),'#eec277');
+ assert.equal(color('electronic-circuit'),'#79d0ad');
+ assert.equal(color('advanced-circuit'),'#f18b86');
+ assert.equal(color('processing-unit'),'#82bdf0');
+ assert.match(html,/window\.NauvisIcons\?\.color\?\.\(id\)/);
+ assert.match(flow,/root\.NauvisIcons\?\.color\?\.\(node\.recipe\)/);
 });

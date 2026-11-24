@@ -76,10 +76,10 @@ test('preset scripts and styling precache offline without any data schema change
  const worker=read('service-worker.js');
  assert.match(html,/src="\.\/production-presets\.js"/);
  assert.match(html,/href="\.\/preset-v026\.css"/);
- assert.match(worker,/nauvis-shell-v031/);
+ assert.match(worker,/nauvis-shell-v032/);
  assert.match(worker,/production-presets\.js/);
  assert.match(worker,/preset-v026\.css/);
- assert.match(html,/Nauvis Command Center v0\.31/);
+ assert.match(html,/Nauvis Command Center v0\.32/);
  assert.match(html,/version:7,plan:factory,guide,setup,balancePrefs/);
 });
 
@@ -101,7 +101,7 @@ test('mobile profile spans the full row; compact inputs and corrected recipe col
  assert.match(css,/\.setup-row>\.setup-machine-upgrades\{grid-column:1\/-1/);
  assert.match(css,/#setupSmeltingInputs,#setupOilInputs\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
  assert.match(css,/\.ratio-header-title,\.ratio-header-subtitle\{display:block\}/);
- assert.match(html,/id==='copper-cable'\?c\.gold/);
+ assert.match(html,/window\.NauvisIcons\?\.color\?\.\(id\)/);
  assert.match(html,/type="number" inputmode="numeric" min="0" step="1" id="setupIronFurnaces"/);
  assert.match(html,/class="inventory-tool-actions"/);
 });
