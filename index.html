@@ -875,7 +875,7 @@ body[data-workspace="build"]{
  <footer class="footer">Nauvis Command Center v0.28 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script src="./item-icons.js"></script>
-<script src="./production-effects.js" defer></script>
+<script src="./production-effects.js"></script>
 <script src="./production-presets.js"></script>
 <script>
 'use strict';
@@ -1237,6 +1237,7 @@ function renderSetupMachines(){const opts=itemsForSetup.map(k=>[k,R[k][0]]);
  </div>`).join('')||'<div class="small">No production lines entered yet. Add one for each dedicated recipe, even if they make the same item for different factories.</div>';
  el('setupMachineRows').querySelectorAll('select,input').forEach(inp=>inp.addEventListener('change',e=>{const row=setup.machines[Number(e.target.dataset.row)],f=e.target.dataset.field;row[f]=(f==='count'||f==='tier')?safeNum(e.target.value):e.target.value;saveSetup();renderSetupSummaryOnly();if(f==='recipe')setTimeout(renderSetupMachines,0);else {const stat=e.target.closest('.setup-row').querySelector('.smallcap');if(stat)stat.textContent=fmt(setupLineOutput(row))+'/min theoretical'}}));
  el('setupMachineRows').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{setup.machines.splice(Number(b.dataset.removeMachine),1);saveSetup();renderSetupMachines();renderSetupSummaryOnly()}));
+ window.NauvisMachineUpgrades?.attach?.();
 }
 function renderSetupMachineSummary(){const total=setup.machines.reduce((a,x)=>a+safeNum(x.count),0);
  const groups={};for(const row of setup.machines){const k=row.recipe;if(!R[k])continue;const group=groups[k]||(groups[k]={name:R[k][0],count:0,rate:0,places:[]});group.count+=safeNum(row.count);group.rate+=setupLineOutput(row);group.places.push(`${row.destination}: ${safeNum(row.count)}`)}
@@ -1535,6 +1536,7 @@ window.NauvisLocal={
 <script src="./recipe-ratios.js" defer></script>
 <script src="./inventory-assets.js" defer></script>
 <script src="./projects.js" defer></script>
+<script src="./machine-upgrades.js" defer></script>
 <script src="./factory-reset.js" defer></script>
 <script src="./workspace-ui.js" defer></script>
 <script>if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));</script>
