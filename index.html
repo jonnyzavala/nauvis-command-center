@@ -721,7 +721,7 @@ body[data-workspace="build"]{
  <section class="view" id="factory">
   <div class="hero"><div class="eyebrow">CONSTRUCTION MODE · TEAL BLUEPRINT</div><h1>Construction Queue</h1><p>Save designs from Blueprint Designer, track machines as you build them, and update actual Factory inventory in the same action. Your original circuit district remains available below.</p></div>
   <section id="projectsOverview" class="section projects-overview">
-   <div class="projects-toolbar"><div><h2>Your construction pipeline</h2><p>One built-machine action updates your project and Factory together.</p></div><button type="button" id="projectsGoPlanner" class="projects-action">+ Plan another build</button></div>
+   <div class="projects-toolbar"><div><h2>Your construction pipeline</h2><p>One built-machine action updates your project and Factory together.</p></div><div class="deployment-actions"><button type="button" id="projectsGoPlanner" class="projects-action">+ Plan another production line</button><button type="button" id="projectsNewDeployment" class="projects-action deployment-btn">+ Track infrastructure deployment</button></div></div>
    <div id="projectsSummary" class="projects-summary" aria-label="Project status summary"></div>
    <p id="projectsNotice" role="status" hidden></p>
   </section>
@@ -770,6 +770,21 @@ body[data-workspace="build"]{
   <div class="section panel"><h2>Before upgrading a belt</h2><div style="display:grid;gap:12px"><div><div class="inline"><b>Yellow</b><b>900/min</b></div><div class="track"><div style="width:33.333%;background:#e9bd61"></div></div></div><div><div class="inline"><b>Red</b><b>1,800/min</b></div><div class="track"><div style="width:66.666%;background:#e67b78"></div></div></div><div><div class="inline"><b>Blue</b><b>2,700/min</b></div><div class="track"><div style="width:100%;background:#76b3e2"></div></div></div></div><p class="small">If your furnaces produce only 700 plates/min, any of these belts will still carry only 700. Upgrade when the belt is saturated, not just because you've researched the next color.</p></div>
  </section>
  </main>
+<dialog id="deploymentDialog" class="factory-deployment-dialog" aria-labelledby="deploymentDialogTitle">
+ <form id="deploymentForm">
+  <h2 id="deploymentDialogTitle">New infrastructure deployment</h2>
+  <p>Plan how many structures or items you'll physically place. No Factory counts change until you mark them placed in Construction Queue.</p>
+  <div class="deployment-fields">
+   <label>Project name<input type="text" id="deploymentName" maxlength="80" placeholder="North wall laser defenses" required></label>
+   <label>Item / structure<select id="deploymentItem" required></select></label>
+   <label>Quantity to place<input type="number" id="deploymentCount" min="1" max="1000000" step="1" value="10" required></label>
+   <label>Area / block<input type="text" id="deploymentArea" value="Nauvis" maxlength="80"></label>
+  </div>
+  <p class="deployment-help">If these structures are already entered in Factory, don't mark them newly placed again. The app will warn you about overlapping inventory.</p>
+  <p id="deploymentError" role="alert" hidden></p>
+  <div class="project-dialog-buttons"><button type="button" id="deploymentCancel">Cancel</button><button type="submit">Create deployment</button></div>
+ </form>
+</dialog>
 <dialog id="projectsDialog" aria-labelledby="projectsDialogTitle">
  <form id="projectsSaveForm">
   <h2 id="projectsDialogTitle">Save to Projects</h2>
