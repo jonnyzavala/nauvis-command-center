@@ -53,8 +53,8 @@ test('stages order upstream producers to the final output, even with shared inpu
  assert.equal(node('m:advanced-circuit').stage,graph.maxLevel);
  assert.equal(node('s:copper-plate').stage,0);
 });
-test('all 33 recipes produce acyclic nodes and edges in both input modes',()=>{
- assert.equal(Object.keys(recipes).length,33);
+test('all 182 recipes produce acyclic nodes and edges in both input modes',()=>{
+ assert.equal(Object.keys(recipes).length,182);
  for(const source of ['bus','raw'])for(const id of Object.keys(recipes)){
   const result=calc(id,30,source),graph=buildFlowGraph(result);
   const allIds=new Set(graph.nodes.map(n=>n.key));
