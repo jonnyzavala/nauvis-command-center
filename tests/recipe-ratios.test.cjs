@@ -24,8 +24,8 @@ const run=(id='advanced-circuit',rate=90,machine=.75,source='bus',belt=900)=>
  analyzeRecipeRatios(R,{id,rate,machine,source,belt},ctx);
 const close=(actual,expected)=>assert.ok(Math.abs(actual-expected)<1e-8,actual+' != '+expected);
 
-test('33 known base recipes remain available to the ratio explorer',()=>{
- assert.equal(Object.keys(R).length,33);
+test('expanded Nauvis recipe catalog remains available to the ratio explorer',()=>{
+ assert.equal(Object.keys(R).length,182);
  for(const id of Object.keys(R)){
    const result=run(id,30);
    assert.ok(result.entries.length>=1,id);
@@ -108,7 +108,7 @@ test('invalid IDs, unsupported machines, and unreasonable input fail validation'
 test('recipe ratio panels exist on existing workspaces without a sixth tab',()=>{
  for(const page of ['build','setup','balance'])assert.match(html,new RegExp('data-ratio-explorer="'+page+'"'));
  assert.equal((html.match(/<details[^>]*data-ratio-explorer="/g)||[]).length,3);
- assert.equal((html.match(/<button data-view=/g)||[]).length,4);
+ assert.equal((html.match(/<button data-view=/g)||[]).length,3);
  assert.match(html,/href="\.\/recipe-ratios\.css"/);
  assert.match(html,/src="\.\/recipe-ratios\.js" defer/);
 });
