@@ -164,3 +164,8 @@ Mobile charts retain two columns per production stage at narrow phone widths, re
 ## Canvas zoom (v0.34)
 
 Flow view has 50%, 65%, 75% and 100% zoom controls (mobile starts at 75%, desktop at 100%). Zoom affects the actual diagram, not the rest of the page. On portrait phones, lower zoom levels fit three or four nodes per stage. Full-size selected-node details remain below the chart. The SVG and diagram use the same unscaled coordinates, and the visible canvas height is reduced proportionally. No production or factory data changes.
+
+
+## Automatically fitted production map (v0.35)
+
+Replaces manual canvas zoom with a fit-to-available-width-and-height overview. The renderer evaluates horizontal and vertical layered layouts and chooses the larger readable scale. Every connection uses reserved inter-stage channels and a separate exterior rail when skipping a stage; lines never pass through a node. Crossings between unrelated connections may remain in nonplanar graphs; the routes are color-coded with dark crossing outlines. Full-size selected-node input and output details and the Table view remain available. For especially complex chains, automatic fitting necessarily reduces label size. No factory data or calculation changes.

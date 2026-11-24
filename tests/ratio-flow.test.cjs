@@ -99,38 +99,52 @@ test('layout stays inside explorer and switches to vertical diagram on iPhone',(
  assert.match(style,/\.ratio-flow-node-label strong\{font-size:11px\}/);
 });
 test('version and offline caching include the visual graph without editing cloud sync',()=>{
- assert.match(html,/Nauvis Command Center v0\.34/);
+ assert.match(html,/Nauvis Command Center v0\.35/);
  assert.match(html,/href="\.\/ratio-flow\.css"/);
  assert.match(html,/src="\.\/ratio-flow\.js" defer/);
- assert.match(worker,/nauvis-shell-v034/);
+ assert.match(worker,/nauvis-shell-v035/);
  assert.match(worker,/ratio-flow\.css/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(html,/sync\/cloud-sync\.js/);
 });
 
-test('portrait diagram maintains two-column stages and compact touch targets at narrow widths',()=>{
- const iconStyle=fs.readFileSync(path.join(root,'item-icons.css'),'utf8');
- assert.match(style,/\.ratio-flow-stage\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\);gap:7px/);
- assert.doesNotMatch(style,/\.ratio-flow-stage\{grid-template-columns:minmax\(0,1fr\)\}/);
- assert.doesNotMatch(style,/\.ratio-flow-build-list\{grid-template-columns:minmax\(0,1fr\)\}/);
- assert.match(style,/\.ratio-flow-columns\{grid-template-columns:minmax\(0,1fr\);gap:34px/);
- assert.match(style,/\.ratio-flow-supply\{min-height:52px/);
- assert.match(iconStyle,/grid-template-columns:24px minmax\(0,1fr\);gap:3px 5px;min-height:70px/);
- assert.match(flowSource,/getBoundingClientRect\(\)/);
- assert.match(flowSource,/showDetails\(\)/);
-});
 
-test('canvas zoom enlarges the logical viewing area without changing the page width',()=>{
- const {flowDimensions,ZOOM_LEVELS}=require('../ratio-flow.js');
- assert.deepEqual(ZOOM_LEVELS,[50,65,75,100]);
- assert.deepEqual(flowDimensions(340,5,100,true),{scale:1,logicalWidth:340,visualWidth:340,mobileColumns:2});
- assert.deepEqual(flowDimensions(340,5,50,true),{scale:.5,logicalWidth:680,visualWidth:340,mobileColumns:4});
- assert.equal(flowDimensions(340,5,75,true).mobileColumns,3);
- assert.equal(flowDimensions(340,5,75,true).visualWidth,340);
- assert.equal(flowDimensions(800,5,100,false).logicalWidth,1030);
- assert.match(flowSource,/scaledSpace\.style\.height=Math\.ceil\(height\*dims\.scale\)/);
- assert.match(flowSource,/canvas\.style\.transform='scale\('/);
- assert.match(flowSource,/canvasRect\.left\)\/scale/);
- assert.match(flowSource,/zoomByCard:new Map\(\)/);
+test('automatic fit chooses the larger scale and keeps full canvas within phone bounds',()=>{
+ const {fitLayout,routeLayout}=require('../ratio-flow.js');
+ const graph=buildFlowGraph(calc('processing-unit',30,'raw'));
+ const fit=fitLayout(graph.columns,graph.edges,340,550);
+ assert.ok(fit.width*fit.scale<=340+1e-8);
+ assert.ok(fit.height*fit.scale<=550+1e-8);
+ assert.ok(fit.scale>0&&fit.scale<=1);
+ for(const v of [true,false]){
+  const layout=routeLayout(graph.columns,graph.edges,v);
+  assert.ok(fit.scale+1e-10>=Math.min(1,340/layout.width,550/layout.height));
+ }
+ assert.doesNotMatch(flowSource,/data-flow-zoom|zoomByCard/);
+ assert.match(flowSource,/scaledSpace\.style\.height=Math\.ceil\(layout\.height\*layout\.scale\)/);
  assert.match(style,/transform-origin:top left/);
+ assert.match(style,/\.ratio-flow-auto \.ratio-flow-node\{position:absolute/);
+});
+test('all 728 recipe layouts have complete orthogonal connections that never cross a card interior',()=>{
+ const {routeLayout}=require('../ratio-flow.js');
+ const hits=(a,b,r)=>Math.min(a.x,b.x)<r.x+r.w&&Math.max(a.x,b.x)>r.x&&Math.min(a.y,b.y)<r.y+r.h&&Math.max(a.y,b.y)>r.y;
+ let checked=0;
+ for(const source of ['bus','raw'])for(const id of Object.keys(recipes)){
+  const graph=buildFlowGraph(calc(id,30,source));
+  for(const vertical of [true,false]){
+   const layout=routeLayout(graph.columns,graph.edges,vertical);
+   assert.equal(layout.boxes.length,graph.nodes.length,id);
+   assert.equal(layout.routes.length,graph.edges.length,id);
+   for(const route of layout.routes){
+    for(let i=1;i<route.points.length;i++){
+     const a=route.points[i-1],b=route.points[i];
+     assert.ok(a.x===b.x||a.y===b.y,id+' non-orthogonal');
+     assert.ok(!layout.boxes.some(r=>hits(a,b,r)),id+' line enters a card');
+     for(const p of [a,b])assert.ok(p.x>=0&&p.y>=0&&p.x<=layout.width&&p.y<=layout.height,id+' outside canvas');
+    }
+   }
+   checked++;
+  }
+ }
+ assert.equal(checked,728);
 });
