@@ -117,6 +117,23 @@ NAUVIS includes its own **original vector item icon set** for all 33 modeled bas
 
 **Legacy compatibility:** Older local and synced Factory snapshots without `assets` load as an empty infrastructure ledger. Existing JSON export/import includes it. The cloud schema, RLS, recovery-key pairing, conflict management, and active Factory's single-snapshot representation are unchanged.
 
+## Advanced Production Profiles (v0.28)
+
+**Optional machine upgrades in the blue Designer:** Under **Machine upgrades & module effects**, choose a *uniform machine profile* for each production chain: **None**, **Speed Module 1**, **Efficiency Module 1**, or **Productivity Module 1**, plus up to four normal-quality modules requested per machine, crafting-machine quality (Normal, Uncommon, Rare, Epic, Legendary), and an optional **effective beacon speed bonus**. The profile is applied to compatible assembler and chemical-plant recipe stages, with module count capped per stage at its available slots (Assembler 2: two, Assembler 3: four, chemical plant: three). Ineligible productivity recipes are **skipped**, using whitelist data from Factorio 2.0.77 game prototypes. Generic smelting furnace groups are intentionally held at 2× speed without modules or quality because an actual furnace type has not been specified.
+
+**Actual calculation effects:**
+- Speed 1: +20% crafting speed/module; additive +50% electrical energy consumption/module.
+- Efficiency 1: -30% electrical energy consumption/module, bottoming at 20% of base; **no fabricated production increase**.
+- Productivity 1, where eligible: +4% expected output and -5% crafting speed/module. The extra product reduces upstream ingredient requirements. This is throughput/expected yield, not probability of rare product quality.
+- Higher-quality crafting machines: speed multipliers **1.0×, 1.3×, 1.6×, 1.9×, 2.5×**. These affect the speed of the machine, **not the quality of the items it makes**.
+- Beacon speed: enter the *actual effective additive speed bonus (%) contributed by beacons* as observed in Factorio. Entering **number of beacons** here would be wrong because Factorio 2.0 transmissions have diminishing returns; geometry and beacon module configuration are not inferred.
+
+**The same math flows into Factory and Balance:** Saving a visual build carries module/quality/beacon settings into its project design and each linked production-machine inventory row. Existing Factory rows have collapsible Machine Upgrade controls. The Factory's theoretical production-capacity totals and ingredient-consumption estimates use those recorded settings. The Activity Journal records subsequent profile changes, and Construction detects a mismatch between its saved blueprint profile and an edited linked Factory line rather than silently counting it twice. The **legacy detailed preset calculator** is still available but explicitly warns that it uses base rates if you transfer a modified visual goal.
+
+**Scope limits:** No module tier 2/3, mixed profiles within a machine group, product rarity/quality probability, actual beacon placement and transmission geometry, energy/pollution telemetry, probabilistic/planet-specific recipe types, train/inserter/logistics limits, or electrical grid simulation. Quality and beacon effects here are assumptions you specify, not telemetry. No Supabase schema changes or resets to existing records. Existing old factory rows with no upgrade settings remain normal quality and unmoduled.
+
+**Factorio mechanics:** [Modules](https://wiki.factorio.com/Module), [Productivity Module 1](https://wiki.factorio.com/Productivity_module), [Machine quality](https://wiki.factorio.com/Quality), and [Beacons](https://wiki.factorio.com/Beacon).
+
 ## Sync and safety
 
 See [Cloud Sync Setup](sync/README.md). Pair devices using a private recovery key and a public Supabase project URL and publishable key. **Never commit the private recovery key, service_role key, database password, or other secrets.** JSON backups remain available in Plan & Build → Construction Queue → Original circuit district.
