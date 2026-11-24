@@ -605,6 +605,7 @@ body[data-workspace="build"]{
 <link rel="stylesheet" href="./projects.css" />
 <link rel="stylesheet" href="./item-icons.css" />
 <link rel="stylesheet" href="./workspace-v025.css" />
+<link rel="stylesheet" href="./preset-v026.css" />
 </head>
 <body data-workspace="balance">
 <div class="shell">
@@ -830,6 +831,7 @@ body[data-workspace="build"]{
  <footer class="footer">Nauvis Command Center v0.26 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script src="./item-icons.js"></script>
+<script src="./production-presets.js"></script>
 <script>
 'use strict';
 /* Verified standard recipes. Inputs for chemical fluids are in fluid units, not solid items. */
@@ -1059,7 +1061,7 @@ function depth(id,stopped=new Set()){if(!R[id]||stopped.has(id))return 0;const s
 function swatch(m){return `<span class="swatch" style="background:${m.color}"></span>`}
 const nameOf=id=>R[id]?.[0]||names[id]||id;
 const escapeHTML=s=>String(s).replace(/[&<>"']/g,k=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[k]));
-function scaleChoices(){const data=popular.find(x=>x.id===guide.goal);if(data)return data.defaults;const d=guide.goal.includes('science')?[15,30,60]:[30,60,120];return d}
+function scaleChoices(){const x=window.NauvisPresets?.recommendation(guide.goal,R,guide.machine);return x?[x.starter,x.balanced,x.expand]:[30,60,120]}
 function setGoal(id){if(!R[id])return;guide.goal=id;guide.rate=scaleChoices()[1];renderGuide()}
 function renderGoals(){el('goalGrid').innerHTML=popular.map(x=>`<button class="goal ${x.id===guide.goal?'active':''}" style="--accent:${csscolor(x.id,R[x.id][3])}" data-goal="${x.id}"><span class="dot"></span>${itemIcon(x.id,35)}<b>${escapeHTML(R[x.id][0])}</b><small>${x.group}</small></button>`).join('');el('goalGrid').querySelectorAll('button').forEach(x=>x.addEventListener('click',()=>setGoal(x.dataset.goal)));el('allRecipes').value=guide.goal}
 function beltAdvice(n){if(n<=900)return 'Yellow belt is enough';if(n<=1800)return 'A red belt is needed for one line';if(n<=2700)return 'A blue belt or parallel belts';return 'Parallel belts needed'}
