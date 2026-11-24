@@ -64,16 +64,14 @@
 .quick-item-preview>span:last-child{font-size:12px;font-weight:800;color:#e6f4fa}
 .quick-item-preview small{display:block;font-size:10px;color:#a7c4d3;font-weight:500;margin-top:3px}
 @media(max-width:650px){
- .ratio-flow-node:not(.ratio-flow-supply){grid-template-columns:29px minmax(0,1fr);gap:5px;min-height:100px}
- .ratio-flow-node:not(.ratio-flow-supply)>.item-icon{--icon-size:28px!important}
- .ratio-flow-node.ratio-flow-supply .item-icon{--icon-size:29px!important}
- .ratio-flow-build-chip .item-icon{--icon-size:30px!important}
- .ratio-flow-node .ratio-flow-count{font-size:26px}
+ .ratio-flow-node:not(.ratio-flow-supply){grid-template-columns:24px minmax(0,1fr);gap:3px 5px;min-height:70px}
+ .ratio-flow-node:not(.ratio-flow-supply)>.item-icon{--icon-size:24px!important}
+ .ratio-flow-node.ratio-flow-supply .item-icon{--icon-size:23px!important}
+ .ratio-flow-build-chip .item-icon{--icon-size:24px!important}
+ .ratio-flow-node .ratio-flow-count{font-size:24px}
  .project-card-icon .item-icon{--icon-size:32px!important}
 }
-@media(max-width:390px){
- .ratio-flow-node:not(.ratio-flow-supply){grid-template-columns:36px minmax(0,1fr)}
-}
+
 
 /* Readability adjustments for icon-supported recipe and ledger selectors. */
 .goal>.item-icon{margin:3px 0 4px;align-self:flex-start}

@@ -99,11 +99,23 @@ test('layout stays inside explorer and switches to vertical diagram on iPhone',(
  assert.match(style,/\.ratio-flow-node-label strong\{font-size:11px\}/);
 });
 test('version and offline caching include the visual graph without editing cloud sync',()=>{
- assert.match(html,/Nauvis Command Center v0\.32/);
+ assert.match(html,/Nauvis Command Center v0\.33/);
  assert.match(html,/href="\.\/ratio-flow\.css"/);
  assert.match(html,/src="\.\/ratio-flow\.js" defer/);
- assert.match(worker,/nauvis-shell-v032/);
+ assert.match(worker,/nauvis-shell-v033/);
  assert.match(worker,/ratio-flow\.css/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(html,/sync\/cloud-sync\.js/);
+});
+
+test('portrait diagram maintains two-column stages and compact touch targets at narrow widths',()=>{
+ const iconStyle=fs.readFileSync(path.join(root,'item-icons.css'),'utf8');
+ assert.match(style,/\.ratio-flow-stage\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\);gap:7px/);
+ assert.doesNotMatch(style,/\.ratio-flow-stage\{grid-template-columns:minmax\(0,1fr\)\}/);
+ assert.doesNotMatch(style,/\.ratio-flow-build-list\{grid-template-columns:minmax\(0,1fr\)\}/);
+ assert.match(style,/\.ratio-flow-columns\{grid-template-columns:minmax\(0,1fr\);gap:34px/);
+ assert.match(style,/\.ratio-flow-supply\{min-height:52px/);
+ assert.match(iconStyle,/grid-template-columns:24px minmax\(0,1fr\);gap:3px 5px;min-height:70px/);
+ assert.match(flowSource,/getBoundingClientRect\(\)/);
+ assert.match(flowSource,/showDetails\(\)/);
 });
