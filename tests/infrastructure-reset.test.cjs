@@ -134,5 +134,5 @@ test('empty defaults do not repopulate historical counts after reload or sync',(
  assert.match(html,/Object\.assign\(setup\.smelt,blankSmelt,data\.setup\.smelt/);
  assert.match(html,/tasks\.length\?complete\/tasks\.length\*100:0/);
  assert.match(html,/window\.NauvisCloudApplying=true/);
- assert.match(sw,/nauvis-shell-v037/);assert.match(html,/Nauvis Command Center v0\.37/);
+ assert.match(sw,/nauvis-shell-v038/);assert.match(html,/Nauvis Command Center v0\.38/);
 });

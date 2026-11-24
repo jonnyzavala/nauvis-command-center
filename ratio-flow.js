@@ -305,7 +305,48 @@ function fitLayout(columns,links,availableWidth,availableHeight,cachedLayouts){
  const layouts=(cachedLayouts||[routeLayout(columns,links,true),routeLayout(columns,links,false)]).map(layout=>({...layout,scale:Math.min(1,width/layout.width,height/layout.height)}));
  return layouts[0].scale>=layouts[1].scale?layouts[0]:layouts[1];
 }
-if(typeof module==='object'&&module.exports)module.exports={buildFlowGraph,routeLayout,baseRouteLayout,routingScore,fitLayout,mergeRoutes,roundedPath};
+// Focus is separate from layout: highlighting never changes geometry or rates.
+const edgeKey=e=>e.from+'|'+e.to;
+function focusGraph(links,selected,upstream=false){
+ const nodes=new Set(),edges=new Set();
+ if(!selected)return {nodes,edges};
+ nodes.add(selected);
+ const add=e=>{edges.add(edgeKey(e));nodes.add(e.from);nodes.add(e.to)};
+ for(const e of links)if(e.to===selected||e.from===selected)add(e);
+ if(upstream){
+  const seen=new Set(),todo=[selected];
+  while(todo.length){
+   const node=todo.pop();if(seen.has(node))continue;seen.add(node);
+   for(const e of links)if(e.to===node){add(e);todo.push(e.from)}
+  }
+ }
+ return {nodes,edges};
+}
+// The merged paths are directed away from the producer. Highlight a shared
+// trunk only when it leads to a focused terminal, not every sibling branch.
+function focusBundle(bundle,edges){
+ const key=p=>p.x+','+p.y;
+ const byStart=new Map();
+ for(const path of bundle.paths){
+  const k=key(path.points[0]);
+  if(!byStart.has(k))byStart.set(k,[]);
+  byStart.get(k).push(path);
+ }
+ const active=new Set(),memo=new Map(),visiting=new Set(),points=new Set();
+ function visit(path){
+  if(memo.has(path))return memo.get(path);
+  if(visiting.has(path))return false;
+  visiting.add(path);
+  let on=path.edge?edges.has(edgeKey(path.edge)):false;
+  if(!path.edge)for(const child of byStart.get(key(path.points.at(-1)))||[])if(visit(child))on=true;
+  visiting.delete(path);memo.set(path,on);
+  if(on){active.add(path);for(const p of path.points)points.add(key(p));}
+  return on;
+ }
+ for(const path of bundle.paths)visit(path);
+ return {active,points};
+}
+if(typeof module==='object'&&module.exports)module.exports={buildFlowGraph,routeLayout,baseRouteLayout,routingScore,fitLayout,mergeRoutes,roundedPath,focusGraph,focusBundle};
 if(typeof document==='undefined')return;
 const browserViews=new Map();
 function nodeColor(node){
@@ -335,6 +376,7 @@ function mount(target,result,cardKey){
  older?.cleanup?.();
  const mode=(root.NauvisRatioFlow?.modeByCard?.get(cardKey)||'flow');
  const inputVisible=root.NauvisRatioFlow?.inputByCard?.get(cardKey)??true;
+ const upstream=root.NauvisRatioFlow?.upstreamByCard?.get(cardKey)??false;
  const compact=graph.nodes.filter(n=>n.type==='machine');
  const buildList=compact.map(n=>
   '<span class="ratio-flow-build-chip" style="--node-color:'+nodeColor(n)+'">'+itemGlyph(n.recipe,35)+'<strong>'+
@@ -350,12 +392,14 @@ function mount(target,result,cardKey){
   '<button type="button" data-flow-mode="table" aria-pressed="'+(mode==='table')+'">Table view</button></div>'+
   '<label class="ratio-flow-input-toggle"><input data-flow-input-toggle type="checkbox"'+(inputVisible?' checked':'')+'>'+
   '<span>Show inputs</span></label></div>'+
+  '<div class="ratio-flow-focus-controls" data-flow-focus-controls><span>Highlight</span><div class="ratio-flow-switch" role="group" aria-label="Connection highlight scope"><button type="button" data-flow-focus="direct" aria-pressed="'+(!upstream)+'">Direct</button><button type="button" data-flow-focus="upstream" aria-pressed="'+upstream+'">Upstream tree</button></div></div>'+
   '<div data-flow-display></div>';
  const display=holder.querySelector('[data-flow-display]');
  const controls=[...holder.querySelectorAll('[data-flow-mode]')];
  const checkbox=holder.querySelector('[data-flow-input-toggle]');
  const panel=target.querySelector('[data-ratio-legacy-table]');
- const state={graph,display,holder,result,cardKey,inputVisible,selected:older?.selected||null,observer:null,
+ const focusControls=holder.querySelector('[data-flow-focus-controls]');
+ const state={graph,display,holder,result,cardKey,inputVisible,upstream,selected:older?.selected||null,observer:null,
   cancel:null,redraw:null};
  browserViews.set(cardKey,state);
  function update(){
@@ -365,6 +409,7 @@ function mount(target,result,cardKey){
    b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));
   });
   checkbox.closest('label').hidden=!inFlow;
+  focusControls.hidden=!inFlow;
   if(panel)panel.hidden=inFlow;
   display.hidden=!inFlow;
   state.observer?.disconnect();
@@ -383,6 +428,14 @@ function mount(target,result,cardKey){
   state.selected=null;
   update();
  });
+ focusControls.addEventListener('click',event=>{
+  const button=event.target.closest('[data-flow-focus]');if(!button)return;
+  state.upstream=button.dataset.flowFocus==='upstream';
+  root.NauvisRatioFlow.upstreamByCard.set(cardKey,state.upstream);
+  focusControls.querySelectorAll('[data-flow-focus]').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.flowFocus==='upstream')===state.upstream)));
+  state.refreshFocus?.();
+  state.redraw?.();
+ });
  update();
 }
 function drawLayout(state){
@@ -396,7 +449,7 @@ function drawLayout(state){
  if(!nNodes){
   display.innerHTML='<p class="ratio-muted">Enter a positive output target to see its production flow.</p>';return;
  }
- display.innerHTML='<p class="ratio-flow-hint">Each resource uses one shared line that branches at junctions. Tap any block to see exact rates.</p>'+
+ display.innerHTML='<p class="ratio-flow-hint">Tap any block to highlight its connections. Direct shows immediate inputs and outputs; Upstream tree also traces all earlier ingredients.</p>'+
   '<div class="ratio-flow-viewport ratio-flow-auto" tabindex="0" aria-label="Visual production chain">'+
   '<div class="ratio-flow-scaled-space"><div class="ratio-flow-canvas" style="--flow-stages:'+nCols+'">'+
   '<svg class="ratio-flow-svg" aria-hidden="true" focusable="false"></svg>'+
@@ -413,8 +466,18 @@ function drawLayout(state){
  const selectedDefault=graph.nodes.find(n=>n.type==='machine'&&links.filter(e=>e.from===n.key).length>1)
    ||graph.nodes.find(n=>n.final)||cards.length&&nodeByKey.get(cards[0].dataset.flowNode);
  if(!state.selected||!visible.has(state.selected))state.selected=selectedDefault?.key||cards[0].dataset.flowNode;
+ let focus;
+ function refreshFocus(){
+  focus=focusGraph(links,state.selected,state.upstream);
+  for(const b of cards){
+   const key=b.dataset.flowNode,selected=key===state.selected;
+   b.setAttribute('aria-pressed',String(selected));
+   b.dataset.flowHighlight=selected?'selected':focus.nodes.has(key)?'related':'muted';
+  }
+ }
+ state.refreshFocus=refreshFocus;
  function showDetails(){
-  cards.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.flowNode===state.selected)));
+  refreshFocus();
   const node=nodeByKey.get(state.selected),inputs=graph.edges.filter(e=>e.to===node.key);
   const outputs=graph.edges.filter(e=>e.from===node.key);
   const toText=(edge,direction)=>{
@@ -450,23 +513,35 @@ function drawLayout(state){
   svg.setAttribute('width',String(layout.width));svg.setAttribute('height',String(layout.height));
   const markers=[],paths=[],dots=[];
   const segments=layout.bundles.flatMap(bundle=>bundle.paths.flatMap(path=>path.points.slice(1).map((b,i)=>({key:bundle.key,a:path.points[i],b}))));
+  const pointKey=p=>p.x+','+p.y;
   for(const bundle of layout.bundles){
    const color=nodeColor(nodeByKey.get(bundle.key));
-   const active=bundle.key===state.selected||bundle.routes.some(r=>r.edge.to===state.selected);
+   const highlight=focusBundle(bundle,focus.edges);
    const id='ratio-arrow-'+state.cardKey+'-'+bundle.routes[0].edge.i;
-   markers.push('<marker id="'+id+'" markerWidth="5" markerHeight="5" refX="5" refY="2.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L5 2.5 L0 5Z" fill="'+color+'"/></marker>');
+   // Arrowhead geometry is 12% larger at all scales; the viewBox preserves shape.
+   for(const active of [false,true]){
+    const markerId=id+(active?'-on':'-off');
+    markers.push('<marker id="'+markerId+'" markerWidth="5.6" markerHeight="5.6" viewBox="0 0 5 5" refX="5" refY="2.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L5 2.5 L0 5Z" fill="'+color+'" opacity="'+(active?1:.46)+'"/></marker>');
+   }
    const obstacles=segments.filter(s=>s.key!==bundle.key);
-   const pathMarkup=bundle.paths.map(path=>{
-    const d=roundedPath(path.points,16,obstacles);
-    return '<path class="ratio-link-underlay" d="'+d+'"/><path class="ratio-link'+(active?' active':'')+'" style="stroke:'+color+'" d="'+d+'"'+(path.edge?' marker-end="url(#'+id+')"':'')+'/>';
-   }).join('');
-   paths.push({active,markup:pathMarkup});
-   for(const p of bundle.junctions)dots.push('<circle class="ratio-flow-junction" cx="'+p.x+'" cy="'+p.y+'" r="3.2" fill="'+color+'"/>');
-   dots.push('<circle class="ratio-flow-port" cx="'+bundle.source.x+'" cy="'+bundle.source.y+'" r="3" fill="'+color+'"/>');
-   for(const {point:p} of bundle.terminals)dots.push('<circle class="ratio-flow-port" cx="'+p.x+'" cy="'+p.y+'" r="2.4" fill="'+color+'"/>');
+   for(const path of bundle.paths){
+    const active=highlight.active.has(path),d=roundedPath(path.points,16,obstacles);
+    const line='<path class="ratio-link-underlay" d="'+d+'"/>'+
+     (active?'<path class="ratio-link-glow" style="stroke:'+color+'" d="'+d+'"/>':'')+
+     '<path class="ratio-link '+(active?'active':'muted')+'" style="stroke:'+color+'" d="'+d+'"'+(path.edge?' marker-end="url(#'+id+(active?'-on':'-off')+')"':'')+'/>';
+    paths.push({active,markup:line});
+   }
+   const dot=(p,kind,r)=>{
+    const active=highlight.points.has(pointKey(p));
+    dots.push({active,markup:'<circle class="ratio-flow-'+kind+' '+(active?'active':'muted')+'" cx="'+p.x+'" cy="'+p.y+'" r="'+(active?r*1.16:r)+'" fill="'+color+'"/>'});
+   };
+   for(const p of bundle.junctions)dot(p,'junction',3.2);
+   dot(bundle.source,'port',3);
+   for(const {point:p} of bundle.terminals)dot(p,'port',2.4);
   }
   paths.sort((a,b)=>Number(a.active)-Number(b.active));
-  svg.innerHTML='<defs>'+markers.join('')+'</defs>'+paths.map(p=>p.markup).join('')+dots.join('');
+  dots.sort((a,b)=>Number(a.active)-Number(b.active));
+  svg.innerHTML='<defs>'+markers.join('')+'</defs>'+paths.map(p=>p.markup).join('')+dots.map(p=>p.markup).join('');
 
  }
  function queueRedraw(){
@@ -487,5 +562,5 @@ function drawLayout(state){
   const chrome=document.querySelector('.command-chrome');if(chrome)state.observer.observe(chrome);
  }
 }
-root.NauvisRatioFlow={mount,buildFlowGraph,modeByCard:new Map(),inputByCard:new Map()};
+root.NauvisRatioFlow={mount,buildFlowGraph,modeByCard:new Map(),inputByCard:new Map(),upstreamByCard:new Map()};
 })(typeof window==='undefined'?globalThis:window);

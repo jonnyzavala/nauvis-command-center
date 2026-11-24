@@ -99,10 +99,10 @@ test('layout stays inside explorer and switches to vertical diagram on iPhone',(
  assert.match(style,/\.ratio-flow-node-label strong\{font-size:11px\}/);
 });
 test('version and offline caching include the visual graph without editing cloud sync',()=>{
- assert.match(html,/Nauvis Command Center v0\.37/);
+ assert.match(html,/Nauvis Command Center v0\.38/);
  assert.match(html,/href="\.\/ratio-flow\.css"/);
  assert.match(html,/src="\.\/ratio-flow\.js" defer/);
- assert.match(worker,/nauvis-shell-v037/);
+ assert.match(worker,/nauvis-shell-v038/);
  assert.match(worker,/ratio-flow\.css/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(html,/sync\/cloud-sync\.js/);
@@ -195,4 +195,32 @@ test('larger curve radii are reduced near other resource segments',()=>{
  const points=[{x:0,y:0},{x:30,y:0},{x:30,y:30}];
  assert.equal(roundedPath(points),'M0,0 L15,0 Q30,0 30,15 L30,30');
  assert.notEqual(roundedPath(points,16,[{a:{x:25,y:3},b:{x:25,y:30}}]),roundedPath(points));
+});
+
+test('direct focus and upstream focus select only the intended nodes and edges',()=>{
+ const {focusGraph}=require('../ratio-flow.js');
+ const edges=[{from:'ore',to:'plate'},{from:'plate',to:'wire'},{from:'wire',to:'green'},{from:'wire',to:'red'},{from:'green',to:'blue'}];
+ const direct=focusGraph(edges,'green');
+ assert.deepEqual([...direct.nodes].sort(),['blue','green','wire']);
+ const upstream=focusGraph(edges,'green',true);
+ assert.deepEqual([...upstream.nodes].sort(),['blue','green','ore','plate','wire']);
+ assert.equal(upstream.edges.has('wire|red'),false);
+ assert.equal(upstream.edges.has('green|blue'),true);
+});
+test('highlighting a selected consumer does not illuminate unrelated branches of its producer',()=>{
+ const {routeLayout,focusGraph,focusBundle}=require('../ratio-flow.js');
+ const graph=buildFlowGraph(calc('processing-unit',30,'bus'));
+ for(const v of [true,false]){
+  const layout=routeLayout(graph.columns,graph.edges,v);
+  const focus=focusGraph(graph.edges,'m:electronic-circuit');
+  const wire=layout.bundles.find(b=>b.key==='m:copper-cable');
+  const lit=focusBundle(wire,focus.edges);
+  const terminals=wire.paths.filter(p=>p.edge&&lit.active.has(p));
+  assert.deepEqual(terminals.map(p=>p.edge.to),['m:electronic-circuit']);
+  assert.ok(wire.paths.some(p=>!p.edge&&lit.active.has(p)));
+ }
+ assert.match(flowSource,/data-flow-focus="upstream"/);
+ assert.match(flowSource,/markerWidth="5\.6"/);
+ assert.match(style,/data-flow-highlight="selected"/);
+ assert.match(style,/ratio-link-glow/);
 });

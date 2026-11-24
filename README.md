@@ -179,3 +179,8 @@ One output port and shared departure trunk per producer. Branches use common res
 ## Crossing-aware layout (v0.37)
 
 The production map scores actual shared resource segments for overlaps and intersections, then tests barycentric stage ordering, adjacent swaps, lane directions and inbound port assignment. A bounded search retains the original route if no better candidate is found. Shorter routing wins ties. Connections have larger rounded elbows and redundant collinear waypoints are removed. Optimized geometry is cached for each rendered recipe, so selection and resize do not repeat the search. This is a heuristic, not a guarantee of zero crossings; production math and save data are unchanged.
+
+
+## Flowchart focus (v0.38)
+
+Direct focus highlights the selected node, its immediate inputs and consumers, and only the relevant branches of shared resource trunks. Upstream tree also traces all transitive upstream dependencies, while still showing direct downstream outputs. Unrelated nodes and routes are dimmed, not removed. Focus scope is retained per explorer during the session. Arrowheads are 12% larger, selected cards and connected cards glow, and active lines have a luminous under-stroke. No geometry, production math, or factory records change.
