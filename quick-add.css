@@ -1,6 +1,6 @@
 /* NAUVIS v0.18 · Quick Change machine console. */
 .quick-add-toggle{
- position:fixed;left:clamp(10px,2vw,28px);bottom:max(17px,env(safe-area-inset-bottom,0px));
+ position:fixed;right:clamp(10px,2vw,28px);bottom:max(17px,env(safe-area-inset-bottom,0px));
  z-index:185;display:inline-flex;align-items:center;gap:9px;
  min-height:47px;padding:10px 17px 10px 12px;
  background:linear-gradient(125deg,color-mix(in srgb,var(--workspace-accent) 24%,#203747),#132532);
@@ -29,7 +29,7 @@
 .quick-add-backdrop[hidden],.quick-add-panel[hidden]{display:none!important}
 body.quick-add-open{overflow:hidden}
 .quick-add-panel{
- position:fixed;left:clamp(10px,2vw,28px);bottom:74px;z-index:200;
+ position:fixed;right:clamp(10px,2vw,28px);bottom:74px;z-index:200;
  width:min(440px,calc(100vw - 22px));max-height:min(680px,calc(100dvh - 100px));
  overflow:auto;overscroll-behavior:contain;
  padding:17px;border-radius:19px;
@@ -91,7 +91,7 @@ body.quick-add-open{overflow:hidden}
 .quick-add-remove[hidden]{display:none}
 .quick-add-undo-note{font-size:10px;color:#94b0c0;margin:7px 0 0}
 @media(max-width:650px){
- /* Context guide owns the bottom-right. Keep Quick Change above it on phones. */
+ /* Legacy phone drawer dimensions; the dock below supplies final positions. */
  .quick-add-toggle{bottom:calc(88px + env(safe-area-inset-bottom,0px))}
  .quick-add-panel{bottom:calc(147px + env(safe-area-inset-bottom,0px));max-height:calc(100dvh - 165px)}
 }
@@ -202,3 +202,24 @@ body.quick-add-open{overflow:hidden}
  .command-dock .context-help-peek strong{font-size:11px}
  .command-dock .context-help-peek small{font-size:9px}
 }
+
+/* v0.39: two matching corner buttons; the guide opens only on demand. */
+.command-dock .context-help,
+.command-dock .context-help[data-open="true"]{
+ flex:0 0 49px;width:49px;max-width:49px;height:49px;
+ border:1px solid color-mix(in srgb,var(--workspace-accent) 64%,#36586c);
+ border-top-color:color-mix(in srgb,var(--workspace-accent) 83%,#66879a);
+ border-radius:14px;background:linear-gradient(125deg,color-mix(in srgb,var(--workspace-accent) 24%,#203747),#132532);
+ box-shadow:0 9px 24px #03091180,inset 0 1px 0 #ffffff19;
+}
+.command-dock .context-help-toggle{position:relative;width:100%;height:100%;min-height:0;padding:8px;justify-content:center;gap:0;border-radius:inherit}
+.command-dock .context-help-icon{width:30px;height:30px;border-radius:9px;font-size:19px}
+.command-dock .context-help-peek{display:none}
+.command-dock .context-help-led{position:absolute;right:3px;top:4px;width:6px;height:6px;border-radius:50%;background:var(--workspace-accent);box-shadow:0 0 8px var(--workspace-accent)}
+.command-dock .context-help-detail{left:0;right:auto;width:min(430px,calc(100vw - 30px))}
+.command-dock .context-help[data-open="true"] .context-help-toggle{box-shadow:inset 0 0 0 1px var(--workspace-accent)}
+.command-dock .quick-add-toggle{width:49px;min-width:49px;height:49px;padding:8px;justify-content:center;gap:0}
+.command-dock .quick-add-label{display:none}
+.command-dock .quick-add-symbol{width:30px;height:30px;flex-shrink:0}
+.command-dock .quick-add-led{position:absolute;right:3px;top:4px;width:6px;height:6px}
+@media(max-width:440px){.quick-add-panel{left:8px;right:8px;width:auto}}

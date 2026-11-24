@@ -184,3 +184,8 @@ The production map scores actual shared resource segments for overlaps and inter
 ## Flowchart focus (v0.38)
 
 Direct focus highlights the selected node, its immediate inputs and consumers, and only the relevant branches of shared resource trunks. Upstream tree also traces all transitive upstream dependencies, while still showing direct downstream outputs. Unrelated nodes and routes are dimmed, not removed. Focus scope is retained per explorer during the session. Arrowheads are 12% larger, selected cards and connected cards glow, and active lines have a luminous under-stroke. No geometry, production math, or factory records change.
+
+
+## Neutral overview and compact corner tools (v0.39)
+
+The flowchart starts with no focused item and all cards and routes at normal visibility. Tap an item to focus it, tap it again to clear; changing recipes clears the selection. Upstream tree is a checkbox alongside Show inputs, and keeps its session setting. The contextual guide is a compact left-corner button with an on-demand upward panel; Quick Change is on the right. Existing contextual help, inventory edits and sync are preserved.

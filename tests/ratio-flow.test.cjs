@@ -99,10 +99,10 @@ test('layout stays inside explorer and switches to vertical diagram on iPhone',(
  assert.match(style,/\.ratio-flow-node-label strong\{font-size:11px\}/);
 });
 test('version and offline caching include the visual graph without editing cloud sync',()=>{
- assert.match(html,/Nauvis Command Center v0\.38/);
+ assert.match(html,/Nauvis Command Center v0\.39/);
  assert.match(html,/href="\.\/ratio-flow\.css"/);
  assert.match(html,/src="\.\/ratio-flow\.js" defer/);
- assert.match(worker,/nauvis-shell-v038/);
+ assert.match(worker,/nauvis-shell-v039/);
  assert.match(worker,/ratio-flow\.css/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(html,/sync\/cloud-sync\.js/);
@@ -219,8 +219,26 @@ test('highlighting a selected consumer does not illuminate unrelated branches of
   assert.deepEqual(terminals.map(p=>p.edge.to),['m:electronic-circuit']);
   assert.ok(wire.paths.some(p=>!p.edge&&lit.active.has(p)));
  }
- assert.match(flowSource,/data-flow-focus="upstream"/);
+ assert.match(flowSource,/data-flow-upstream-toggle type="checkbox"/);
  assert.match(flowSource,/markerWidth="5\.6"/);
  assert.match(style,/data-flow-highlight="selected"/);
  assert.match(style,/ratio-link-glow/);
+});
+
+test('overview has no forced selection, tap again clears, and unrelated paths return to normal',()=>{
+ const {toggleSelection,focusTone,focusGraph}=require('../ratio-flow.js');
+ assert.equal(toggleSelection(null,'m:wire'),'m:wire');
+ assert.equal(toggleSelection('m:wire','m:wire'),null);
+ assert.equal(toggleSelection('m:wire','m:green'),'m:green');
+ assert.equal(focusTone(null,false),'normal');
+ assert.equal(focusTone('m:wire',true),'active');
+ assert.equal(focusTone('m:wire',false),'muted');
+ assert.equal(focusGraph([{from:'a',to:'b'}],null,true).edges.size,0);
+ assert.doesNotMatch(flowSource,/selectedDefault/);
+ assert.match(flowSource,/selected:older\?\.result\?\.id===result\.id/);
+ assert.match(flowSource,/toggleSelection\(state\.selected,b\.dataset\.flowNode\)/);
+ assert.match(flowSource,/data-flow-input-toggle type="checkbox"/);
+ assert.match(flowSource,/data-flow-upstream-toggle type="checkbox"/);
+ assert.match(style,/\.ratio-flow-options\{display:flex/);
+ assert.match(style,/\.ratio-link\.normal\{stroke-opacity:1/);
 });

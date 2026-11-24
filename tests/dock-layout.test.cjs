@@ -54,3 +54,13 @@ test('existing tab navigation, sync, and offline cached code remain intact',()=>
  assert.match(worker,/quick-add\.js/);
  assert.match(worker,/quick-add\.css/);
 });
+
+test('context guide is the left corner icon, quick change is the right, and panels open on demand',()=>{
+ const dock=html.slice(html.indexOf('id="commandDock"'),html.indexOf('id="quickAddBackdrop"'));
+ assert.ok(dock.indexOf('id="contextHelp"')<dock.indexOf('id="quickAddToggle"'));
+ assert.match(dock,/id="contextHelpToggle" aria-label="Contextual quick guide"/);
+ assert.match(dock,/id="contextHelpDetail" hidden/);
+ assert.match(css,/\.command-dock \.context-help-peek\{display:none\}/);
+ assert.match(css,/\.command-dock \.context-help-detail\{left:0;right:auto/);
+ assert.match(css,/\.quick-add-panel\{\s*position:fixed;right:/);
+});

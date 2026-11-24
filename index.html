@@ -602,7 +602,7 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.38 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.39 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory &amp; Balance</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Plan &amp; Build</button></div></nav>
  </div>
@@ -776,15 +776,11 @@ body[data-workspace="build"]{
 </dialog>
 <!-- A matching-bottom command dock contains both persistent tools. -->
 <div class="command-dock" id="commandDock" aria-label="Quick factory controls">
-<button type="button" id="quickAddToggle" class="quick-add-toggle" aria-label="Quick change factory inventory" title="Quick change" aria-expanded="false" aria-controls="quickAddPanel">
- <span class="quick-add-symbol" aria-hidden="true">+</span>
- <span class="quick-add-label">Quick change</span><span class="quick-add-led" aria-hidden="true"></span>
-</button>
 <aside id="contextHelp" class="context-help" aria-label="Context-sensitive quick guide" data-open="false">
- <button type="button" class="context-help-toggle" id="contextHelpToggle" aria-expanded="false" aria-controls="contextHelpDetail">
+ <button type="button" class="context-help-toggle" id="contextHelpToggle" aria-label="Contextual quick guide" title="Quick guide" aria-expanded="false" aria-controls="contextHelpDetail">
   <span class="context-help-icon" aria-hidden="true">?</span>
   <span class="context-help-peek"><span class="context-help-kicker">QUICK GUIDE · IN CONTEXT</span><strong id="contextHelpShortTitle">Help with this section</strong><small id="contextHelpShortTip">Tap to see the explanation.</small></span>
-  <span class="context-help-arrow" aria-hidden="true">⌃</span>
+  <span class="context-help-led" aria-hidden="true"></span>
  </button>
  <div class="context-help-detail" id="contextHelpDetail" hidden role="region" aria-labelledby="contextHelpTitle">
   <div class="context-help-top"><span class="context-help-kicker">YOUR CURRENT SECTION, EXPLAINED</span><button type="button" class="context-help-close" id="contextHelpClose" aria-label="Close quick guide">×</button></div>
@@ -792,6 +788,11 @@ body[data-workspace="build"]{
   <p id="contextHelpTakeaway" class="context-help-takeaway"></p>
  </div>
 </aside>
+<button type="button" id="quickAddToggle" class="quick-add-toggle" aria-label="Quick change factory inventory" title="Quick change" aria-expanded="false" aria-controls="quickAddPanel">
+ <span class="quick-add-symbol" aria-hidden="true">+</span>
+ <span class="quick-add-label">Quick change</span><span class="quick-add-led" aria-hidden="true"></span>
+</button>
+
 </div>
 <div id="quickAddBackdrop" class="quick-add-backdrop" hidden></div>
 <aside id="quickAddPanel" class="quick-add-panel" role="dialog" aria-modal="true" aria-labelledby="quickAddTitle" hidden>
@@ -832,7 +833,7 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v0.38 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.39 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script src="./item-icons.js"></script>
 <script src="./production-effects.js"></script>
@@ -1406,7 +1407,7 @@ function updateGuideContext(){
  if(guideFocus&&HELP_DATA[guideFocus]){showGuideTopic(guideFocus);return}
  const sections=[...view.querySelectorAll('[data-guide-topic]')];
  if(!sections.length){showGuideTopic(defaults);return}
- const threshold=(view.querySelector('.hero')?.getBoundingClientRect().bottom||0)+24;
+ const threshold=(document.querySelector('.command-chrome')?.getBoundingClientRect().bottom||0)+24;
  let selected=defaults;
  for(const node of sections){const rect=node.getBoundingClientRect();if(rect.top<=threshold&&rect.bottom>=threshold-10)selected=node.dataset.guideTopic}
  showGuideTopic(selected);

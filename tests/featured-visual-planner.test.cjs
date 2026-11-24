@@ -58,9 +58,9 @@ test('the featured visuals keep current mobile layout and offline support',()=>{
  assert.match(css,/#build \.build-classic/);
  assert.match(css,/scroll-margin-top:calc\(var\(--chrome-height/);
  assert.match(css,/@media\(max-width:650px\)/);
- assert.match(worker,/nauvis-shell-v038/);
+ assert.match(worker,/nauvis-shell-v039/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(worker,/recipe-ratios\.js/);
- assert.match(html,/Nauvis Command Center v0\.38/);
+ assert.match(html,/Nauvis Command Center v0\.39/);
  assert.match(html,/sync\/cloud-sync\.js/);
 });

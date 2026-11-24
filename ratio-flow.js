@@ -307,6 +307,8 @@ function fitLayout(columns,links,availableWidth,availableHeight,cachedLayouts){
 }
 // Focus is separate from layout: highlighting never changes geometry or rates.
 const edgeKey=e=>e.from+'|'+e.to;
+const toggleSelection=(current,next)=>current===next?null:next;
+const focusTone=(selected,related)=>!selected?'normal':related?'active':'muted';
 function focusGraph(links,selected,upstream=false){
  const nodes=new Set(),edges=new Set();
  if(!selected)return {nodes,edges};
@@ -346,7 +348,7 @@ function focusBundle(bundle,edges){
  for(const path of bundle.paths)visit(path);
  return {active,points};
 }
-if(typeof module==='object'&&module.exports)module.exports={buildFlowGraph,routeLayout,baseRouteLayout,routingScore,fitLayout,mergeRoutes,roundedPath,focusGraph,focusBundle};
+if(typeof module==='object'&&module.exports)module.exports={buildFlowGraph,routeLayout,baseRouteLayout,routingScore,fitLayout,mergeRoutes,roundedPath,focusGraph,focusBundle,toggleSelection,focusTone};
 if(typeof document==='undefined')return;
 const browserViews=new Map();
 function nodeColor(node){
@@ -390,16 +392,17 @@ function mount(target,result,cardKey){
   '<div class="ratio-flow-controls"><div class="ratio-flow-switch" role="group" aria-label="Choose ratio visualization">'+
   '<button type="button" data-flow-mode="flow" aria-pressed="'+(mode==='flow')+'">Flow view</button>'+
   '<button type="button" data-flow-mode="table" aria-pressed="'+(mode==='table')+'">Table view</button></div>'+
-  '<label class="ratio-flow-input-toggle"><input data-flow-input-toggle type="checkbox"'+(inputVisible?' checked':'')+'>'+
-  '<span>Show inputs</span></label></div>'+
-  '<div class="ratio-flow-focus-controls" data-flow-focus-controls><span>Highlight</span><div class="ratio-flow-switch" role="group" aria-label="Connection highlight scope"><button type="button" data-flow-focus="direct" aria-pressed="'+(!upstream)+'">Direct</button><button type="button" data-flow-focus="upstream" aria-pressed="'+upstream+'">Upstream tree</button></div></div>'+
+  '<div class="ratio-flow-options" data-flow-options>'+
+  '<label class="ratio-flow-input-toggle"><input data-flow-input-toggle type="checkbox"'+(inputVisible?' checked':'')+'><span>Show inputs</span></label>'+
+  '<label class="ratio-flow-input-toggle"><input data-flow-upstream-toggle type="checkbox"'+(upstream?' checked':'')+'><span>Upstream tree</span></label></div></div>'+
   '<div data-flow-display></div>';
  const display=holder.querySelector('[data-flow-display]');
  const controls=[...holder.querySelectorAll('[data-flow-mode]')];
  const checkbox=holder.querySelector('[data-flow-input-toggle]');
  const panel=target.querySelector('[data-ratio-legacy-table]');
- const focusControls=holder.querySelector('[data-flow-focus-controls]');
- const state={graph,display,holder,result,cardKey,inputVisible,upstream,selected:older?.selected||null,observer:null,
+ const flowOptions=holder.querySelector('[data-flow-options]');
+ const upstreamToggle=holder.querySelector('[data-flow-upstream-toggle]');
+ const state={graph,display,holder,result,cardKey,inputVisible,upstream,selected:older?.result?.id===result.id?(older.selected||null):null,observer:null,
   cancel:null,redraw:null};
  browserViews.set(cardKey,state);
  function update(){
@@ -408,13 +411,13 @@ function mount(target,result,cardKey){
    const active=(b.dataset.flowMode==='flow')===inFlow;
    b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));
   });
-  checkbox.closest('label').hidden=!inFlow;
-  focusControls.hidden=!inFlow;
+  flowOptions.hidden=!inFlow;
   if(panel)panel.hidden=inFlow;
   display.hidden=!inFlow;
   state.observer?.disconnect();
   state.cancel?.();
   state.cleanup?.();
+  state.refreshFocus=null;state.redraw=null;
   if(!inFlow){display.innerHTML='';return}
   drawLayout(state);
  }
@@ -428,11 +431,9 @@ function mount(target,result,cardKey){
   state.selected=null;
   update();
  });
- focusControls.addEventListener('click',event=>{
-  const button=event.target.closest('[data-flow-focus]');if(!button)return;
-  state.upstream=button.dataset.flowFocus==='upstream';
+ upstreamToggle.addEventListener('change',()=>{
+  state.upstream=upstreamToggle.checked;
   root.NauvisRatioFlow.upstreamByCard.set(cardKey,state.upstream);
-  focusControls.querySelectorAll('[data-flow-focus]').forEach(b=>b.setAttribute('aria-pressed',String((b.dataset.flowFocus==='upstream')===state.upstream)));
   state.refreshFocus?.();
   state.redraw?.();
  });
@@ -449,7 +450,7 @@ function drawLayout(state){
  if(!nNodes){
   display.innerHTML='<p class="ratio-muted">Enter a positive output target to see its production flow.</p>';return;
  }
- display.innerHTML='<p class="ratio-flow-hint">Tap any block to highlight its connections. Direct shows immediate inputs and outputs; Upstream tree also traces all earlier ingredients.</p>'+
+ display.innerHTML='<p class="ratio-flow-hint">Tap a block to focus its inputs and outputs. Tap it again to clear. Check Upstream tree to trace earlier ingredients.</p>'+
   '<div class="ratio-flow-viewport ratio-flow-auto" tabindex="0" aria-label="Visual production chain">'+
   '<div class="ratio-flow-scaled-space"><div class="ratio-flow-canvas" style="--flow-stages:'+nCols+'">'+
   '<svg class="ratio-flow-svg" aria-hidden="true" focusable="false"></svg>'+
@@ -463,22 +464,22 @@ function drawLayout(state){
  const summary=display.querySelector('.ratio-flow-selection');
  const nodeByKey=new Map(graph.nodes.map(x=>[x.key,x]));
  const layouts=[routeLayout(columns,links,true),routeLayout(columns,links,false)];
- const selectedDefault=graph.nodes.find(n=>n.type==='machine'&&links.filter(e=>e.from===n.key).length>1)
-   ||graph.nodes.find(n=>n.final)||cards.length&&nodeByKey.get(cards[0].dataset.flowNode);
- if(!state.selected||!visible.has(state.selected))state.selected=selectedDefault?.key||cards[0].dataset.flowNode;
+ if(!visible.has(state.selected))state.selected=null;
  let focus;
  function refreshFocus(){
   focus=focusGraph(links,state.selected,state.upstream);
   for(const b of cards){
    const key=b.dataset.flowNode,selected=key===state.selected;
    b.setAttribute('aria-pressed',String(selected));
-   b.dataset.flowHighlight=selected?'selected':focus.nodes.has(key)?'related':'muted';
+   b.dataset.flowHighlight=!state.selected?'normal':selected?'selected':focus.nodes.has(key)?'related':'muted';
   }
  }
  state.refreshFocus=refreshFocus;
  function showDetails(){
   refreshFocus();
-  const node=nodeByKey.get(state.selected),inputs=graph.edges.filter(e=>e.to===node.key);
+  const node=nodeByKey.get(state.selected);
+  if(!node){summary.innerHTML='<p class="ratio-muted ratio-flow-overview">Full chain visible. Select an item to inspect its connections and exact rates.</p>';return}
+  const inputs=graph.edges.filter(e=>e.to===node.key);
   const outputs=graph.edges.filter(e=>e.from===node.key);
   const toText=(edge,direction)=>{
    const other=nodeByKey.get(direction==='in'?edge.from:edge.to);
@@ -521,19 +522,20 @@ function drawLayout(state){
    // Arrowhead geometry is 12% larger at all scales; the viewBox preserves shape.
    for(const active of [false,true]){
     const markerId=id+(active?'-on':'-off');
-    markers.push('<marker id="'+markerId+'" markerWidth="5.6" markerHeight="5.6" viewBox="0 0 5 5" refX="5" refY="2.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L5 2.5 L0 5Z" fill="'+color+'" opacity="'+(active?1:.46)+'"/></marker>');
+    markers.push('<marker id="'+markerId+'" markerWidth="5.6" markerHeight="5.6" viewBox="0 0 5 5" refX="5" refY="2.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L5 2.5 L0 5Z" fill="'+color+'" opacity="'+(active||!state.selected?1:.46)+'"/></marker>');
    }
    const obstacles=segments.filter(s=>s.key!==bundle.key);
    for(const path of bundle.paths){
-    const active=highlight.active.has(path),d=roundedPath(path.points,16,obstacles);
+    const active=highlight.active.has(path),tone=focusTone(state.selected,active),d=roundedPath(path.points,16,obstacles);
     const line='<path class="ratio-link-underlay" d="'+d+'"/>'+
      (active?'<path class="ratio-link-glow" style="stroke:'+color+'" d="'+d+'"/>':'')+
-     '<path class="ratio-link '+(active?'active':'muted')+'" style="stroke:'+color+'" d="'+d+'"'+(path.edge?' marker-end="url(#'+id+(active?'-on':'-off')+')"':'')+'/>';
+     '<path class="ratio-link '+tone+'" style="stroke:'+color+'" d="'+d+'"'+(path.edge?' marker-end="url(#'+id+(active?'-on':'-off')+')"':'')+'/>';
     paths.push({active,markup:line});
    }
    const dot=(p,kind,r)=>{
-    const active=highlight.points.has(pointKey(p));
-    dots.push({active,markup:'<circle class="ratio-flow-'+kind+' '+(active?'active':'muted')+'" cx="'+p.x+'" cy="'+p.y+'" r="'+(active?r*1.16:r)+'" fill="'+color+'"/>'});
+    const active=highlight.points.has(pointKey(p)),tone=focusTone(state.selected,active);
+    const cls=kind==='junction'?'ratio-flow-junction':'ratio-flow-port';
+    dots.push({active,markup:'<circle class="'+cls+' '+tone+'" cx="'+p.x+'" cy="'+p.y+'" r="'+(active?r*1.16:r)+'" fill="'+color+'"/>'});
    };
    for(const p of bundle.junctions)dot(p,'junction',3.2);
    dot(bundle.source,'port',3);
@@ -549,7 +551,7 @@ function drawLayout(state){
   let id=requestAnimationFrame(redraw);
   state.cancel=()=>cancelAnimationFrame(id);
  }
- cards.forEach(b=>b.addEventListener('click',()=>{state.selected=b.dataset.flowNode;showDetails();queueRedraw()}));
+ cards.forEach(b=>b.addEventListener('click',()=>{state.selected=toggleSelection(state.selected,b.dataset.flowNode);showDetails();queueRedraw()}));
  showDetails();
  state.redraw=queueRedraw;
  root.addEventListener('resize',queueRedraw,{passive:true});
