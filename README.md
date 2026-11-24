@@ -159,3 +159,8 @@ Fresh Start now clears all factory-specific production and route records, legacy
 ## Compact portrait production graphs (v0.33)
 
 Mobile charts retain two columns per production stage at narrow phone widths, reduce machine and supply card padding, tighten the stage spacing and compact the build count list. Selected nodes still reveal full input/output details and links remain calculated from actual card coordinates. Desktop flow layout and all recipe calculations, saves and cloud settings remain unchanged. Roadmap: one factory/save only; use Fresh Start for a new game. Planetary Space Age expansion deferred; continue with machine profiles, resource allocation and construction integration.
+
+
+## Canvas zoom (v0.34)
+
+Flow view has 50%, 65%, 75% and 100% zoom controls (mobile starts at 75%, desktop at 100%). Zoom affects the actual diagram, not the rest of the page. On portrait phones, lower zoom levels fit three or four nodes per stage. Full-size selected-node details remain below the chart. The SVG and diagram use the same unscaled coordinates, and the visible canvas height is reduced proportionally. No production or factory data changes.

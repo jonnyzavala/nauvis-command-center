@@ -58,7 +58,14 @@ function buildFlowGraph(result){
   }));
  return {nodes,edges,columns,maxLevel};
 }
-if(typeof module==='object'&&module.exports)module.exports={buildFlowGraph};
+const ZOOM_LEVELS=[50,65,75,100];
+function flowDimensions(viewWidth,stageCount,zoom,vertical){
+ const scale=ZOOM_LEVELS.includes(zoom)?zoom/100:1;
+ const width=Math.max(1,Math.floor(viewWidth));
+ const logicalWidth=vertical?Math.floor(width/scale):Math.max(Math.floor(width/scale),stageCount*206);
+ return {scale,logicalWidth,visualWidth:Math.ceil(logicalWidth*scale),mobileColumns:scale<=.5?4:scale<=.75?3:2};
+}
+if(typeof module==='object'&&module.exports)module.exports={buildFlowGraph,flowDimensions,ZOOM_LEVELS};
 if(typeof document==='undefined')return;
 const browserViews=new Map();
 function nodeColor(node){
@@ -87,6 +94,7 @@ function mount(target,result,cardKey){
  older?.cancel?.();
  const mode=(root.NauvisRatioFlow?.modeByCard?.get(cardKey)||'flow');
  const inputVisible=root.NauvisRatioFlow?.inputByCard?.get(cardKey)??true;
+ const zoom=root.NauvisRatioFlow.zoomByCard.get(cardKey)??(root.matchMedia('(max-width:650px)').matches?75:100);
  const compact=graph.nodes.filter(n=>n.type==='machine');
  const buildList=compact.map(n=>
   '<span class="ratio-flow-build-chip" style="--node-color:'+nodeColor(n)+'">'+itemGlyph(n.recipe,35)+'<strong>'+
@@ -102,12 +110,14 @@ function mount(target,result,cardKey){
   '<button type="button" data-flow-mode="table" aria-pressed="'+(mode==='table')+'">Table view</button></div>'+
   '<label class="ratio-flow-input-toggle"><input data-flow-input-toggle type="checkbox"'+(inputVisible?' checked':'')+'>'+
   '<span>Show inputs</span></label></div>'+
+  '<div class="ratio-flow-zoom" data-flow-zoom-controls role="group" aria-label="Diagram zoom"><span>Canvas zoom</span><div>'+ZOOM_LEVELS.map(n=>'<button type="button" data-flow-zoom="'+n+'" aria-pressed="'+(n===zoom)+'">'+n+'%</button>').join('')+'</div></div>'+
   '<div data-flow-display></div>';
  const display=holder.querySelector('[data-flow-display]');
  const controls=[...holder.querySelectorAll('[data-flow-mode]')];
  const checkbox=holder.querySelector('[data-flow-input-toggle]');
  const panel=target.querySelector('[data-ratio-legacy-table]');
- const state={graph,display,holder,result,cardKey,inputVisible,selected:older?.selected||null,observer:null,
+ const zoomPanel=holder.querySelector('[data-flow-zoom-controls]');
+ const state={graph,display,holder,result,cardKey,inputVisible,zoom,selected:older?.selected||null,observer:null,
   cancel:null,redraw:null};
  browserViews.set(cardKey,state);
  function update(){
@@ -117,6 +127,7 @@ function mount(target,result,cardKey){
    b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));
   });
   checkbox.closest('label').hidden=!inFlow;
+  zoomPanel.hidden=!inFlow;
   if(panel)panel.hidden=inFlow;
   display.hidden=!inFlow;
   state.observer?.disconnect();
@@ -133,6 +144,13 @@ function mount(target,result,cardKey){
   root.NauvisRatioFlow.inputByCard.set(cardKey,state.inputVisible);
   state.selected=null;
   update();
+ });
+ zoomPanel.addEventListener('click',event=>{
+  const button=event.target.closest('[data-flow-zoom]');if(!button)return;
+  state.zoom=Number(button.dataset.flowZoom);
+  root.NauvisRatioFlow.zoomByCard.set(cardKey,state.zoom);
+  zoomPanel.querySelectorAll('[data-flow-zoom]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.flowZoom)===state.zoom)));
+  state.redraw?.();
  });
  update();
 }
@@ -152,14 +170,15 @@ function drawLayout(state){
  if(!nNodes){
   display.innerHTML='<p class="ratio-muted">Enter a positive output target to see its production flow.</p>';return;
  }
- display.innerHTML='<p class="ratio-flow-hint">Follow the arrows from ingredients to finished output. Tap any block to see its incoming materials and outgoing branches.</p>'+
+ display.innerHTML='<p class="ratio-flow-hint">Zoom out to see more of the chain. Tap any block for full-size ingredient and output details.</p>'+
   '<div class="ratio-flow-viewport" tabindex="0" aria-label="Visual production chain">'+
-  '<div class="ratio-flow-canvas" style="--flow-stages:'+nCols+'">'+
+  '<div class="ratio-flow-scaled-space"><div class="ratio-flow-canvas" style="--flow-stages:'+nCols+'">'+
   '<svg class="ratio-flow-svg" aria-hidden="true" focusable="false"></svg>'+
-  '<div class="ratio-flow-columns">'+stages+'</div></div></div>'+
+  '<div class="ratio-flow-columns">'+stages+'</div></div></div></div>'+
   '<div class="ratio-flow-selection" aria-live="polite"></div>';
  const canvas=display.querySelector('.ratio-flow-canvas');
  const viewport=display.querySelector('.ratio-flow-viewport');
+ const scaledSpace=display.querySelector('.ratio-flow-scaled-space');
  const svg=display.querySelector('.ratio-flow-svg');
  const cards=[...display.querySelectorAll('[data-flow-node]')];
  const summary=display.querySelector('.ratio-flow-selection');
@@ -186,12 +205,20 @@ function drawLayout(state){
  }
  function redraw(){
   if(!canvas.isConnected)return;
-  const canvasRect=canvas.getBoundingClientRect();
-  const width=canvas.clientWidth,height=canvas.scrollHeight;
+  if(!viewport.clientWidth)return;
+  const vertical=window.matchMedia('(max-width:650px)').matches;
+  const dims=flowDimensions(viewport.clientWidth,nCols,state.zoom,vertical);
+  canvas.style.width=dims.logicalWidth+'px';
+  canvas.style.setProperty('--flow-mobile-cols',String(dims.mobileColumns));
+  canvas.style.transform='scale('+dims.scale+')';
+  const width=canvas.clientWidth,height=canvas.offsetHeight;
   if(!width||!height)return;
+  scaledSpace.style.width=dims.visualWidth+'px';
+  scaledSpace.style.height=Math.ceil(height*dims.scale)+'px';
+  const canvasRect=canvas.getBoundingClientRect();
+  const scale=dims.scale;
   svg.setAttribute('viewBox','0 0 '+width+' '+height);
   svg.setAttribute('width',String(width));svg.setAttribute('height',String(height));
-  const vertical=window.matchMedia('(max-width:650px)').matches;
   const nodesEl=new Map(cards.map(x=>[x.dataset.flowNode,x]));
   const lineMarkup=[];
   // Only label all branches in small maps. Larger maps reveal rates on selection.
@@ -200,10 +227,10 @@ function drawLayout(state){
    const edge=links[i],src=nodesEl.get(edge.from),dst=nodesEl.get(edge.to);
    if(!src||!dst)continue;
    const a=src.getBoundingClientRect(),b=dst.getBoundingClientRect();
-   const x1=vertical?a.left+a.width/2-canvasRect.left:a.right-canvasRect.left;
-   const y1=vertical?a.bottom-canvasRect.top:a.top+a.height/2-canvasRect.top;
-   const x2=vertical?b.left+b.width/2-canvasRect.left:b.left-canvasRect.left;
-   const y2=vertical?b.top-canvasRect.top:b.top+b.height/2-canvasRect.top;
+   const x1=(vertical?a.left+a.width/2-canvasRect.left:a.right-canvasRect.left)/scale;
+   const y1=(vertical?a.bottom-canvasRect.top:a.top+a.height/2-canvasRect.top)/scale;
+   const x2=(vertical?b.left+b.width/2-canvasRect.left:b.left-canvasRect.left)/scale;
+   const y2=(vertical?b.top-canvasRect.top:b.top+b.height/2-canvasRect.top)/scale;
    const dist=vertical?(y2-y1):(x2-x1);
    const shift=Math.max(16,Math.abs(dist)*.48);
    const d=vertical?'M'+x1+','+y1+' C'+x1+','+(y1+shift)+' '+x2+','+(y2-shift)+' '+x2+','+y2:
@@ -225,11 +252,13 @@ function drawLayout(state){
  }
  cards.forEach(b=>b.addEventListener('click',()=>{state.selected=b.dataset.flowNode;showDetails();queueRedraw()}));
  showDetails();
+ state.redraw=queueRedraw;
  queueRedraw();
  if(typeof ResizeObserver!=='undefined'){
   state.observer=new ResizeObserver(queueRedraw);
   state.observer.observe(canvas);
+  state.observer.observe(viewport);
  }
 }
-root.NauvisRatioFlow={mount,buildFlowGraph,modeByCard:new Map(),inputByCard:new Map()};
+root.NauvisRatioFlow={mount,buildFlowGraph,modeByCard:new Map(),inputByCard:new Map(),zoomByCard:new Map()};
 })(typeof window==='undefined'?globalThis:window);
