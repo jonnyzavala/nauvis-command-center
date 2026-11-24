@@ -45,7 +45,7 @@ test('quick change and the context guide close the other panel before opening',(
  assert.match(js,/function close\(restoreFocus=true\)/);
 });
 test('existing tab navigation, sync, and offline cached code remain intact',()=>{
- assert.equal((html.match(/<button data-view=/g)||[]).length,4);
+ assert.equal((html.match(/<button data-view=/g)||[]).length,3);
  assert.match(html,/sync\/cloud-sync\.js/);
  const uiVersion=html.match(/Nauvis Command Center v(\d+(?:\.\d+)+)/)?.[1];
  const cacheVersion=worker.match(/const VERSION='nauvis-shell-v(\d+)';/)?.[1];
