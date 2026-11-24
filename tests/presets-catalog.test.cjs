@@ -76,10 +76,10 @@ test('preset scripts and styling precache offline without any data schema change
  const worker=read('service-worker.js');
  assert.match(html,/src="\.\/production-presets\.js"/);
  assert.match(html,/href="\.\/preset-v026\.css"/);
- assert.match(worker,/nauvis-shell-v030/);
+ assert.match(worker,/nauvis-shell-v031/);
  assert.match(worker,/production-presets\.js/);
  assert.match(worker,/preset-v026\.css/);
- assert.match(html,/Nauvis Command Center v0\.30/);
+ assert.match(html,/Nauvis Command Center v0\.31/);
  assert.match(html,/version:7,plan:factory,guide,setup,balancePrefs/);
 });
 
@@ -104,4 +104,13 @@ test('mobile profile spans the full row; compact inputs and corrected recipe col
  assert.match(html,/id==='copper-cable'\?c\.gold/);
  assert.match(html,/type="number" inputmode="numeric" min="0" step="1" id="setupIronFurnaces"/);
  assert.match(html,/class="inventory-tool-actions"/);
+});
+
+test('workspace briefing scrolls at fixed size without scroll-triggered layout changes',()=>{
+ const css=read('advanced-v028.css');
+ assert.doesNotMatch(html,/command-scrolled|updateScroll/);
+ assert.doesNotMatch(css,/command-scrolled/);
+ assert.match(html,/\.view\.active>\.hero\{\s*position:relative;/);
+ assert.doesNotMatch(html,/\.view\.active>\.hero\{\s*position:sticky/);
+ assert.match(html,/\.command-chrome\{\s*position:sticky/);
 });

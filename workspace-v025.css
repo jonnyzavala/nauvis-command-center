@@ -116,7 +116,7 @@ button[data-plan-target="factory"] .plan-switch-light{background:#6ce0d1;box-sha
 .workspace-fold-toggle{border:1px solid #456378;border-radius:9px;background:color-mix(in srgb,var(--workspace-accent) 12%,#1f3849);padding:7px 9px;font-size:11px;white-space:nowrap;font-weight:800;color:#e6f8fb;min-height:33px;margin-left:auto}
 .workspace-folded>:not(.section-head){display:none!important}
 .workspace-foldable{scroll-margin-top:calc(var(--chrome-height,130px) + 110px)}
-#setup .section,#balance .section,#learn .section,#build .section,#factory .section{scroll-margin-top:calc(var(--chrome-height,130px) + 105px)}
+#setup .section,#balance .section,#learn .section,#build .section,#factory .section{scroll-margin-top:calc(var(--chrome-height,130px) + 12px)}
 #setup .section-head,#balance .section-head{gap:7px}
 #setup .section-head .workspace-fold-toggle,#balance .section-head .workspace-fold-toggle{flex-shrink:0}
 #build>.hero,#factory>.hero{margin-top:8px}

@@ -359,20 +359,9 @@ body[data-workspace="build"]{
 .command-chrome .nav{margin:0;padding-top:2px;position:relative;top:auto;z-index:1;background:transparent!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 .command-chrome .nav-track::after{bottom:2px}
 .view.active>.hero{
- position:sticky;
- top:calc(var(--chrome-height) + 2px);
- z-index:65;
+ position:relative;
  box-shadow:0 12px 22px rgba(4,11,20,.19);
 }
-body.command-scrolled .view.active>.hero{
- padding:11px 19px;
- margin:5px 0 12px;
- background:linear-gradient(110deg,color-mix(in srgb,var(--workspace-accent) 23%,#142432),color-mix(in srgb,var(--workspace-accent) 10%,#142432));
- box-shadow:0 9px 20px rgba(0,0,0,.33)
-}
-body.command-scrolled .view.active>.hero .eyebrow{display:none}
-body.command-scrolled .view.active>.hero h1{font-size:clamp(20px,2vw,27px);line-height:1.11;margin:0 0 3px}
-body.command-scrolled .view.active>.hero p{max-width:100%;font-size:12px;line-height:1.4;color:#d1e0e8}
 @media(max-width:780px){
  .command-top{padding:13px 0 9px;align-items:flex-start}
  .command-identity{flex:1 1 auto}
@@ -383,17 +372,11 @@ body.command-scrolled .view.active>.hero p{max-width:100%;font-size:12px;line-he
  .identity-main .header-welcome{order:0;flex-basis:auto;font-size:clamp(21px,4.6vw,27px);margin:0;padding:0}
  .command-top .version{align-self:flex-start;margin:0}
  .version-detail{display:none}
- body.command-scrolled .view.active>.hero{padding:9px 13px;margin:4px 0 8px}
- body.command-scrolled .view.active>.hero h1{font-size:21px;margin-bottom:4px}
- body.command-scrolled .view.active>.hero p{font-size:12px;line-height:1.33}
 }
 @media(max-width:480px){
  .command-identity .brand .identity-main strong{font-size:24px}
  .identity-main .header-welcome{font-size:22px}
  /* Nav rail bottom spacing lives inside .nav-track so the full spectrum scrolls. */
-}
-@media(max-height:540px){
- .view.active>.hero{position:relative;top:auto}
 }
 @media(prefers-reduced-motion:reduce){.command-chrome,.view.active>.hero{transition:none}}
 
@@ -619,7 +602,7 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.30 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.31 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory &amp; Balance</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Plan &amp; Build</button></div></nav>
  </div>
@@ -849,7 +832,7 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v0.30 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.31 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script src="./item-icons.js"></script>
 <script src="./production-effects.js"></script>
@@ -1453,11 +1436,9 @@ function initGuide(){
 function initStickyCommand(){
  const chrome=document.querySelector('.command-chrome');
  const updateHeight=()=>{if(chrome)document.documentElement.style.setProperty('--chrome-height',Math.ceil(chrome.getBoundingClientRect().height)+'px')};
- const updateScroll=()=>document.body.classList.toggle('command-scrolled',window.scrollY>110);
- window.addEventListener('scroll',updateScroll,{passive:true});
  window.addEventListener('resize',updateHeight,{passive:true});
  if(typeof ResizeObserver!=='undefined'&&chrome)new ResizeObserver(updateHeight).observe(chrome);
- updateHeight();updateScroll();
+ updateHeight();
 }
 
 function activateWorkspace(view,scrollPage=false){
