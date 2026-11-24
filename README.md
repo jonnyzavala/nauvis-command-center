@@ -169,3 +169,8 @@ Flow view has 50%, 65%, 75% and 100% zoom controls (mobile starts at 75%, deskto
 ## Automatically fitted production map (v0.35)
 
 Replaces manual canvas zoom with a fit-to-available-width-and-height overview. The renderer evaluates horizontal and vertical layered layouts and chooses the larger readable scale. Every connection uses reserved inter-stage channels and a separate exterior rail when skipping a stage; lines never pass through a node. Crossings between unrelated connections may remain in nonplanar graphs; the routes are color-coded with dark crossing outlines. Full-size selected-node input and output details and the Table view remain available. For especially complex chains, automatic fitting necessarily reduces label size. No factory data or calculation changes.
+
+
+## Shared resource connections (v0.36)
+
+One output port and shared departure trunk per producer. Branches use common reserved channels and one bypass rail per resource source; duplicate segments are merged, corners rounded, and true junctions marked with dots. Different resource crossings have dark outlines and no junction. Exact per-branch rates remain in selected-node details rather than overlapping lines in the overview. Automatic fitting and production data remain unchanged.

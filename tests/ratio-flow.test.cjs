@@ -85,7 +85,7 @@ test('visual interface presents counts before flow and includes Flow/Table toggl
  assert.match(flowSource,/Table view/);
  assert.match(flowSource,/Show inputs/);
  assert.match(flowSource,/data-flow-node/);
- assert.match(flowSource,/ratio-link-text/);
+ assert.match(flowSource,/ratio-flow-junction/);
  assert.match(ratioSource,/data-ratio-flow-root/);
  assert.match(ratioSource,/data-ratio-legacy-table hidden/);
  assert.match(ratioSource,/NauvisRatioFlow\?\.mount/);
@@ -99,10 +99,10 @@ test('layout stays inside explorer and switches to vertical diagram on iPhone',(
  assert.match(style,/\.ratio-flow-node-label strong\{font-size:11px\}/);
 });
 test('version and offline caching include the visual graph without editing cloud sync',()=>{
- assert.match(html,/Nauvis Command Center v0\.35/);
+ assert.match(html,/Nauvis Command Center v0\.36/);
  assert.match(html,/href="\.\/ratio-flow\.css"/);
  assert.match(html,/src="\.\/ratio-flow\.js" defer/);
- assert.match(worker,/nauvis-shell-v035/);
+ assert.match(worker,/nauvis-shell-v036/);
  assert.match(worker,/ratio-flow\.css/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(html,/sync\/cloud-sync\.js/);
@@ -147,4 +147,34 @@ test('all 728 recipe layouts have complete orthogonal connections that never cro
   }
  }
  assert.equal(checked,728);
+});
+
+test('resource outputs have a single shared trunk with explicit split points and no duplicated segments',()=>{
+ const {routeLayout,roundedPath}=require('../ratio-flow.js');
+ let shared=0;
+ for(const source of ['bus','raw'])for(const id of Object.keys(recipes)){
+  const graph=buildFlowGraph(calc(id,30,source));
+  for(const vertical of [true,false]){
+   const layout=routeLayout(graph.columns,graph.edges,vertical);
+   assert.equal(layout.bundles.reduce((sum,b)=>sum+b.routes.length,0),graph.edges.length);
+   for(const bundle of layout.bundles){
+    const terminals=bundle.paths.filter(p=>p.edge).map(p=>p.edge.i).sort((a,b)=>a-b);
+    assert.deepEqual(terminals,bundle.routes.map(p=>p.edge.i).sort((a,b)=>a-b));
+    const segments=new Set();
+    for(const path of bundle.paths)for(let i=1;i<path.points.length;i++){
+     const key=[path.points[i-1],path.points[i]].map(p=>p.x+','+p.y).sort().join('|');
+     assert.ok(!segments.has(key),'duplicate segment');segments.add(key);
+    }
+    if(bundle.routes.length>1){
+     assert.ok(bundle.junctions.length>0);
+     assert.ok(bundle.routes.every(r=>r.points[0].x===bundle.source.x&&r.points[0].y===bundle.source.y));
+     shared++;
+    }
+   }
+  }
+ }
+ assert.ok(shared>1000);
+ assert.equal(roundedPath([{x:0,y:0},{x:10,y:0},{x:10,y:10}]),'M0,0 L5,0 Q10,0 10,5 L10,10');
+ assert.match(flowSource,/roundedPath\(path\.points\)/);
+ assert.match(flowSource,/ratio-flow-junction/);
 });

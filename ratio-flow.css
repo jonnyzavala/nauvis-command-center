@@ -226,3 +226,10 @@
 .ratio-flow-auto .ratio-link.active{stroke-opacity:1;stroke-width:3}
 .ratio-flow-auto .ratio-link-underlay{fill:none;stroke:#102330;stroke-width:5;stroke-linejoin:round}
 .ratio-flow-auto .ratio-link-text{font-size:9px}
+
+/* v0.36 · shared, rounded resource trunks and explicit junctions. */
+.ratio-flow-auto .ratio-link{stroke-opacity:.9;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
+.ratio-flow-auto .ratio-link.active{stroke-opacity:1;stroke-width:2.5}
+.ratio-flow-auto .ratio-link-underlay{stroke-width:4.2}
+.ratio-flow-auto .ratio-flow-junction,.ratio-flow-auto .ratio-flow-port{stroke:#102330;stroke-width:1;paint-order:stroke}
+.ratio-flow-auto .ratio-flow-svg{z-index:2;pointer-events:none}

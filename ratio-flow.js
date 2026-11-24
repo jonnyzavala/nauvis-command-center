@@ -62,31 +62,41 @@ function buildFlowGraph(result){
 // exclusive channels between stages; skipping a stage uses an exterior rail.
 function routeLayout(columns,links,vertical=true){
  const nodeW=148,nodeH=82,cross=vertical?nodeW:nodeH,primary=vertical?nodeH:nodeW;
- const spacing=18,pad=12,trackPitch=9;
+ const spacing=18,pad=14,trackPitch=10;
  const nodes=new Map(),outgoing=new Map(),incoming=new Map();
  columns.forEach((col,i)=>col.forEach((n,j)=>{nodes.set(n.key,{key:n.key,stage:i,index:j});outgoing.set(n.key,[]);incoming.set(n.key,[])}));
  const edges=links.map((e,i)=>({...e,i,source:nodes.get(e.from),target:nodes.get(e.to)}));
  const span=Math.max(cross,...columns.map(col=>col.length*cross+Math.max(0,col.length-1)*spacing));
  const localCross=n=> (span-(columns[n.stage].length*cross+Math.max(0,columns[n.stage].length-1)*spacing))/2+n.index*(cross+spacing);
  const gapTracks=Array.from({length:Math.max(0,columns.length-1)},()=>[]);
- const rails=[[],[]];
+ const rails=[[],[]],groups=[];
  for(const e of edges){
   if(!e.source||!e.target||e.source.stage>=e.target.stage)throw Error('Invalid flow route');
   outgoing.get(e.from).push(e);incoming.get(e.to).push(e);
-  e.depart=gapTracks[e.source.stage].length;gapTracks[e.source.stage].push(e.i);
-  if(e.target.stage===e.source.stage+1){e.arrive=e.depart;e.side=-1;}
-  else{
-   e.arrive=gapTracks[e.target.stage-1].length;gapTracks[e.target.stage-1].push(e.i);
-   const mean=(localCross(e.source)+localCross(e.target)+cross)/2;
-   e.side=mean<=span/2?0:1;e.rail=rails[e.side].length;rails[e.side].push(e.i);
+ }
+ // One output port, departure track and (if necessary) bypass rail per producer.
+ for(const [key,list] of outgoing){
+  if(!list.length)continue;
+  const a=list[0].source,late=list.filter(e=>e.target.stage>a.stage+1);
+  const g={key,source:a,edges:list,depart:gapTracks[a.stage].length,arrivals:new Map(),side:-1};
+  gapTracks[a.stage].push(g);
+  if(late.length){
+   const mean=(localCross(a)+late.reduce((sum,e)=>sum+localCross(e.target),0)/late.length+cross)/2;
+   g.side=mean<=span/2?0:1;g.rail=rails[g.side].length;rails[g.side].push(g);
   }
+  for(const e of list){
+   const stage=e.target.stage-1;
+   if(stage===a.stage)g.arrivals.set(stage,g.depart);
+   else if(!g.arrivals.has(stage)){g.arrivals.set(stage,gapTracks[stage].length);gapTracks[stage].push(g);}
+  }
+  groups.push(g);
  }
  const margin=side=>pad+(rails[side].length?12+rails[side].length*trackPitch:0);
  const left=margin(0),right=margin(1),totalCross=left+span+right;
  const rowStart=[];let totalPrimary=pad;
  for(let i=0;i<columns.length;i++){
   rowStart.push(totalPrimary);totalPrimary+=primary;
-  if(i<columns.length-1)totalPrimary+=Math.max(26,20+gapTracks[i].length*trackPitch);
+  if(i<columns.length-1)totalPrimary+=Math.max(30,24+gapTracks[i].length*trackPitch);
  }
  totalPrimary+=pad;
  const xy=(c,p)=>vertical?{x:c,y:p}:{x:p,y:c};
@@ -94,31 +104,90 @@ function routeLayout(columns,links,vertical=true){
   n.c=left+localCross(n);n.p=rowStart[n.stage];
   return {key:n.key,...xy(n.c,n.p),w:nodeW,h:nodeH};
  });
- const port=(n,arr,incomingPort)=>{
-  const list=incomingPort?incoming.get(n.key):outgoing.get(n.key);
-  const i=list.indexOf(arr);
-  return n.c+Math.min(10,cross/4)+(cross-2*Math.min(10,cross/4))*(i+1)/(list.length+1);
+ const inputPort=(n,e)=>{
+  const list=incoming.get(n.key),i=list.indexOf(e);
+  return n.c+10+(cross-20)*(i+1)/(list.length+1);
  };
- const channel=(stage,index)=>rowStart[stage]+primary+10+index*trackPitch;
- const routes=edges.map(e=>{
-  const a=e.source,b=e.target,sc=port(a,e,false),tc=port(b,e,true);
-  const depart=channel(a.stage,e.depart),arrive=channel(b.stage-1,e.arrive);
-  const pts=[[sc,a.p+primary],[sc,depart]];
-  if(e.side>=0){
-   const lane=e.side===0?left-12-(e.rail+1)*trackPitch:left+span+12+(e.rail+1)*trackPitch;
-   pts.push([lane,depart],[lane,arrive]);
+ const channel=(stage,index)=>rowStart[stage]+primary+12+index*trackPitch;
+ const routes=[],bundles=[];
+ for(const g of groups){
+  const a=g.source,sc=a.c+cross/2,depart=channel(a.stage,g.depart);
+  const lane=g.side<0?null:g.side===0?left-12-(g.rail+1)*trackPitch:left+span+12+(g.rail+1)*trackPitch;
+  const groupRoutes=[];
+  for(const e of g.edges){
+   const b=e.target,tc=inputPort(b,e),arrive=channel(b.stage-1,g.arrivals.get(b.stage-1));
+   const pts=[[sc,a.p+primary],[sc,depart]];
+   if(b.stage>a.stage+1)pts.push([lane,depart],[lane,arrive]);
+   pts.push([tc,arrive],[tc,b.p]);
+   const route={edge:e,points:pts.map(([c,p])=>xy(c,p))};
+   routes.push(route);groupRoutes.push(route);
   }
-  pts.push([tc,arrive],[tc,b.p]);
-  return {edge:e,points:pts.map(([c,p])=>xy(c,p))};
- });
- return {vertical,width:vertical?totalCross:totalPrimary,height:vertical?totalPrimary:totalCross,boxes,routes};
+  bundles.push({key:g.key,routes:groupRoutes,...mergeRoutes(groupRoutes)});
+ }
+ return {vertical,width:vertical?totalCross:totalPrimary,height:vertical?totalPrimary:totalCross,boxes,routes,bundles};
+}
+// Convert overlapping paths from one producer into a single connected tree.
+// Subdivide collinear runs at every endpoint, then draw each segment once.
+function mergeRoutes(routes){
+ const raw=[],points=new Map(),adj=new Map(),unique=new Map();
+ const key=p=>p.x+','+p.y;
+ const add=p=>{const k=key(p);points.set(k,p);if(!adj.has(k))adj.set(k,new Set());return k};
+ for(const r of routes)for(let i=1;i<r.points.length;i++){
+  const a=r.points[i-1],b=r.points[i];add(a);add(b);
+  if(key(a)!==key(b))raw.push([a,b]);
+ }
+ for(const [a,b] of raw){
+  const vertical=a.x===b.x,axis=vertical?'y':'x',fixed=vertical?'x':'y';
+  const cuts=[...points.values()].filter(p=>p[fixed]===a[fixed]&&p[axis]>=Math.min(a[axis],b[axis])&&p[axis]<=Math.max(a[axis],b[axis])).sort((p,q)=>p[axis]-q[axis]);
+  for(let i=1;i<cuts.length;i++){
+   const u=key(cuts[i-1]),v=key(cuts[i]);if(u===v)continue;
+   const id=[u,v].sort().join('|');if(unique.has(id))continue;
+   unique.set(id,[u,v]);adj.get(u).add(v);adj.get(v).add(u);
+  }
+ }
+ const source=key(routes[0].points[0]),terminals=new Map(routes.map(r=>[key(r.points.at(-1)),r.edge]));
+ const junctions=[...adj].filter(([,v])=>v.size>2).map(([k])=>points.get(k));
+ const paths=[],visited=new Set();
+ // Traverse outwards from source; stop at junctions so shared trunks are not redrawn.
+ function walk(u,v){
+  const seq=[points.get(u)],start=u;
+  while(true){
+   const id=[u,v].sort().join('|');if(visited.has(id))return;
+   visited.add(id);seq.push(points.get(v));
+   const next=[...adj.get(v)].filter(w=>w!==u);
+   if(next.length!==1||terminals.has(v)||v===source){
+    paths.push({points:seq,edge:terminals.get(v)||null});
+    for(const w of next)if(!visited.has([v,w].sort().join('|')))walk(v,w);
+    return;
+   }
+   u=v;v=next[0];
+  }
+ }
+ for(const v of adj.get(source)||[])walk(source,v);
+ return {paths,junctions,source:points.get(source),terminals:[...terminals].map(([k,edge])=>({point:points.get(k),edge}))};
+}
+// Smooth only the corners; junctions and endpoints stay at exact coordinates.
+function roundedPath(points,radius=5){
+ if(!points.length)return '';
+ const p=points.map(q=>({...q}));
+ let d='M'+p[0].x+','+p[0].y;
+ for(let i=1;i<p.length-1;i++){
+  const a=p[i-1],b=p[i],c=p[i+1];
+  const l1=Math.hypot(b.x-a.x,b.y-a.y),l2=Math.hypot(c.x-b.x,c.y-b.y);
+  if(!l1||!l2)continue;
+  if((a.x===b.x&&b.x===c.x)||(a.y===b.y&&b.y===c.y)){d+=' L'+b.x+','+b.y;continue}
+  const r=Math.min(radius,l1/2,l2/2);
+  const u={x:b.x+(a.x-b.x)*r/l1,y:b.y+(a.y-b.y)*r/l1},v={x:b.x+(c.x-b.x)*r/l2,y:b.y+(c.y-b.y)*r/l2};
+  d+=' L'+u.x+','+u.y+' Q'+b.x+','+b.y+' '+v.x+','+v.y;
+ }
+ const last=p.at(-1);return d+' L'+last.x+','+last.y;
 }
 function fitLayout(columns,links,availableWidth,availableHeight){
  const width=Math.max(1,availableWidth),height=Math.max(1,availableHeight);
  const layouts=[routeLayout(columns,links,true),routeLayout(columns,links,false)].map(layout=>({...layout,scale:Math.min(1,width/layout.width,height/layout.height)}));
  return layouts[0].scale>=layouts[1].scale?layouts[0]:layouts[1];
 }
-if(typeof module==='object'&&module.exports)module.exports={buildFlowGraph,routeLayout,fitLayout};
+if(typeof module==='object'&&module.exports)module.exports={buildFlowGraph,routeLayout,fitLayout,mergeRoutes,roundedPath};
 if(typeof document==='undefined')return;
 const browserViews=new Map();
 function nodeColor(node){
@@ -209,7 +278,7 @@ function drawLayout(state){
  if(!nNodes){
   display.innerHTML='<p class="ratio-muted">Enter a positive output target to see its production flow.</p>';return;
  }
- display.innerHTML='<p class="ratio-flow-hint">The entire chain fits automatically. Colored lines show every connection; tap any block for full-size details.</p>'+
+ display.innerHTML='<p class="ratio-flow-hint">Each resource uses one shared line that branches at junctions. Tap any block to see exact rates.</p>'+
   '<div class="ratio-flow-viewport ratio-flow-auto" tabindex="0" aria-label="Visual production chain">'+
   '<div class="ratio-flow-scaled-space"><div class="ratio-flow-canvas" style="--flow-stages:'+nCols+'">'+
   '<svg class="ratio-flow-svg" aria-hidden="true" focusable="false"></svg>'+
@@ -260,21 +329,24 @@ function drawLayout(state){
   }
   svg.setAttribute('viewBox','0 0 '+layout.width+' '+layout.height);
   svg.setAttribute('width',String(layout.width));svg.setAttribute('height',String(layout.height));
-  const markers=[],paths=[];
-  for(const route of layout.routes){
-   const {edge,points}=route,active=edge.from===state.selected||edge.to===state.selected;
-   const color=nodeColor(nodeByKey.get(edge.from));
-   const id='ratio-arrow-'+state.cardKey+'-'+edge.i;
-   const d=points.map((p,i)=>(i?'L':'M')+p.x+','+p.y).join(' ');
-   markers.push('<marker id="'+id+'" markerWidth="7" markerHeight="7" refX="6" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6Z" fill="'+color+'"/></marker>');
-   // A dark outline makes unrelated crossings distinguishable without obscuring nodes.
-   const line='<path class="ratio-link-underlay" d="'+d+'"/><path class="ratio-link'+(active?' active':'')+'" style="stroke:'+color+'" d="'+d+'" marker-end="url(#'+id+')" />';
-   const mid=points[Math.floor(points.length/2)];
-   const label=active&&layout.scale>=.85?'<text class="ratio-link-text active" x="'+mid.x+'" y="'+(mid.y-4)+'" text-anchor="middle">'+formatted(edge.rate)+'/min</text>':'';
-   paths.push({active,markup:line+label});
+  const markers=[],paths=[],dots=[];
+  for(const bundle of layout.bundles){
+   const color=nodeColor(nodeByKey.get(bundle.key));
+   const active=bundle.key===state.selected||bundle.routes.some(r=>r.edge.to===state.selected);
+   const id='ratio-arrow-'+state.cardKey+'-'+bundle.routes[0].edge.i;
+   markers.push('<marker id="'+id+'" markerWidth="5" markerHeight="5" refX="5" refY="2.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L5 2.5 L0 5Z" fill="'+color+'"/></marker>');
+   const pathMarkup=bundle.paths.map(path=>{
+    const d=roundedPath(path.points);
+    return '<path class="ratio-link-underlay" d="'+d+'"/><path class="ratio-link'+(active?' active':'')+'" style="stroke:'+color+'" d="'+d+'"'+(path.edge?' marker-end="url(#'+id+')"':'')+'/>';
+   }).join('');
+   paths.push({active,markup:pathMarkup});
+   for(const p of bundle.junctions)dots.push('<circle class="ratio-flow-junction" cx="'+p.x+'" cy="'+p.y+'" r="3.2" fill="'+color+'"/>');
+   dots.push('<circle class="ratio-flow-port" cx="'+bundle.source.x+'" cy="'+bundle.source.y+'" r="3" fill="'+color+'"/>');
+   for(const {point:p} of bundle.terminals)dots.push('<circle class="ratio-flow-port" cx="'+p.x+'" cy="'+p.y+'" r="2.4" fill="'+color+'"/>');
   }
   paths.sort((a,b)=>Number(a.active)-Number(b.active));
-  svg.innerHTML='<defs>'+markers.join('')+'</defs>'+paths.map(p=>p.markup).join('');
+  svg.innerHTML='<defs>'+markers.join('')+'</defs>'+paths.map(p=>p.markup).join('')+dots.join('');
+
  }
  function queueRedraw(){
   state.cancel?.();
