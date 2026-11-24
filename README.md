@@ -174,3 +174,8 @@ Replaces manual canvas zoom with a fit-to-available-width-and-height overview. T
 ## Shared resource connections (v0.36)
 
 One output port and shared departure trunk per producer. Branches use common reserved channels and one bypass rail per resource source; duplicate segments are merged, corners rounded, and true junctions marked with dots. Different resource crossings have dark outlines and no junction. Exact per-branch rates remain in selected-node details rather than overlapping lines in the overview. Automatic fitting and production data remain unchanged.
+
+
+## Crossing-aware layout (v0.37)
+
+The production map scores actual shared resource segments for overlaps and intersections, then tests barycentric stage ordering, adjacent swaps, lane directions and inbound port assignment. A bounded search retains the original route if no better candidate is found. Shorter routing wins ties. Connections have larger rounded elbows and redundant collinear waypoints are removed. Optimized geometry is cached for each rendered recipe, so selection and resize do not repeat the search. This is a heuristic, not a guarantee of zero crossings; production math and save data are unchanged.

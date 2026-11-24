@@ -99,10 +99,10 @@ test('layout stays inside explorer and switches to vertical diagram on iPhone',(
  assert.match(style,/\.ratio-flow-node-label strong\{font-size:11px\}/);
 });
 test('version and offline caching include the visual graph without editing cloud sync',()=>{
- assert.match(html,/Nauvis Command Center v0\.36/);
+ assert.match(html,/Nauvis Command Center v0\.37/);
  assert.match(html,/href="\.\/ratio-flow\.css"/);
  assert.match(html,/src="\.\/ratio-flow\.js" defer/);
- assert.match(worker,/nauvis-shell-v036/);
+ assert.match(worker,/nauvis-shell-v037/);
  assert.match(worker,/ratio-flow\.css/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(html,/sync\/cloud-sync\.js/);
@@ -175,6 +175,24 @@ test('resource outputs have a single shared trunk with explicit split points and
  }
  assert.ok(shared>1000);
  assert.equal(roundedPath([{x:0,y:0},{x:10,y:0},{x:10,y:10}]),'M0,0 L5,0 Q10,0 10,5 L10,10');
- assert.match(flowSource,/roundedPath\(path\.points\)/);
+ assert.match(flowSource,/roundedPath\(path\.points,16,obstacles\)/);
  assert.match(flowSource,/ratio-flow-junction/);
+});
+
+test('crossing-aware routes improve the blue circuit layout and retain every branch',()=>{
+ const {routeLayout,baseRouteLayout,routingScore}=require('../ratio-flow.js');
+ const graph=buildFlowGraph(calc('processing-unit',30,'bus'));
+ for(const vertical of [true,false]){
+  const baseline=baseRouteLayout(graph.columns,graph.edges,vertical);
+  const optimized=routeLayout(graph.columns,graph.edges,vertical);
+  assert.ok(routingScore(baseline).cost>0);
+  assert.equal(routingScore(optimized).cost,0);
+  assert.equal(optimized.routes.length,graph.edges.length);
+ }
+});
+test('larger curve radii are reduced near other resource segments',()=>{
+ const {roundedPath}=require('../ratio-flow.js');
+ const points=[{x:0,y:0},{x:30,y:0},{x:30,y:30}];
+ assert.equal(roundedPath(points),'M0,0 L15,0 Q30,0 30,15 L30,30');
+ assert.notEqual(roundedPath(points,16,[{a:{x:25,y:3},b:{x:25,y:30}}]),roundedPath(points));
 });

@@ -233,3 +233,6 @@
 .ratio-flow-auto .ratio-link-underlay{stroke-width:4.2}
 .ratio-flow-auto .ratio-flow-junction,.ratio-flow-auto .ratio-flow-port{stroke:#102330;stroke-width:1;paint-order:stroke}
 .ratio-flow-auto .ratio-flow-svg{z-index:2;pointer-events:none}
+
+/* v0.37: smooth resource cables with soft junctions, no additional controls. */
+.ratio-flow-auto .ratio-link{stroke-linejoin:round;stroke-linecap:round}

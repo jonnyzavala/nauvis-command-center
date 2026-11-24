@@ -60,7 +60,7 @@ function buildFlowGraph(result){
 }
 // Lay out each dependency layer on a single row/column. Connections use
 // exclusive channels between stages; skipping a stage uses an exterior rail.
-function routeLayout(columns,links,vertical=true){
+function baseRouteLayout(columns,links,vertical=true,options={}){
  const nodeW=148,nodeH=82,cross=vertical?nodeW:nodeH,primary=vertical?nodeH:nodeW;
  const spacing=18,pad=14,trackPitch=10;
  const nodes=new Map(),outgoing=new Map(),incoming=new Map();
@@ -70,19 +70,26 @@ function routeLayout(columns,links,vertical=true){
  const localCross=n=> (span-(columns[n.stage].length*cross+Math.max(0,columns[n.stage].length-1)*spacing))/2+n.index*(cross+spacing);
  const gapTracks=Array.from({length:Math.max(0,columns.length-1)},()=>[]);
  const rails=[[],[]],groups=[];
+ const center=n=>localCross(n)+cross/2;
  for(const e of edges){
   if(!e.source||!e.target||e.source.stage>=e.target.stage)throw Error('Invalid flow route');
   outgoing.get(e.from).push(e);incoming.get(e.to).push(e);
  }
  // One output port, departure track and (if necessary) bypass rail per producer.
- for(const [key,list] of outgoing){
+ const producerOrder=[...outgoing].sort((a,b)=>{
+  if(!options.trackOrder)return 0;
+  const aa=nodes.get(a[0]),bb=nodes.get(b[0]);
+  if(aa.stage!==bb.stage)return options.trackOrder===3?bb.stage-aa.stage:aa.stage-bb.stage;
+  return options.trackOrder===2?bb.index-aa.index:aa.index-bb.index;
+ });
+ for(const [key,list] of producerOrder){
   if(!list.length)continue;
   const a=list[0].source,late=list.filter(e=>e.target.stage>a.stage+1);
   const g={key,source:a,edges:list,depart:gapTracks[a.stage].length,arrivals:new Map(),side:-1};
   gapTracks[a.stage].push(g);
   if(late.length){
    const mean=(localCross(a)+late.reduce((sum,e)=>sum+localCross(e.target),0)/late.length+cross)/2;
-   g.side=mean<=span/2?0:1;g.rail=rails[g.side].length;rails[g.side].push(g);
+   g.side=options.sides?.[key]??(options.sideMode===1?0:options.sideMode===2?1:mean<=span/2?0:1);g.rail=rails[g.side].length;rails[g.side].push(g);
   }
   for(const e of list){
    const stage=e.target.stage-1;
@@ -91,6 +98,13 @@ function routeLayout(columns,links,vertical=true){
   }
   groups.push(g);
  }
+ const groupByKey=new Map(groups.map(g=>[g.key,g]));
+ // Inbound ports face their actual approach lane: outside rails or nearby producers.
+ if(options.portOrder)for(const list of incoming.values())list.sort((a,b)=>{
+  const approach=e=>{const g=groupByKey.get(e.from);return e.target.stage>e.source.stage+1?(g.side===0?-12-(g.rail+1)*trackPitch:span+12+(g.rail+1)*trackPitch):center(e.source)};
+  const delta=approach(a)-approach(b);
+  return (options.portOrder===2?-delta:delta)||a.i-b.i;
+ });
  const margin=side=>pad+(rails[side].length?12+rails[side].length*trackPitch:0);
  const left=margin(0),right=margin(1),totalCross=left+span+right;
  const rowStart=[];let totalPrimary=pad;
@@ -111,7 +125,11 @@ function routeLayout(columns,links,vertical=true){
  const channel=(stage,index)=>rowStart[stage]+primary+12+index*trackPitch;
  const routes=[],bundles=[];
  for(const g of groups){
-  const a=g.source,sc=a.c+cross/2,depart=channel(a.stage,g.depart);
+  const a=g.source;
+  const local=g.edges.filter(e=>e.target.stage===a.stage+1);
+  const preferred=local.length?local.reduce((s,e)=>s+center(e.target),0)/local.length:center(a);
+  const shift=options.portShift?Math.max(-cross*.25,Math.min(cross*.25,(preferred-center(a))*.35)):0;
+  const sc=a.c+cross/2+shift,depart=channel(a.stage,g.depart);
   const lane=g.side<0?null:g.side===0?left-12-(g.rail+1)*trackPitch:left+span+12+(g.rail+1)*trackPitch;
   const groupRoutes=[];
   for(const e of g.edges){
@@ -167,27 +185,127 @@ function mergeRoutes(routes){
  return {paths,junctions,source:points.get(source),terminals:[...terminals].map(([k,edge])=>({point:points.get(k),edge}))};
 }
 // Smooth only the corners; junctions and endpoints stay at exact coordinates.
-function roundedPath(points,radius=5){
+function roundedPath(points,radius=16,obstacles=[]){
  if(!points.length)return '';
- const p=points.map(q=>({...q}));
+ const p=[];
+ for(const q of points){
+  const a=p[p.length-2],b=p[p.length-1];
+  if(b&&b.x===q.x&&b.y===q.y)continue;
+  if(a&&b&&((a.x===b.x&&b.x===q.x)||(a.y===b.y&&b.y===q.y))&&(b.x-a.x)*(q.x-b.x)+(b.y-a.y)*(q.y-b.y)>=0)p.pop();
+  p.push({...q});
+ }
  let d='M'+p[0].x+','+p[0].y;
  for(let i=1;i<p.length-1;i++){
   const a=p[i-1],b=p[i],c=p[i+1];
   const l1=Math.hypot(b.x-a.x,b.y-a.y),l2=Math.hypot(c.x-b.x,c.y-b.y);
   if(!l1||!l2)continue;
   if((a.x===b.x&&b.x===c.x)||(a.y===b.y&&b.y===c.y)){d+=' L'+b.x+','+b.y;continue}
-  const r=Math.min(radius,l1/2,l2/2);
+  let r=Math.min(radius,l1/2,l2/2);
+  // A rounded elbow stays inside a disk about its original vertex.
+  // Limit its reach near other resource lines, so smoothing cannot add a crossing.
+  for(const s of obstacles){
+   const x=Math.max(Math.min(s.a.x,s.b.x),Math.min(b.x,Math.max(s.a.x,s.b.x)));
+   const y=Math.max(Math.min(s.a.y,s.b.y),Math.min(b.y,Math.max(s.a.y,s.b.y)));
+   r=Math.min(r,Math.max(0,Math.hypot(b.x-x,b.y-y)-1));
+  }
+  if(r<.5){d+=' L'+b.x+','+b.y;continue}
   const u={x:b.x+(a.x-b.x)*r/l1,y:b.y+(a.y-b.y)*r/l1},v={x:b.x+(c.x-b.x)*r/l2,y:b.y+(c.y-b.y)*r/l2};
   d+=' L'+u.x+','+u.y+' Q'+b.x+','+b.y+' '+v.x+','+v.y;
  }
  const last=p.at(-1);return d+' L'+last.x+','+last.y;
 }
-function fitLayout(columns,links,availableWidth,availableHeight){
+// Compare the actual rendered trunk segments, not merely the abstract DAG.
+// A collinear overlap is worse than a clean crossing because it hides a resource.
+function routingScore(layout){
+ const segments=[];
+ let length=0,crossings=0,overlaps=0,touches=0;
+ for(const bundle of layout.bundles)for(const path of bundle.paths)for(let i=1;i<path.points.length;i++){
+  const a=path.points[i-1],b=path.points[i];
+  if(a.x===b.x&&a.y===b.y)continue;
+  const vertical=a.x===b.x;
+  const lo=vertical?Math.min(a.y,b.y):Math.min(a.x,b.x),hi=vertical?Math.max(a.y,b.y):Math.max(a.x,b.x);
+  length+=hi-lo;
+  segments.push({key:bundle.key,vertical,at:vertical?a.x:a.y,lo,hi});
+ }
+ const eps=1e-6;
+ for(let i=0;i<segments.length;i++)for(let j=i+1;j<segments.length;j++){
+  const a=segments[i],b=segments[j];if(a.key===b.key)continue;
+  if(a.vertical===b.vertical){
+   if(Math.abs(a.at-b.at)<eps&&Math.min(a.hi,b.hi)-Math.max(a.lo,b.lo)>eps)overlaps++;
+  }else{
+   const v=a.vertical?a:b,h=a.vertical?b:a;
+   if(v.at<h.lo-eps||v.at>h.hi+eps||h.at<v.lo-eps||h.at>v.hi+eps)continue;
+   if(v.at>h.lo+eps&&v.at<h.hi-eps&&h.at>v.lo+eps&&h.at<v.hi-eps)crossings++;
+   else touches++;
+  }
+ }
+ return {crossings,overlaps,touches,length,cost:overlaps*30+crossings*5+touches*5};
+}
+function betterRoute(candidate,previous){
+ const a=candidate.score,b=previous.score;
+ return a.cost<b.cost||(a.cost===b.cost&&(a.length<b.length-1e-6||
+  (Math.abs(a.length-b.length)<1e-6&&candidate.layout.width*candidate.layout.height<previous.layout.width*previous.layout.height)));
+}
+// Barycentric sweeps propose node orders, then score local swaps and channel choices.
+// Keep the original routing as a fallback; optimization must never worsen its score.
+function optimizeLayout(columns,links,vertical=true){
+ const copy=cols=>cols.map(col=>col.slice());
+ const baseline=baseRouteLayout(columns,links,vertical);
+ let best={layout:baseline,score:routingScore(baseline),columns:copy(columns),options:{}};
+ if(!links.length)return best.layout;
+ const evaluate=(cols,opts)=>{
+  const layout=baseRouteLayout(cols,links,vertical,opts);
+  const candidate={layout,score:routingScore(layout),columns:copy(cols),options:opts};
+  if(betterRoute(candidate,best))best=candidate;
+ };
+ const standard={portOrder:1,portShift:true,trackOrder:1};
+ for(const opts of [standard,{...standard,trackOrder:2},{...standard,trackOrder:3},{...standard,portShift:false},{...standard,sideMode:1},{...standard,sideMode:2}])evaluate(columns,opts);
+ const parents=new Map(),children=new Map();
+ for(const e of links){if(!parents.has(e.to))parents.set(e.to,[]);parents.get(e.to).push(e.from);if(!children.has(e.from))children.set(e.from,[]);children.get(e.from).push(e.to)}
+ function sweep(cols,forward){
+  const out=copy(cols),order=Array.from({length:out.length},(_,i)=>i);
+  if(!forward)order.reverse();
+  for(const i of order){
+   const positions=new Map(out.flatMap(col=>col.map((n,j)=>[n.key,(j+.5)/col.length])));
+   const median=n=>{
+    const ids=(forward?parents:children).get(n.key)||[];
+    const neighbors=ids.map(id=>positions.get(id)).filter(Number.isFinite);
+    return neighbors.length?neighbors.reduce((a,b)=>a+b,0)/neighbors.length:positions.get(n.key);
+   };
+   out[i].sort((a,b)=>median(a)-median(b));
+  }
+  return out;
+ }
+ for(const forward of [true,false]){
+  const cols=sweep(columns,forward);evaluate(cols,standard);evaluate(sweep(cols,!forward),standard);
+ }
+ evaluate(columns.map(col=>col.slice().reverse()),standard);
+ // Local hill climbing explores neighboring cards, then bypass sides.
+ // Bound the search so large recipes remain responsive on mobile.
+ for(let pass=0;pass<2;pass++){
+  const initial=best.score.cost;
+  let budget=24;
+  for(let s=0;s<best.columns.length&&budget>0;s++){
+   for(let j=0;j+1<best.columns[s].length&&budget>0;j++){
+    const cols=copy(best.columns);[cols[s][j],cols[s][j+1]]=[cols[s][j+1],cols[s][j]];
+    evaluate(cols,{...best.options,portOrder:1});budget--;
+   }
+  }
+  const stages=new Map(best.columns.flatMap((col,i)=>col.map(n=>[n.key,i])));
+  const bypass=[...new Set(links.filter(e=>stages.get(e.to)>stages.get(e.from)+1).map(e=>e.from))];
+  for(const key of bypass.slice(0,8))for(const side of [0,1])evaluate(best.columns,{...best.options,sides:{...best.options.sides,[key]:side}});
+  for(const trackOrder of [1,2,3])evaluate(best.columns,{...best.options,trackOrder,portOrder:1});
+  if(best.score.cost===0||best.score.cost===initial)break;
+ }
+ return best.layout;
+}
+function routeLayout(columns,links,vertical=true){return optimizeLayout(columns,links,vertical)}
+function fitLayout(columns,links,availableWidth,availableHeight,cachedLayouts){
  const width=Math.max(1,availableWidth),height=Math.max(1,availableHeight);
- const layouts=[routeLayout(columns,links,true),routeLayout(columns,links,false)].map(layout=>({...layout,scale:Math.min(1,width/layout.width,height/layout.height)}));
+ const layouts=(cachedLayouts||[routeLayout(columns,links,true),routeLayout(columns,links,false)]).map(layout=>({...layout,scale:Math.min(1,width/layout.width,height/layout.height)}));
  return layouts[0].scale>=layouts[1].scale?layouts[0]:layouts[1];
 }
-if(typeof module==='object'&&module.exports)module.exports={buildFlowGraph,routeLayout,fitLayout,mergeRoutes,roundedPath};
+if(typeof module==='object'&&module.exports)module.exports={buildFlowGraph,routeLayout,baseRouteLayout,routingScore,fitLayout,mergeRoutes,roundedPath};
 if(typeof document==='undefined')return;
 const browserViews=new Map();
 function nodeColor(node){
@@ -291,6 +409,7 @@ function drawLayout(state){
  const cards=[...display.querySelectorAll('[data-flow-node]')];
  const summary=display.querySelector('.ratio-flow-selection');
  const nodeByKey=new Map(graph.nodes.map(x=>[x.key,x]));
+ const layouts=[routeLayout(columns,links,true),routeLayout(columns,links,false)];
  const selectedDefault=graph.nodes.find(n=>n.type==='machine'&&links.filter(e=>e.from===n.key).length>1)
    ||graph.nodes.find(n=>n.final)||cards.length&&nodeByKey.get(cards[0].dataset.flowNode);
  if(!state.selected||!visible.has(state.selected))state.selected=selectedDefault?.key||cards[0].dataset.flowNode;
@@ -317,7 +436,7 @@ function drawLayout(state){
   const screenHeight=root.visualViewport?.height||root.innerHeight||800;
   const chromeHeight=document.querySelector('.command-chrome')?.getBoundingClientRect().height||0;
   const availableHeight=Math.max(120,Math.floor(screenHeight-chromeHeight-36));
-  const layout=fitLayout(columns,links,width,availableHeight);
+  const layout=fitLayout(columns,links,width,availableHeight,layouts);
   canvas.style.width=layout.width+'px';canvas.style.height=layout.height+'px';
   canvas.style.transform='scale('+layout.scale+')';
   scaledSpace.style.width=Math.ceil(layout.width*layout.scale)+'px';
@@ -330,13 +449,15 @@ function drawLayout(state){
   svg.setAttribute('viewBox','0 0 '+layout.width+' '+layout.height);
   svg.setAttribute('width',String(layout.width));svg.setAttribute('height',String(layout.height));
   const markers=[],paths=[],dots=[];
+  const segments=layout.bundles.flatMap(bundle=>bundle.paths.flatMap(path=>path.points.slice(1).map((b,i)=>({key:bundle.key,a:path.points[i],b}))));
   for(const bundle of layout.bundles){
    const color=nodeColor(nodeByKey.get(bundle.key));
    const active=bundle.key===state.selected||bundle.routes.some(r=>r.edge.to===state.selected);
    const id='ratio-arrow-'+state.cardKey+'-'+bundle.routes[0].edge.i;
    markers.push('<marker id="'+id+'" markerWidth="5" markerHeight="5" refX="5" refY="2.5" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L5 2.5 L0 5Z" fill="'+color+'"/></marker>');
+   const obstacles=segments.filter(s=>s.key!==bundle.key);
    const pathMarkup=bundle.paths.map(path=>{
-    const d=roundedPath(path.points);
+    const d=roundedPath(path.points,16,obstacles);
     return '<path class="ratio-link-underlay" d="'+d+'"/><path class="ratio-link'+(active?' active':'')+'" style="stroke:'+color+'" d="'+d+'"'+(path.edge?' marker-end="url(#'+id+')"':'')+'/>';
    }).join('');
    paths.push({active,markup:pathMarkup});
