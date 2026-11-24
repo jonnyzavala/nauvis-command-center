@@ -69,3 +69,31 @@
 .log-routes{margin:10px 0;color:#b5cbd9;font-size:12px}
 .log-routes summary{cursor:pointer;padding:7px 0}
 .log-connect-status{background:color-mix(in srgb,var(--workspace-accent) 15%,#142836);border-color:var(--workspace-accent);color:#e6eafa}
+
+/* v0.45: diagnostic health is independent of workspace and resource hue. */
+.log-panel .log-node.log-health-short{border:2px solid #f18b86}
+.log-panel .log-node.log-health-tight{border:2px solid #eec277}
+.log-panel .log-node.log-health-ok{border:2px solid #79d0ad}
+.log-panel .log-node.log-health-unknown{border:1px dashed #a5b8c8}
+.log-node.log-health-short span{color:#f18b86}
+.log-node.log-health-tight span{color:#eec277}
+.log-node.log-health-ok span{color:#79d0ad}
+.log-node.log-health-unknown span{color:#a5b8c8}
+.log-diagnostics{margin-top:12px;padding:12px;border:1px solid #52607b;border-radius:12px;background:linear-gradient(135deg,#26334a,#192c3b)}
+.log-diagnostics .log-brush-head>span{font-size:11px;color:#b6c6d7}
+.log-warning,.log-expansion{border:1px solid #8e795a;border-radius:9px;padding:10px;background:#eec2770b;color:#edc788;font-size:12px;margin:9px 0}
+.log-expansion p{font-size:11px;color:#c6d5e1;margin:5px 0 9px}
+.log-finding{--health:#a5b8c8;border:1px solid #485e72;border-left:3px solid var(--health);border-radius:9px;margin-top:6px;background:#132939;overflow:hidden}
+.log-finding.log-health-short{--health:#f18b86}.log-finding.log-health-tight{--health:#eec277}.log-finding.log-health-ok{--health:#79d0ad}
+.log-finding summary{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;font-size:12px;list-style:none}
+.log-finding summary::-webkit-details-marker{display:none}
+.log-finding summary span{min-width:0;display:grid;gap:3px}
+.log-finding summary b{overflow-wrap:anywhere}
+.log-finding summary small,.log-finding summary strong{color:var(--health);font-variant-numeric:tabular-nums}
+.log-finding summary strong{flex-shrink:0}
+.log-finding-body{padding:0 10px 10px;font-size:11px;color:#c4d6e4}
+.log-finding-body p{margin:7px 0}
+.log-support-meter{height:6px;background:#30485a;border-radius:6px;overflow:hidden;margin-bottom:8px}
+.log-support-meter i{height:100%;background:var(--health);display:block}
+.log-recommendation{border-top:1px solid #375165;padding:6px 0}
+.log-recommendation button,.log-finding-body>button{min-height:34px;font-size:11px}

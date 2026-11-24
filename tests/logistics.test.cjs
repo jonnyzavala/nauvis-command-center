@@ -64,3 +64,27 @@ test('touch-first editor has a unified inventory picker, belt slider, split slid
  for(const token of ['data-log-port','data-physical-belt','data-log-slider','data-log-split','data-log-link','smelt:steel-input','steelCapMachines*5','setPointerCapture','elementFromPoint'])assert.ok(js.includes(token),token);
  assert.match(css,/touch-action:none/);
 });
+
+test('input starvation propagates across resource networks, without changing rated demand',()=>{
+ const {networkResults}=require('../logistics.js');
+ const g={nodes:[{id:'iron',kind:'source',item:'iron-plate',amount:1,tier:'yellow'},{id:'steel-in',kind:'destination',item:'iron-plate',link:'smelt:steel-input'},{id:'steel-out',kind:'source',item:'steel-plate',link:'smelt:steel-plate'},{id:'sink',kind:'destination',item:'steel-plate',amount:.4,tier:'yellow'}],edges:[{id:'a',from:'iron',to:'steel-in',belts:3,tier:'yellow'},{id:'b',from:'steel-out',to:'sink',belts:1,tier:'yellow'}]};
+ const lookup=n=>({rate:n.kind==='source'?360:1800}),result=networkResults(g,lookup);
+ assert.equal(result.converged,true);assert.equal(result.results.get('iron-plate').nodes['steel-in'].demand,1800);assert.equal(result.results.get('steel-plate').nodes['steel-out'].supply,180);
+ g.nodes[0].amount=2;assert.equal(networkResults(g,lookup).results.get('steel-plate').nodes['steel-out'].supply,360);
+});
+test('diagnostics distinguish incoming transport limits from insufficient connected production',()=>{
+ const {diagnostics,analyze}=require('../logistics.js');
+ const g={nodes:[{id:'s',kind:'source',item:'iron-plate',amount:4,tier:'yellow'},{id:'d',kind:'destination',item:'iron-plate',amount:2,tier:'yellow'}],edges:[{id:'r',from:'s',to:'d',belts:1,tier:'yellow'}]};
+ let a=diagnostics(g,analyze(g),()=>null);
+ assert.equal(a.productionGap,0);assert.equal(a.findings[0].short,900);assert.ok(a.findings[0].actions.some(x=>x.type==='transport'&&x.extra===1));assert.ok(a.findings[0].actions.some(x=>x.type==='test-belt'&&x.gain===900));
+ g.nodes[0].amount=1;g.edges[0].belts=2;a=diagnostics(g,analyze(g),()=>null);assert.equal(a.productionGap,900);assert.ok(a.findings[0].actions.some(x=>x.type==='source'));assert.ok(!a.findings[0].actions.some(x=>x.type==='transport'));
+});
+test('redistribution recommendation must preserve other known supported demand',()=>{
+ const {diagnostics,analyze}=require('../logistics.js');
+ const g={nodes:[{id:'s',kind:'source',item:'iron-plate',amount:2,tier:'yellow'},{id:'a',kind:'destination',item:'iron-plate',amount:1.5,tier:'yellow'},{id:'b',kind:'destination',item:'iron-plate',amount:1,tier:'yellow'}],edges:[{id:'r',from:'s',to:'a',belts:2,tier:'yellow',weight:1},{id:'t',from:'s',to:'b',belts:2,tier:'yellow',weight:1}]};
+ const a=diagnostics(g,analyze(g),()=>null);assert.equal(a.findings[0].short,450);assert.ok(!a.findings[0].actions.some(x=>x.type==='test-share'));
+});
+test('diagnostic UI offers explicit blueprint handoff without mutating inventory',()=>{
+ const js=read('logistics.js');
+ assert.match(js,/data-log-plan/);assert.match(js,/NauvisRatioExplorer\?\.setGoal/);assert.match(js,/activateWorkspace\('build',true\)/);
+});
