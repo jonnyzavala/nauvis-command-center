@@ -52,6 +52,12 @@ function attach(){
   try{
    root.NauvisEffects.settings(candidate);
    setup.machines[index]=candidate;
+   root.NauvisJournal?.record?.({
+    type:'machine-settings',source:'Factory',recipe:row.recipe,projectId:row.projectId||null,
+    title:'Updated '+(R[row.recipe]?.[0]||row.recipe)+' machine profile',
+    detail:field+': '+String(row[field]??(field==='moduleType'?'none':field==='machineQuality'?'normal':0))+
+     ' → '+String(value)+'. Throughput and input demand recalculated from recorded settings.'
+   });
    saveSetup();renderSetupMachines();renderSetupSummaryOnly();
    const details=host.querySelectorAll('.setup-row')[index]?.querySelector('.setup-machine-upgrades');
    if(details)details.open=true;
