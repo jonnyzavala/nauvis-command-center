@@ -607,6 +607,7 @@ body[data-workspace="build"]{
 <link rel="stylesheet" href="./workspace-v025.css" />
 <link rel="stylesheet" href="./preset-v026.css" />
 <link rel="stylesheet" href="./inventory-v027.css" />
+<link rel="stylesheet" href="./advanced-v028.css" />
 </head>
 <body data-workspace="balance">
 <div class="shell">
@@ -618,7 +619,7 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.27 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.28 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory &amp; Balance</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Plan &amp; Build</button></div></nav>
  </div>
@@ -871,9 +872,10 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v0.27 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.28 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script src="./item-icons.js"></script>
+<script src="./production-effects.js" defer></script>
 <script src="./production-presets.js"></script>
 <script>
 'use strict';
@@ -1216,7 +1218,16 @@ function renderSetupOil(){const o=setup.oil,r=safeNum(o.refineries),h=safeNum(o.
  </div>
  <p class="small" style="margin:12px 0 0">Gross refinery production: ${fmt(heavy)} heavy oil, ${fmt(light)} light oil, ${fmt(gas)} petroleum gas per minute. Cracking estimates consume available heavy/light oil up to your configured chemical plant capacity. <b>No crude delivery limits, solid fuel, lubricant, flamethrower fuel, or circuit pump behavior are included yet.</b></p>`;
 }
-function setupLineOutput(row){if(!R[row.recipe])return 0;const r=R[row.recipe],speed=r[3]==='asm'?safeNum(row.tier||.75):r[3]==='chem'?1:2;return safeNum(row.count)*60*r[2]*speed/r[1]}
+function setupLineOutput(row){
+ if(!R[row.recipe])return 0;
+ const r=R[row.recipe];
+ let speed=r[3]==='asm'?safeNum(row.tier||.75):r[3]==='chem'?1:2,production=1;
+ try{
+  const e=window.NauvisEffects?.forRecipe?.(row.recipe,r[3],{...row,machine:r[3]==='asm'?Number(row.tier||.75):1});
+  if(e){speed=e.machineSpeed;production+=e.productivityBonus}
+ }catch(_e){}
+ return safeNum(row.count)*60*r[2]*production*speed/r[1];
+}
 function renderSetupMachines(){const opts=itemsForSetup.map(k=>[k,R[k][0]]);
  el('setupMachineRows').innerHTML=setup.machines.map((row,i)=>`<div class="setup-row">
  <div class="slot"><label class="setup-recipe-label">${itemIcon(row.recipe,30)}<span>Recipe</span></label><select data-row="${i}" data-field="recipe">${xselect(opts,row.recipe)}</select><span class="smallcap">${fmt(setupLineOutput(row))}/min theoretical</span><div class="tiny">${R[row.recipe]?.[3]==='asm'?'Assembler tier':'Chemical plant'}</div>${R[row.recipe]?.[3]==='asm'?`<select aria-label="Assembler tier" data-row="${i}" data-field="tier">${xselect([['0.5','Assembler 1'],['0.75','Assembler 2'],['1.25','Assembler 3']],String(row.tier||.75))}</select>`:''}</div>
@@ -1286,13 +1297,18 @@ function resourceAuditEngine(ctx){
  add(supply,'heavy-oil',Math.max(0,heavy-heavyCracked));
  for(const row of ctx.machines){
   const recipe=model[row.recipe]; if(!recipe)continue;
-  const speed=recipe[3]==='asm'?(Number(row.tier)||.75):recipe[3]==='furnace'?2:1;
-  const output=Math.max(0,Number(row.count)||0)*60*recipe[2]*speed/recipe[1];
+  const speedBase=recipe[3]==='asm'?(Number(row.tier)||.75):recipe[3]==='furnace'?2:1;
+  let speed=speedBase,effectiveOutput=recipe[2];
+  try{
+   const profile=window.NauvisEffects?.forRecipe?.(row.recipe,recipe[3],{...row,machine:speedBase});
+   if(profile){speed=profile.machineSpeed;effectiveOutput*=1+profile.productivityBonus}
+  }catch(_e){}
+  const output=Math.max(0,Number(row.count)||0)*60*effectiveOutput*speed/recipe[1];
   if(output<=0)continue;
   known.add(row.recipe);
   add(supply,row.recipe,output);
   allocations.push({item:row.recipe,destination:row.destination||'Unspecified',rate:output,count:Number(row.count)||0});
-  for(const [ingredient,qty] of Object.entries(recipe[4]))add(existing,ingredient,output*qty/recipe[2]);
+  for(const [ingredient,qty] of Object.entries(recipe[4]))add(existing,ingredient,output*qty/effectiveOutput);
  }
  if(ctx.includeGoal)for(const [item,amount] of Object.entries(ctx.goalExternal||{}))add(scenario,item,amount);
  const exclude=new Set(['water','crude-oil','iron-ore','copper-ore']);
@@ -1312,7 +1328,15 @@ function renderBalance(){
  if(!active)return;
  const includeGoal=!!balancePrefs.includeGoal;
  active.checked=includeGoal;
- const proposed=includeGoal?calculate(guide.goal,guide.rate).external:{};
+ let proposed=includeGoal?calculate(guide.goal,guide.rate).external:{};
+ if(includeGoal&&window.NauvisRecipeMath){
+  try{
+   const sim=window.NauvisRecipeMath(R,{id:guide.goal,rate:guide.rate,machine:guide.machine,source:guide.source,belt:guide.belt,
+    moduleType:guide.moduleType||'none',moduleCount:guide.moduleCount||0,machineQuality:guide.machineQuality||'normal',beaconSpeed:guide.beaconSpeed||0},
+    {stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names});
+   proposed=Object.fromEntries(sim.external.map(x=>[x.key,x.needed]));
+  }catch(_e){}
+ }
  const result=resourceAuditEngine({base:computeSetup(),oil:setup.oil,recipes:R,machines:setup.machines,includeGoal,goalExternal:proposed});
  const f=fmt;
  el('balanceSummary').innerHTML=[
