@@ -47,3 +47,20 @@ test('editor is wired into factory modes, snapshot restore and offline shell',()
  assert.match(js,/setup\.logistics=normalize\(next\);saveSetup\(\)/);
  assert.match(sw,/'\.\/logistics\.js','\.\/logistics\.css'/);assert.match(html,/src="\.\/logistics\.js" defer/);
 });
+
+test('six and two yellow belts render eight separate physical routes',()=>{
+ const g={nodes:[node('s','source',{amount:8,tier:'yellow'}),node('a','destination'),node('b','destination')],edges:[edge('1','s','a',6,'','yellow'),edge('2','s','b',2,'','yellow')]};
+ const result=analyze(g),layout=require('../logistics.js').layoutBelts(g,result.stage);
+ assert.deepEqual(layout.routes.map(r=>r.lanes.length),[6,2]);
+ assert.equal(new Set(layout.routes.flatMap(r=>r.lanes.map(l=>l[0].x))).size,8);
+ assert.equal(result.nodes.a.received,5400);assert.equal(result.nodes.b.received,1800);
+});
+test('gross and post-steel iron are mutually exclusive sources',()=>{
+ const g={nodes:[node('s','source',{link:'smelt:iron-gross'}),node('s2','source',{link:'smelt:iron-plate'})],edges:[]};
+ const a=analyze(g,()=>({rate:7200}));assert.equal(a.nodes.s.supply,7200);assert.equal(a.nodes.s2.supply,0);assert.equal(a.nodes.s2.missing,true);
+});
+test('touch-first editor has a unified inventory picker, belt slider, split slider and output ports',()=>{
+ const js=read('logistics.js'),css=read('logistics.css');
+ for(const token of ['data-log-port','data-physical-belt','data-log-slider','data-log-split','data-log-link','smelt:steel-input','steelCapMachines*5','setPointerCapture','elementFromPoint'])assert.ok(js.includes(token),token);
+ assert.match(css,/touch-action:none/);
+});

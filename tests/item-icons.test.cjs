@@ -97,14 +97,14 @@ test('Factory, Balance and recipe picker show text alongside decorative icons',(
  assert.match(html,/id="setupMachineRows"/);
 });
 
-test('four tabs have a warm-to-purple-to-blue spectrum and teal Construction mode',()=>{
+test('six modes share a warm-to-purple-to-blue spectrum and teal Construction mode',()=>{
  const uiCSS=read('workspace-v025.css');
  const nav=html.match(/<nav class="nav"[\s\S]*?<\/nav>/)?.[0]||'';
  assert.deepEqual([...nav.matchAll(/<button data-view="([^"]+)"/g)].map(x=>x[1]),
   ['learn','setup','build']);
  const expected=[
-  ['guide','#eec277','learn'],['factory','#ed91aa','setup'],
-  ['balance','#bba5e5','balance'],['planner','#65b5ff','build'],
+  ['guide','#eec277','learn'],['factory','#efa08e','setup'],
+  ['balance','#e5a1cf','balance'],['logistics','#b6a6f1','logistics'],['planner','#65b5ff','build'],
   ['projects','#6ce0d1','factory']
  ];
  for(const [name,color,view] of expected){
@@ -141,9 +141,9 @@ test('gradient and icons still share the same iPhone-responsive background strat
 test('first render loads icon system before inline rendering and caches both files offline',()=>{
  assert.ok(html.indexOf('src="./item-icons.js"')<html.indexOf('/* Verified standard recipes.'));
  assert.match(html,/href="\.\/item-icons\.css"/);
- assert.match(sw,/nauvis-shell-v043/);
+ assert.match(sw,/nauvis-shell-v044/);
  assert.match(sw,/'\.\/item-icons\.js','\.\/item-icons\.css'/);
- assert.match(html,/Nauvis Command Center v0\.43/);
+ assert.match(html,/Nauvis Command Center v0\.44/);
  assert.equal((html.match(/<button data-view=/g)||[]).length,3);
 });
 

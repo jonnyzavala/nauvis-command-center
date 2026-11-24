@@ -209,3 +209,8 @@ Factory & Balance has a third Logistics mode. Create separate resource networks,
 ## Six-mode spectrum (v0.43)
 
 The workspace palette is amber Guide, coral Inventory, rose Balance, violet Logistics, blueprint blue Designer, and teal Construction. The three parent tabs retain their existing grouping; the spectrum rail displays all six hues in order regardless of active mode, while the active parent dot and workspace chrome follow the selected mode. Resource, belt and warning colors are unchanged.
+
+
+## Logistics interaction (v0.44)
+
+Each physical belt is drawn separately, with individual ports and routing lanes. A single Add Node picker offers compatible recorded machine groups (including live recorded counts), smelting groups, project demands, and manual supply/demand and junctions. Nodes may be linked by dragging the + output port onto a compatible receiving card or by tapping the port and then the card. A belt-tier brush, slider and exact count control are adjacent to the diagram; selecting a route edits it. The existing resource-specific graph model is retained: a smelter group can be represented as a consumer in its input resource network and a producer in its output network. Iron gross and post-steel bus supply cannot be counted twice. Graphs remain auto-laid-out and scrollable; there is no free-placement canvas yet. No changes to cloud snapshot shape.

@@ -29,7 +29,7 @@ test('three tabs hold both Factory/Balance and Plan/Construction modes',()=>{
  assert.deepEqual(names,['learn','setup','build']);
  for(const label of ['Quick Guide','Factory &amp; Balance','Plan &amp; Build'])assert.match(nav,new RegExp('>'+label+'<\\/button>'));
  const newPalette=fs.readFileSync(path.join(base,'workspace-v025.css'),'utf8');
- for(const color of ['#eec277','#ed91aa','#bba5e5','#65b5ff','#6ce0d1'])assert.ok(newPalette.toLowerCase().includes(color));
+ for(const color of ['#eec277','#efa08e','#e5a1cf','#b6a6f1','#65b5ff','#6ce0d1'])assert.ok(newPalette.toLowerCase().includes(color));
  assert.match(css,/body\[data-workspace="build"\]/);
  assert.match(newPalette,/--workspace-grid:rgba\(100,181,255,\.125\)/);
 });
@@ -123,7 +123,7 @@ test('the cloud snapshot continues to include plan without new tables or sync co
  assert.match(html,/snapshot\(\)\{return JSON\.parse\(JSON\.stringify\(\{version:7,plan:factory,guide,setup,balancePrefs\}\)\)\}/);
  assert.match(html,/projects:Array\.isArray\(data\.plan\.projects\)\?data\.plan\.projects:\[\]/);
  assert.match(html,/factory\.projects=Array\.isArray\(factory\.projects\)\?factory\.projects:\[\]/);
- assert.match(worker,/nauvis-shell-v043/);
+ assert.match(worker,/nauvis-shell-v044/);
  assert.match(worker,/projects\.js/);
  assert.match(worker,/projects\.css/);
 });
