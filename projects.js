@@ -214,35 +214,39 @@ function saveDialog(event){
 }
 function updateBuilt(id,recipe,delta){
  const project=selectedProject(id);if(!project)return;
+ const task=project.tasks.find(t=>t.recipe===recipe);if(!task)return;
+ const isAsset=task.kind==='asset';
  try{
-  const overlap=matchingUnlinked(recipe,project.goal.machine);
+  const overlap=isAsset?matchingUnlinkedAssets(recipe,project.goal.area):matchingUnlinked(recipe,project.goal.machine);
   const overlapKey=id+'|'+recipe;
   if(delta>0&&overlap>0&&!reviewedOverlaps.has(overlapKey)){
-   const msg=overlap+' matching '+(R[recipe]?.[0]||recipe)+' machines are already recorded in Factory without a project link.\n\n'+
-    'Are you certain this is a NEW machine that is not already counted in that inventory? This action adds another machine to your Factory totals.';
+   const msg=overlap+' matching '+(R[recipe]?.[0]||recipe)+' '+(isAsset?'placed structures':'machines')+
+    ' already exist in Factory as manual records.\n\n'+
+    'Are you certain this is a NEW '+(isAsset?'placed structure':'machine')+' that is not already counted?';
    if(!root.confirm(msg))return;
    reviewedOverlaps.add(overlapKey);
   }
-  const change=applyBuildDelta(project,recipe,delta,setup.machines);
+  const change=isAsset?root.NauvisAssets?.applyBuildDelta?.(project,recipe,delta,setup.assets):
+   applyBuildDelta(project,recipe,delta,setup.machines);
+  if(!change)throw Error('Infrastructure inventory is not ready.');
   const expanded=!!$('projectsList')?.querySelector('[data-project-card="'+id+'"] .project-task-details')?.open;
-  // Update the paired plan and the actual factory ledger before either save notification.
-  // Cloud snapshots will therefore always see both sides of the same adjustment.
+  // Update the paired project and exactly one actual inventory ledger before syncing.
   factory.projects=allProjects().map(p=>p.id===id?change.project:p);
-  setup.machines=change.rows;
-  const task=change.project.tasks.find(t=>t.recipe===recipe);
-  const unlinked=matchingUnlinked(recipe,project.goal.machine);
-  const item=R[recipe]?.[0]||recipe;
+  if(isAsset)setup.assets=change.rows;else setup.machines=change.rows;
+  const next=change.project.tasks.find(t=>t.recipe===recipe);
+  const name=R[recipe]?.[0]||recipe;
   root.NauvisJournal?.record?.({
    type:'construction',source:'Construction Queue',projectId:id,recipe,delta,
-   before:task.built-delta,after:task.built,
-   title:(delta>0?'Built +1 ':'Reversed −1 ')+item+' machine',
-   detail:project.name+' · '+(task.built-delta)+' → '+task.built+' built · Factory inventory updated once.'+
-     (unlinked&&delta>0?' Review '+unlinked+' unlinked '+item+' machines already recorded in Factory to avoid double-counting.':'')
+   before:next.built-delta,after:next.built,
+   title:(delta>0?(isAsset?'Placed +1 ':'Built +1 '):(isAsset?'Reversed placement −1 ':'Reversed −1 '))+name,
+   detail:project.name+' · '+(next.built-delta)+' → '+next.built+(isAsset?' deployed':' built')+
+    ' · '+(isAsset?'Factory infrastructure ledger':'Factory production-machine inventory')+' updated once.'+
+    (overlap&&delta>0?' Review '+overlap+' existing unlinked '+name+' records for possible duplicate entry.':'')
   });
   saveSetup();save();renderSetup();
-  notice=delta>0?'Built 1 machine and recorded it in Factory and the journal. Verify its destination under Factory.':
-   'Reversed 1 built machine in both Factory and your journal.';
-  render();
+  notice=delta>0?(isAsset?'Recorded one placed '+name+' in infrastructure and the journal.':'Built one '+name+' machine and updated Factory and the journal.'):
+   'Reversed one recorded item in both Factory and the journal.';
+  render();root.NauvisAssets?.render?.();
   if(expanded){
    const detail=$('projectsList')?.querySelector('[data-project-card="'+id+'"] .project-task-details');
    if(detail)detail.open=true;
@@ -251,6 +255,11 @@ function updateBuilt(id,recipe,delta){
 }
 function navigateToPlan(id){
  const project=selectedProject(id);if(!project)return;
+ if(project.type==='deployment'){
+  activateWorkspace('setup',true);
+  root.NauvisWorkspace?.jump?.('setup','#setupAssetsPanel');
+  return;
+ }
  const goal=project.goal;
  guide.goal=goal.id;guide.rate=goal.rate;guide.machine=goal.machine;guide.source=goal.source;guide.belt=goal.belt;
  renderGuide();
