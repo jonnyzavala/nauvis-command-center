@@ -564,5 +564,5 @@ function drawLayout(state){
   const chrome=document.querySelector('.command-chrome');if(chrome)state.observer.observe(chrome);
  }
 }
-root.NauvisRatioFlow={mount,buildFlowGraph,modeByCard:new Map(),inputByCard:new Map(),upstreamByCard:new Map()};
+root.NauvisRatioFlow={mount,buildFlowGraph,routeLayout,roundedPath,focusGraph,focusBundle,modeByCard:new Map(),inputByCard:new Map(),upstreamByCard:new Map()};
 })(typeof window==='undefined'?globalThis:window);

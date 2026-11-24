@@ -1,11 +1,12 @@
 /* NAUVIS v0.25: one Plan & Build destination, compact overviews, jump-to controls. */
 (function(root){
 'use strict';
-const ids=['learn','setup','balance','build','factory'];
+const ids=['learn','setup','balance','logistics','build','factory'];
 let lastPlanMode='build',lastFactoryMode='balance';
 const config={
  learn:{title:'Guide overview',intro:'The concepts behind the ratios, construction tracking and actual Factory.',links:[['Basics','.rulegrid'],['Circuit example','#guide-example'],['Belt capacity','#guide-belts']]},
  setup:{title:'Inventory overview',intro:'Records you entered, not live game telemetry.',links:[['Smelting','#setupSmeltingPanel'],['Oil','#setupOilPanel'],['Machines','#setupMachinesPanel'],['Belts','#setupBeltsPanel'],['Compare','#setupComparePanel'],['Inventory tools','#setupStorePanel']]},
+ logistics:{title:'Logistics overview',intro:'Design physical routing using belt capacities and linked machine groups.',links:[['Resource network','#logisticsEditor']]},
  balance:{title:'Balance analysis',intro:'Rated capacity versus recorded demand. Physical routing remains unmodeled.',links:[['Capacity ledger','.balance-ledger-panel'],['Warnings','.balance-insights'],['Recipe ratios','[data-ratio-explorer="balance"]'],['Explanation','#workspace-balance-interpret']]},
  build:{title:'Blueprint overview',intro:'Experiment with recipes and machine counts, then save a design to Construction.',links:[['Visual production flow','[data-ratio-explorer="build"]'],['Detailed calculator','#buildClassic']]},
  factory:{title:'Construction overview',intro:'Each built-machine check updates the project and the actual Factory record together.',links:[['Projects','#projectsListPanel'],['Journal','#journalPanel'],['Original circuit district','#legacyDistrict'],['Archived','#projectsArchivedWrapper']]}
@@ -23,6 +24,7 @@ function stats(view){
   const values=[...document.querySelectorAll('#balanceSummary .balance-kpi b')].map(x=>x.textContent.trim());
   return [[values[0]||'—','Production lines'],[values[1]||'—','Known shortages'],[values[2]||'—','Unknown sources']];
  }
+ if(view==='logistics'){const g=setup.logistics||{};return [[new Set((g.nodes||[]).map(n=>n.item)).size,'Resource networks'],[(g.nodes||[]).length,'Nodes'],[(g.edges||[]).length,'Belt routes']]}
  if(view==='build'){
   const c=document.querySelector('#build .ratio-flow-total')?.textContent.match(/^\d[\d,.]*/)?.[0]||'—';
   return [[c,'Design machines'],[Object.keys(R||{}).length,'Available recipes'],['Flow','Default view']];
@@ -49,9 +51,10 @@ function makeFactoryModeSwitch(view){
  const host=el(view);if(!host||host.querySelector(':scope > .factory-balance-switch'))return;
  const bar=document.createElement('div');bar.className='plan-build-switch factory-balance-switch';
  bar.setAttribute('role','group');bar.setAttribute('aria-label','Factory and Balance modes');
- bar.innerHTML='<div class="plan-switch-caption"><span class="plan-switch-led" aria-hidden="true"></span> FACTORY & BALANCE <small>Record → Analyze</small></div>'+
+ bar.innerHTML='<div class="plan-switch-caption"><span class="plan-switch-led" aria-hidden="true"></span> FACTORY & BALANCE <small>Record → Analyze → Route</small></div>'+
  '<div class="plan-switch-options"><button type="button" data-factory-target="setup" aria-pressed="'+(view==='setup')+'"><span class="factory-switch-light"></span>Inventory</button>'+
- '<button type="button" data-factory-target="balance" aria-pressed="'+(view==='balance')+'"><span class="factory-switch-light"></span>Balance Analysis</button></div>';
+ '<button type="button" data-factory-target="balance" aria-pressed="'+(view==='balance')+'"><span class="factory-switch-light"></span>Balance Analysis</button>'+
+ '<button type="button" data-factory-target="logistics" aria-pressed="'+(view==='logistics')+'"><span class="factory-switch-light"></span>Logistics</button></div>';
  host.insertBefore(bar,host.firstElementChild);
  bar.addEventListener('click',e=>{const b=e.target.closest('[data-factory-target]');if(b)root.activateWorkspace(b.dataset.factoryTarget,true)});
 }
@@ -97,14 +100,14 @@ function refresh(view){
 }
 function onActivate(view){
  if(view==='build'||view==='factory')lastPlanMode=view;
- if(view==='setup'||view==='balance')lastFactoryMode=view;
+ if(view==='setup'||view==='balance'||view==='logistics')lastFactoryMode=view;
  for(const id of ['build','factory'])el(id)?.querySelectorAll('[data-plan-target]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.planTarget===view)));
- for(const id of ['setup','balance'])el(id)?.querySelectorAll('[data-factory-target]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.factoryTarget===view)));
+ for(const id of ['setup','balance','logistics'])el(id)?.querySelectorAll('[data-factory-target]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.factoryTarget===view)));
  refresh(view);root.NauvisJournal?.render?.();
 }
 function init(){
  for(const id of ['build','factory'])makeModeSwitch(id);
- for(const id of ['setup','balance'])makeFactoryModeSwitch(id);
+ for(const id of ['setup','balance','logistics'])makeFactoryModeSwitch(id);
  ids.forEach(injectOverview);
  initFolds();
  root.NauvisWorkspace={onActivate,refresh,jump,lastPlanMode:()=>lastPlanMode,lastFactoryMode:()=>lastFactoryMode};

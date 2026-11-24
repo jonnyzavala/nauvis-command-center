@@ -1,0 +1,48 @@
+/* v0.42 · Logistics: shared command-center design, touch-first route editing. */
+body[data-workspace="logistics"]{--workspace-accent:#82d6c9;--workspace-ambient:rgba(30,110,122,.48);--workspace-ambient2:rgba(27,77,97,.37);--workspace-bg-start:#0d1b25;--workspace-bg-mid:#18303a;--workspace-bg-end:#101922}
+#logistics>.factory-balance-switch{margin-top:8px}
+.factory-balance-switch button[data-factory-target="logistics"] .factory-switch-light{background:#82d6c9;box-shadow:0 0 8px #82d6c988}
+.log-panel{min-width:0;overflow:hidden}
+.log-top,.log-inspect-head,.log-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.log-top label{flex:1;min-width:0}
+.log-panel label{display:flex;flex-direction:column;gap:5px;color:#b8d0df;font-size:12px;font-weight:750;min-width:0}
+.log-panel select,.log-panel input{width:100%;min-width:0;min-height:42px;background:#102330;color:#eaf5fc;border:1px solid #49677c;border-radius:9px;padding:8px;font-size:14px}
+.log-panel button{border:1px solid #49677c;background:#223e50;color:#eaf5fc;border-radius:9px;padding:9px;font-size:12px;font-weight:750;min-height:38px}
+.log-panel button:disabled{opacity:.45}
+.log-panel button:focus-visible{outline:2px solid var(--workspace-accent);outline-offset:2px}
+.log-stat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:12px 0}
+.log-stat-grid>div{border:1px solid #38546b;background:linear-gradient(145deg,#223b4b,#142836);border-radius:10px;padding:10px;min-width:0}
+.log-stat-grid small{display:block;color:#a9c4d5;font-size:10px;line-height:1.3}
+.log-stat-grid b{display:block;margin-top:5px;color:#eff9fc;font-size:clamp(13px,3vw,20px);overflow-wrap:anywhere}
+.log-stat-grid b.log-danger,.log-danger{color:#f7a39d}
+.log-toolbar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:12px 0}
+.log-toolbar button{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;padding:6px 2px;min-height:52px;font-size:11px}
+.log-toolbar button span{font-size:22px;color:var(--workspace-accent)}
+.log-graph{overflow:auto;min-height:150px;max-height:65dvh;overscroll-behavior:contain;border:1px solid #426278;border-radius:12px;background:linear-gradient(90deg,#527b8b16 1px,transparent 1px),linear-gradient(#527b8b16 1px,transparent 1px),#102330;background-size:20px 20px;padding:5px}
+.log-scaled{position:relative;margin:0 auto;flex:none}
+.log-canvas{position:absolute;inset:0 auto auto 0;transform-origin:top left}
+.log-canvas svg{position:absolute;inset:0;overflow:visible;pointer-events:none}
+.log-edge-hit{pointer-events:stroke;cursor:pointer}
+.log-panel .log-node{position:absolute;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;padding:5px;overflow:hidden;min-height:0;border:1px solid color-mix(in srgb,var(--log-color) 65%,#476479);border-radius:9px;background:linear-gradient(145deg,color-mix(in srgb,var(--log-color) 12%,#243d4d),#152b3a);text-align:center;color:#ecf6fc}
+.log-node small{font-size:9px;letter-spacing:.07em;color:var(--log-color)}
+.log-node b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12px;line-height:1.12;max-width:100%;overflow-wrap:anywhere}
+.log-node span{font-size:10px;color:#b9d4e4}
+.log-panel .log-node.selected,.log-panel .log-node.connecting{border:2px solid var(--log-color);box-shadow:0 0 12px color-mix(in srgb,var(--log-color) 55%,transparent)}
+.log-panel .log-node.shortage{border-color:#e18b83}
+.log-node.shortage span{color:#ffaea8}
+.log-empty{display:grid;place-content:center;min-height:150px;text-align:center;padding:18px;color:#c5dce8}
+.log-empty p{margin:8px 0 0;font-size:12px}
+.log-route-list{display:grid;gap:5px;margin:10px 0}
+.log-route-list button{display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;flex-wrap:wrap}
+.log-route-list button.selected{border-color:var(--workspace-accent);box-shadow:inset 0 0 0 1px var(--workspace-accent)}
+.log-route-list button b{font-size:11px;white-space:nowrap}
+.log-inspector{border:1px solid #466679;border-radius:12px;background:linear-gradient(140deg,#223b4c,#162a39);padding:13px;display:grid;gap:10px}
+.log-inspect-head h3{margin:2px 0;font-size:16px;overflow-wrap:anywhere}
+.log-inspect-head small{color:var(--workspace-accent);font-size:10px;font-weight:850}
+.log-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.log-panel .log-primary{background:color-mix(in srgb,var(--workspace-accent) 25%,#21384a);border-color:var(--workspace-accent)}
+.log-connect-status{background:#24453f;color:#b7f0d9;border:1px solid #6cbfa3;padding:8px;margin-bottom:8px;border-radius:9px;display:flex;align-items:center;justify-content:space-between;font-size:12px}
+.log-connect-status[hidden]{display:none}
+.log-message{color:#bbddd2;font-size:12px;min-height:16px;margin:8px 0}
+.log-muted{color:#adc6d5;font-size:11px;line-height:1.5;margin:4px 0}
+@media(max-width:380px){.log-toolbar button{font-size:10px}.log-stat-grid>div{padding:7px}}

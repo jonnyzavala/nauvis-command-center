@@ -199,3 +199,8 @@ Removed decorative dots from Quick Guide and Quick Change. Actual cloud sync sta
 ## Tier 2/3 and mixed machine modules (v0.41)
 
 Normal-quality speed, efficiency and productivity modules now support tiers 1–3. Each uniform Designer profile and recorded production line can specify a primary and secondary module group; compatible slots fill in that order, and disallowed productivity modules are skipped. Effects are additive, with the existing 20% speed/energy floors. Both groups persist in project goals and linked inventory and are used by Balance. Existing records default to no second module. Product quality outputs, per-stage overrides, electric furnace profiles, and beacon geometry remain future work. Source: https://wiki.factorio.com/Module .
+
+
+## Editable Logistics (v0.42)
+
+Factory & Balance has a third Logistics mode. Create separate resource networks, link producers and destinations to recorded machine groups or saved project external demand, or enter manual full-belt-equivalent assumptions. Connect nodes with integer physical yellow/red/blue belts; splitters use equal allocation by default and ordinary branches distribute by route capacity. Relative share weights can override defaults. Directed acyclic graphs cap each route by transport capacity and never create supply at a junction. Linked iron smelting uses main-bus output after the existing steel allocation. No live throughput, downstream backpressure redistribution, train/fluid simulation, or automatic deduction from the global ledger. Projects are full planned scenarios. Graphs live inside the existing setup snapshot, participate in sync/backups, and are cleared by Fresh Start. Undo is session-local and invalidated on incoming snapshots.

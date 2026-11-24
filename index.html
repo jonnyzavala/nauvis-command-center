@@ -583,6 +583,7 @@ body[data-workspace="build"]{
 
 </style>
 <link rel="stylesheet" href="./quick-add.css" />
+ <link rel="stylesheet" href="./logistics.css" />
 <link rel="stylesheet" href="./recipe-ratios.css" />
 <link rel="stylesheet" href="./ratio-flow.css" />
 <link rel="stylesheet" href="./projects.css" />
@@ -602,7 +603,7 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.41 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.42 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory &amp; Balance</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Plan &amp; Build</button></div></nav>
  </div>
@@ -755,6 +756,10 @@ body[data-workspace="build"]{
   <div class="section panel"><h2>Example: 90 red circuits/min</h2><div class="example"><p>Start with <b>90 red circuits/min</b>. The planner works backward and tells you to place:</p><p><strong style="color:var(--green)">2 green-circuit assemblers</strong>, <strong style="color:var(--gold)">5 cable assemblers</strong> and <strong style="color:var(--red)">12 red-circuit assemblers</strong>.</p><p><b>19 total.</b> Inputs: 180 iron plates, 450 copper plates and 180 plastic bars per minute. All fit individually on yellow belts.</p></div><p class="small">That doesn't mean the assemblers will always run. If storage fills or consumers stop, the machines stop. The listed count is maximum sustained capacity with adequate supplies.</p></div>
   <div class="section panel"><h2>Before upgrading a belt</h2><div style="display:grid;gap:12px"><div><div class="inline"><b>Yellow</b><b>900/min</b></div><div class="track"><div style="width:33.333%;background:#e9bd61"></div></div></div><div><div class="inline"><b>Red</b><b>1,800/min</b></div><div class="track"><div style="width:66.666%;background:#e67b78"></div></div></div><div><div class="inline"><b>Blue</b><b>2,700/min</b></div><div class="track"><div style="width:100%;background:#76b3e2"></div></div></div></div><p class="small">If your furnaces produce only 700 plates/min, any of these belts will still carry only 700. Upgrade when the belt is saturated, not just because you've researched the next color.</p></div>
  </section>
+ <section class="view" id="logistics">
+  <div class="hero"><div class="eyebrow">FACTORY &amp; BALANCE · LOGISTICS</div><h1>Resource routing</h1><p>Build an editable map of your production, splitters, belts and destinations. See designed supply and demand without tracking every belt tile.</p></div>
+  <section class="section panel log-panel" id="logisticsEditor" aria-label="Editable resource network"></section>
+ </section>
  </main>
 <dialog id="factoryResetDialog" class="factory-deployment-dialog" aria-labelledby="factoryResetTitle">
  <form id="factoryResetForm">
@@ -833,7 +838,7 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v0.41 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.42 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script src="./item-icons.js"></script>
 <script src="./production-effects.js"></script>
@@ -1125,7 +1130,7 @@ const setupSeed={smelt:{ironFurnaces:384,ironBelts:8,ironToSteel:4,steelFurnaces
 const oldSetup=load(setupKey)||{};
 const blankSmelt=Object.fromEntries(Object.entries(setupSeed.smelt).map(([k,v])=>[k,['furnaceSpeed','beltTier'].includes(k)?v:0]));
 const blankOil=Object.fromEntries(Object.keys(setupSeed.oil).map(k=>[k,0]));
-const setup={smelt:{...blankSmelt,...(oldSetup.smelt||{})},oil:{...blankOil,...(oldSetup.oil||{})},machines:oldSetup.machines||[],feeds:oldSetup.feeds||[],assets:Array.isArray(oldSetup.assets)?oldSetup.assets:[]};
+const setup={smelt:{...blankSmelt,...(oldSetup.smelt||{})},oil:{...blankOil,...(oldSetup.oil||{})},machines:oldSetup.machines||[],feeds:oldSetup.feeds||[],assets:Array.isArray(oldSetup.assets)?oldSetup.assets:[],...(oldSetup.logistics?{logistics:oldSetup.logistics}:{})};
 const destinations=['Main bus','Blue science','Purple science','Yellow science','Robot factory','Military mall','Red circuits','Blue circuits','Storage','Available for new build','Other'];
 const itemsForSetup=allOrder.filter(k=>R[k]&&R[k][3]!=='furnace');
 const feedMaterials=[['plastic-bar','Plastic bars'],['coal','Coal'],['stone','Stone'],['electronic-circuit','Green circuits'],['advanced-circuit','Red circuits'],['processing-unit','Blue circuits'],['sulfur','Sulfur'],['battery','Batteries'],['solid-fuel','Solid fuel'],['low-density-structure','Low-density structures'],['iron-ore','Iron ore'],['copper-ore','Copper ore'],['iron-gear-wheel','Gears'],['engine-unit','Engines'],['other','Other resource']];
@@ -1233,7 +1238,7 @@ function renderSetupCompare(){const x=calculate(guide.goal,guide.rate),available
  <p class="small">*Only lines explicitly assigned to “Available for new build” count. Exact recipe and assembler tier must match the planned machine speed. This comparison does not model shared input consumption.</p>
  ${scarce.length?`<div class="notice warn">Smelting supply warnings for this single build: ${scarce.map(escapeHTML).join('; ')}. Other factory consumption is additional.</div>`:'<div class="notice good">No modeled iron/copper/steel/brick shortage for this one selected build. Other running factories are not included.</div>'}`;
 }
-function renderSetupSummaryOnly(){renderSetupSmelting();renderSetupOil();renderSetupMachineSummary();renderSetupFeedSummary();renderSetupCompare();renderBalance()}
+function renderSetupSummaryOnly(){renderSetupSmelting();renderSetupOil();renderSetupMachineSummary();renderSetupFeedSummary();renderSetupCompare();renderBalance();window.NauvisLogistics?.render?.()}
 function saveSetup(){window.NauvisJournal?.captureSetup?.();try{localStorage.setItem(setupKey,JSON.stringify(setup))}catch(e){};if(!window.NauvisCloudApplying)window.NauvisCloud?.changed()}
 function renderSetup(){renderSetupInputs();renderSetupMachines();renderSetupFeeds();renderSetupSummaryOnly();window.NauvisAssets?.render?.()}
 function initSetup(){
@@ -1368,7 +1373,7 @@ const HELP_MAP={
  factory:['> .section','p0','p1','f0','f1','f2','f3','f4','f5'],
  learn:['> .section','g0','g1','g2']
 };
-const HELP_DEFAULT={balance:'b0',setup:'s0',build:'n4',factory:'p0',learn:'g0'};
+const HELP_DEFAULT={logistics:'b0',balance:'b0',setup:'s0',build:'n4',factory:'p0',learn:'g0'};
 let guideOpen=false, guideTopic='',guideFocus=null,guideScroll=0;
 function mountGuideTargets(){
  for(const id of ['build','factory','learn']){
@@ -1443,18 +1448,19 @@ function initStickyCommand(){
 }
 
 function activateWorkspace(view,scrollPage=false){
- const allowed=new Set(['learn','setup','balance','factory','build']);
+ const allowed=new Set(['learn','setup','balance','logistics','factory','build']);
  if(!allowed.has(view))view='balance';
  document.body.dataset.workspace=view;
- const workspaceNames={learn:'Quick Guide',setup:'Factory & Balance · Inventory',balance:'Factory & Balance · Analysis',factory:'Plan & Build · Construction',build:'Plan & Build · Designer'};
+ const workspaceNames={learn:'Quick Guide',setup:'Factory & Balance · Inventory',balance:'Factory & Balance · Analysis',logistics:'Factory & Balance · Logistics',factory:'Plan & Build · Construction',build:'Plan & Build · Designer'};
  const workspaceLabel=document.getElementById('welcomeWorkspace');
  if(workspaceLabel)workspaceLabel.textContent=workspaceNames[view]||'Factory balance';
  document.querySelectorAll('.nav button').forEach(b=>{
-  const yes=b.dataset.view===(view==='factory'?'build':view==='balance'?'setup':view);b.classList.toggle('active',yes);
+  const yes=b.dataset.view===(view==='factory'?'build':(view==='balance'||view==='logistics')?'setup':view);b.classList.toggle('active',yes);
   if(yes)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
  });
  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===view));
  if(view==='balance')renderBalance();
+ if(view==='logistics')window.NauvisLogistics?.render?.();
  guideFocus=null;guideTopic='';if(document.getElementById('contextHelp'))updateGuideContext();
  const bar=document.querySelector('.nav'),active=document.querySelector('.nav button.active');
  if(bar&&active){const barRect=bar.getBoundingClientRect(),tabRect=active.getBoundingClientRect();const target=bar.scrollLeft+(tabRect.left-barRect.left)-(bar.clientWidth-tabRect.width)/2;bar.scrollLeft=Math.max(0,Math.min(bar.scrollWidth-bar.clientWidth,target))}
@@ -1463,7 +1469,7 @@ function activateWorkspace(view,scrollPage=false){
  if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>{const c=document.querySelector('.command-chrome');if(c)document.documentElement.style.setProperty('--chrome-height',Math.ceil(c.getBoundingClientRect().height)+'px')});
 }
 function init(){el('balanceIncludeGoal').addEventListener('change',e=>{balancePrefs.includeGoal=e.target.checked;try{localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs))}catch(_e){}window.NauvisCloud?.changed();renderBalance()});el('balanceEditSetup').addEventListener('click',()=>activateWorkspace('setup',true));el('allRecipes').innerHTML=[...new Set(allOrder.filter(x=>R[x]))].map(k=>`<option value="${k}">${R[k][0]}</option>`).join('');el('allRecipes').addEventListener('change',e=>setGoal(e.target.value));el('goalNumber').addEventListener('change',e=>{guide.rate=Math.min(25000,Math.max(0,Number(e.target.value)||0));renderGuide()});for(const [id,key] of [['assemblyTier','machine'],['sourceMode','source'],['beltTier','belt']])el(id).addEventListener('change',e=>{guide[key]=key==='source'?e.target.value:Number(e.target.value);renderGuide()});document.querySelectorAll('.nav button').forEach(btn=>btn.addEventListener('click',()=>activateWorkspace(btn.dataset.view==='build'?(window.NauvisWorkspace?.lastPlanMode?.()||'build'):btn.dataset.view==='setup'?(window.NauvisWorkspace?.lastFactoryMode?.()||'setup'):btn.dataset.view,true)));
- el('exportButton').addEventListener('click',()=>{const data=JSON.stringify({version:7,plan:factory,guide,setup,balancePrefs},null,2),u=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='nauvis-plan.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)});el('importButton').addEventListener('click',()=>el('importFile').click());el('importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const r=JSON.parse(await file.text());if(r.plan&&typeof r.plan.redBlocks==='number'){Object.assign(factory,blankDistrict,r.plan,{checked:{...(r.plan.checked||{})}});if(r.guide&&R[r.guide.goal])Object.assign(guide,r.guide);factory.projects=Array.isArray(factory.projects)?factory.projects:[];if(r.setup){Object.assign(setup.smelt,blankSmelt,r.setup.smelt||{});Object.assign(setup.oil,blankOil,r.setup.oil||{});setup.machines=Array.isArray(r.setup.machines)?r.setup.machines:[];setup.feeds=Array.isArray(r.setup.feeds)?r.setup.feeds:[];setup.assets=Array.isArray(r.setup.assets)?r.setup.assets:[];if(r.balancePrefs){balancePrefs.includeGoal=!!r.balancePrefs.includeGoal;localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs));el('balanceIncludeGoal').checked=balancePrefs.includeGoal}window.NauvisJournal?.refreshBaseline?.();saveSetup();renderSetup();}}else if(typeof r.redBlocks==='number'){Object.assign(factory,fd,r,{checked:{...(r.checked||{})}})}else throw Error('Not a dashboard backup');save();renderGuide();renderFactory();window.NauvisProjects?.refresh();window.NauvisJournal?.refreshBaseline?.();window.NauvisJournal?.render?.();window.NauvisWorkspace?.refresh?.();window.NauvisQuick?.invalidate();alert('Your plan was imported.')}catch(err){alert('Could not import plan: '+err.message)}e.target.value=''});el('resetButton').addEventListener('click',handleFactorySettingsReset);
+ el('exportButton').addEventListener('click',()=>{const data=JSON.stringify({version:7,plan:factory,guide,setup,balancePrefs},null,2),u=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='nauvis-plan.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)});el('importButton').addEventListener('click',()=>el('importFile').click());el('importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const r=JSON.parse(await file.text());if(r.plan&&typeof r.plan.redBlocks==='number'){Object.assign(factory,blankDistrict,r.plan,{checked:{...(r.plan.checked||{})}});if(r.guide&&R[r.guide.goal])Object.assign(guide,r.guide);factory.projects=Array.isArray(factory.projects)?factory.projects:[];if(r.setup){Object.assign(setup.smelt,blankSmelt,r.setup.smelt||{});Object.assign(setup.oil,blankOil,r.setup.oil||{});setup.machines=Array.isArray(r.setup.machines)?r.setup.machines:[];setup.feeds=Array.isArray(r.setup.feeds)?r.setup.feeds:[];setup.assets=Array.isArray(r.setup.assets)?r.setup.assets:[];if(r.setup.logistics)setup.logistics=r.setup.logistics;else delete setup.logistics;window.NauvisLogistics?.invalidate?.();if(r.balancePrefs){balancePrefs.includeGoal=!!r.balancePrefs.includeGoal;localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs));el('balanceIncludeGoal').checked=balancePrefs.includeGoal}window.NauvisJournal?.refreshBaseline?.();saveSetup();renderSetup();}}else if(typeof r.redBlocks==='number'){Object.assign(factory,fd,r,{checked:{...(r.checked||{})}})}else throw Error('Not a dashboard backup');save();renderGuide();renderFactory();window.NauvisProjects?.refresh();window.NauvisJournal?.refreshBaseline?.();window.NauvisJournal?.render?.();window.NauvisWorkspace?.refresh?.();window.NauvisQuick?.invalidate();alert('Your plan was imported.')}catch(err){alert('Could not import plan: '+err.message)}e.target.value=''});el('resetButton').addEventListener('click',handleFactorySettingsReset);
  renderGuide();renderFactory();initSetup();activateWorkspace("balance");initStickyCommand();initGuide();}
 window.nauvisTest=(id,target,source='bus')=>{const prev=guide.source;guide.source=source;const output=calculate(id,target);guide.source=prev;return output};
 init();
@@ -1485,6 +1491,8 @@ window.NauvisLocal={
    setup.machines=Array.isArray(data.setup.machines)?data.setup.machines:[];
    setup.feeds=Array.isArray(data.setup.feeds)?data.setup.feeds:[];
    setup.assets=Array.isArray(data.setup.assets)?data.setup.assets:[];
+   if(data.setup.logistics)setup.logistics=data.setup.logistics;else delete setup.logistics;
+   window.NauvisLogistics?.invalidate?.();
    balancePrefs.includeGoal=!!data.balancePrefs?.includeGoal;
    el('balanceIncludeGoal').checked=balancePrefs.includeGoal;
    localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs));
@@ -1503,6 +1511,7 @@ window.NauvisLocal={
 <script src="./machine-upgrades.js" defer></script>
 <script src="./factory-reset.js" defer></script>
 <script src="./workspace-ui.js" defer></script>
+<script src="./logistics.js" defer></script>
 <script>if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));</script>
 </body>
 </html>
