@@ -167,7 +167,7 @@ function buildView(result,card){
     '<div class="ratio-why-detail">'+
     '<p><b>Recipe:</b> '+number(x.craftSeconds)+' s per craft produces '+number(x.outputPerCraft)+' '+escape(x.name)+'; consumes '+pieces+'.</p>'+
     (x.productivityBonus?'<p><b>Productivity:</b> +'+number(x.productivityBonus*100)+'% expected output per craft, reducing ingredients per finished item.</p>':'')+
-    '<p><b>Machine profile:</b> '+x.moduleApplied+' / '+x.moduleSlots+' compatible module slots; '+precision(x.qualityFactor)+'× quality speed factor; '+(x.beaconSpeed?('+'+number(x.beaconSpeed)+'% beacon speed; '):'')+number(x.energyFactor*100)+'% of base module-adjusted electrical demand (without beacon electricity).</p>'+
+    '<p><b>Machine profile:</b> '+x.moduleApplied+' / '+x.moduleSlots+' compatible module slots; '+precision(x.qualityFactor)+'× quality speed factor; '+(x.beaconSpeed?('+'+number(x.beaconSpeed)+'% beacon speed; '):'')+number(x.energyFactor*100)+'% base electrical-demand multiplier from installed machine modules only (excludes beacon-transmitted energy effects and beacon power).</p>'+
     '<p><b>Required output:</b> '+descriptionForRate(x)+'</p>'+
     '<p><b>Per-machine output:</b> '+method+'.</p>'+
     '<p><b>Machine equivalents:</b> '+ratioInfo+'. Round up to <strong>'+x.count+'</strong> whole '+machineName(x.kind)+'.</p>'+
