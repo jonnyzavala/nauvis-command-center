@@ -130,5 +130,5 @@ test('asset register and deployment controls are in existing three-tab app, not 
 test('no Supabase migration; optional assets reside in existing Factory snapshot and precache offline',()=>{
  assert.match(html,/snapshot\(\)\{return JSON\.parse\(JSON\.stringify\(\{version:7,plan:factory,guide,setup,balancePrefs\}\)\)\}/);
  for(const file of ['inventory-assets.js','factory-reset.js','inventory-v027.css'])assert.ok(sw.includes("'./"+file+"'"),file);
- assert.match(sw,/nauvis-shell-v027/);assert.match(html,/Nauvis Command Center v0\.27/);
+ assert.match(sw,/nauvis-shell-v028/);assert.match(html,/Nauvis Command Center v0\.28/);
 });
