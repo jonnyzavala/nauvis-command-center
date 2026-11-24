@@ -14,7 +14,7 @@ const end=html.indexOf('<section class="view active" id="balance">',start);
 const build=html.slice(start,end);
 
 test('the unified fourth tab opens blueprint designer',()=>{
- assert.equal((html.match(/<button data-view=/g)||[]).length,4,'Exactly four navigation destinations');
+ assert.equal((html.match(/<button data-view=/g)||[]).length,3,'Exactly three navigation destinations');
  assert.match(html,/<button data-view="build"[^>]*>[\s\S]*?Plan &amp; Build<\/button>/);
  assert.match(html,/build:'Plan & Build · Designer'/);
 });
