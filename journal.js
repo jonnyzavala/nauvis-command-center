@@ -43,6 +43,24 @@ function summarizeSetupDelta(before,after){
    projectId:one.projectId||null
   });
  }
+ const oldAssets=new Map((Array.isArray(before.assets)?before.assets:[]).filter(x=>x?.id).map(x=>[x.id,x]));
+ const newAssets=new Map((Array.isArray(after.assets)?after.assets:[]).filter(x=>x?.id).map(x=>[x.id,x]));
+ for(const id of new Set([...oldAssets.keys(),...newAssets.keys()])){
+  const old=oldAssets.get(id),now=newAssets.get(id),a=now||old;
+  const delta=(now?.count||0)-(old?.count||0);
+  if(delta!==0){
+   events.push({type:'asset',source:'Factory',recipe:a.recipe,
+    title:(delta>0?'Added ':'Removed ')+Math.abs(delta)+' placed '+name(a.recipe),
+    detail:(a.area||'Nauvis')+' · '+(a.category||'Infrastructure')+
+     (a.projectId?' · linked deployment':' · manual record')+
+     (a.verified?' · verified in-game':' · not verified'),
+    delta,before:old?.count||0,after:now?.count||0,projectId:a.projectId||null});
+  }else if(JSON.stringify(old||null)!==JSON.stringify(now||null)){
+   events.push({type:'asset',source:'Factory',recipe:a.recipe,title:'Updated '+name(a.recipe)+' infrastructure record',
+    detail:(a.area||'Nauvis')+' · '+(a.verified?'verified':'unverified')+' · '+(a.note||'no note'),
+    before:old?.count??null,after:now?.count??null,projectId:a.projectId||null});
+  }
+ }
  const fa=JSON.stringify(before.feeds||[]),fb=JSON.stringify(after.feeds||[]);
  if(fa!==fb)events.push({type:'routing',title:'Updated belt routing',detail:'Recorded belt resources, counts, or destinations changed.',source:'Factory',before:before.feeds?.length||0,after:after.feeds?.length||0});
  const keys=[['smelt','Smelting settings'],['oil','Oil processing settings']];

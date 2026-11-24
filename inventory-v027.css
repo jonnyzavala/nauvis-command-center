@@ -1,0 +1,78 @@
+/* NAUVIS v0.27 · placed infrastructure ledger, deployments and guarded data-only reset. */
+.asset-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:13px 0}
+.asset-stat{border:1px solid #4f7184;border-radius:11px;background:#152b3b;padding:11px}
+.asset-stat b{font-size:22px;color:#ed91aa;display:block;font-variant-numeric:tabular-nums}
+.asset-stat small{color:#b5cad9;font-size:10px;line-height:1.3}
+.asset-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:12px}
+.asset-row{min-width:0;display:grid;gap:9px;border:1px solid #516e82;border-top:3px solid #ed91aa;border-radius:13px;background:linear-gradient(150deg,#223647,#142939);padding:13px;box-shadow:0 5px 15px #06111c3a}
+.asset-heading{display:flex;align-items:center;gap:9px}
+.asset-heading>div{min-width:0;flex:1}
+.asset-heading strong{display:block;color:#f1f6fa;font-size:13px;font-weight:850;overflow-wrap:anywhere}
+.asset-heading small{display:block;color:#afc4d3;font-size:10px}
+.asset-verified{font-size:9px;letter-spacing:.07em;color:#bcf9e2;border:1px solid #548f78;background:#214b45;padding:5px 6px;border-radius:7px;font-weight:900}
+.asset-warning{font-size:11px;color:#ffd69b;border-left:2px solid #f1b86e;padding:4px 9px;margin:0;background:#493e333d}
+.asset-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.asset-fields label,.asset-note-label{min-width:0;font-size:10px;font-weight:800;color:#b9d3df;display:grid;gap:4px}
+.asset-fields input,.asset-fields select,.asset-note-label input{
+ width:100%;min-height:38px;min-width:0;border-radius:8px;border:1px solid #53718a;
+ padding:8px 9px;color:#e8f3f9;background:#152a3c;font:inherit;font-size:12px;
+}
+.asset-fields :disabled{opacity:.6}
+.asset-row-actions{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.asset-check{display:inline-flex;align-items:center;gap:7px;font-size:11px;color:#d6eeed}
+.asset-check input{accent-color:#6ce0d1;width:18px;height:18px}
+.asset-row-actions button{border-radius:8px;border:1px solid #976b72;background:#493039;color:#ffd5d9;padding:8px 10px;min-height:36px;font-weight:800;font-size:11px}
+.asset-linked-hint{font-size:10px;color:#9acfc8}
+.asset-empty{grid-column:1/-1;color:#bacbd9;font-size:12px;border:1px dashed #657a91;border-radius:12px;padding:18px;background:#192d3d}
+.asset-toolbar{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}
+.asset-toolbar button{min-height:40px}
+.deployment-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.deployment-btn{background:linear-gradient(140deg,#205951,#164341)!important;border-color:#65c9b1!important}
+.factory-deployment-dialog{
+ width:min(530px,calc(100vw - 20px));max-height:calc(100dvh - 30px);
+ border:1px solid #6abdae;border-radius:16px;padding:19px;color:#eaf8f7;
+ background:linear-gradient(145deg,#1e3e43,#122a36);
+ box-shadow:0 24px 66px #04131bbc;overflow-y:auto;
+}
+.factory-deployment-dialog::backdrop{background:#020a13bc;backdrop-filter:blur(5px)}
+.factory-deployment-dialog h2{font-size:19px;margin:0 0 7px}
+.factory-deployment-dialog p{color:#bdd4df;font-size:12px;line-height:1.45}
+.deployment-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:15px 0}
+.deployment-fields label,.factory-deployment-dialog form>label{display:grid;gap:6px;min-width:0;font-size:11px;font-weight:800;color:#cee7e3}
+.deployment-fields input,.deployment-fields select,.factory-deployment-dialog form>label input{
+ width:100%;min-height:45px;border:1px solid #5c928c;border-radius:9px;background:#0f2c36;
+ padding:9px 11px;color:#eafbf4;font:inherit;font-size:12px;
+}
+.deployment-help{border-left:3px solid #63c8b0;padding-left:10px}
+#deploymentError,#factoryResetError{color:#ffc4bd;font-size:12px}
+.factory-deployment-dialog .project-dialog-buttons{display:flex;align-items:center;justify-content:flex-end;gap:9px;margin-top:13px}
+.factory-deployment-dialog .project-dialog-buttons button{min-height:43px;border:1px solid #6faaa3;color:#f2fffc;background:#23584e;border-radius:9px;font-size:12px;padding:10px 15px;font-weight:850}
+.factory-deployment-dialog .project-dialog-buttons button:disabled{opacity:.45;cursor:not-allowed}
+#factoryResetCommit{background:#8b343e;border-color:#e88d9c;color:#fff}
+.factory-reset-box{margin-top:18px;padding:14px;border:1px solid #a46d83;border-left:4px solid #ed91aa;border-radius:11px;background:linear-gradient(145deg,#3a2539,#202c3d)}
+.factory-reset-box h3{margin:0;color:#f8d6df;font-size:15px}
+.factory-reset-box p{font-size:11px;color:#d7c1d3;line-height:1.5}
+.factory-reset-box>button{display:block;margin:8px 0;min-height:41px;border:1px solid #bd8196;border-radius:9px;padding:9px 13px;font-weight:850;font-size:12px;background:#663a58;color:#fff0f8}
+.factory-reset-box>button:disabled{opacity:.36;cursor:not-allowed}
+.factory-reset-box label{display:flex;align-items:center;gap:9px;font-size:12px;color:#f1dbe1;margin:11px 0}
+.factory-reset-box input{width:20px;height:20px;accent-color:#ed91aa}
+.factory-reset-warning{color:#f0b5ba!important}
+#factoryResetStatus{color:#d7eae8;font-size:11px}
+@media(max-width:760px){
+ .asset-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .asset-stats{gap:6px}
+ .asset-stat{padding:9px}
+ .asset-stat b{font-size:19px}
+ .deployment-actions{width:100%}
+ .deployment-actions button{flex:1 1 180px}
+}
+@media(max-width:425px){
+ .asset-fields{grid-template-columns:minmax(0,1fr)}
+ .asset-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .deployment-fields{grid-template-columns:minmax(0,1fr)}
+ .factory-deployment-dialog{padding:14px}
+}
+
+/* Four compact inventory KPIs, without wasting the iPhone viewport. */
+#setup .workspace-overview-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:760px){#setup .workspace-overview-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}

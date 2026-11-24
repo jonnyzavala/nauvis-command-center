@@ -89,7 +89,7 @@ const colorFor=(recipe,kind)=>{
  if(typeof csscolor==='function'&&R?.[recipe])return csscolor(recipe,kind);
  return '#bba5e5';
 };
-const noun=kind=>kind==='asm'?'assemblers':kind==='chem'?'chemical plants':'furnaces';
+const noun=kind=>kind==='asm'?'assemblers':kind==='chem'?'chemical plants':kind==='asset'?'placed items':'furnaces';
 const fmt=n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:1});
 let pending=null,editing=null,showArchived=false,notice='';
 const reviewedOverlaps=new Set();
@@ -97,6 +97,9 @@ function matchingUnlinked(recipe,machine){
  const matches=(setup.machines||[]).filter(row=>!row.projectId&&row.recipe===recipe&&
    (R[recipe]?.[3]!=='asm'||Math.abs(Number(row.tier)-Number(machine))<1e-8));
  return matches.reduce((sum,row)=>sum+Math.max(0,Number(row.count)||0),0);
+}
+function matchingUnlinkedAssets(recipe,area){
+ return (setup.assets||[]).filter(a=>!a.projectId&&a.recipe===recipe&&(a.area||'Nauvis')===(area||'Nauvis')).reduce((n,a)=>n+Math.max(0,Number(a.count)||0),0);
 }
 function allProjects(){return normalizeProjects(factory.projects)}
 function setProjects(projects,event){
@@ -125,17 +128,18 @@ function projectHTML(p){
  const progress=projectProgress(p),pct=progress.planned?Math.round(100*progress.built/progress.planned):0;
  const archived=p.status==='archived';
  const lineItems=p.tasks.map(task=>{
-  const saved=recordedForTask(p,task,setup.machines);
+  const isAsset=task.kind==='asset';
+  const saved=recordedForTask(p,task,isAsset?setup.assets:setup.machines);
   const color=colorFor(task.recipe,task.kind);
   const mismatch=saved.mismatch||saved.count!==task.built;
   const cannotRecord=task.kind==='furnace';
-  const possibleDuplicates=matchingUnlinked(task.recipe,p.goal.machine);
+  const possibleDuplicates=isAsset?matchingUnlinkedAssets(task.recipe,p.goal.area):matchingUnlinked(task.recipe,p.goal.machine);
   return '<div class="project-task" style="--project-task-accent:'+color+'">'+
    '<div class="project-task-identity"><span class="project-task-led" aria-hidden="true"></span>'+itemGlyph(task.recipe,32)+'<div><strong>'+escape(R[task.recipe]?.[0]||task.recipe)+'</strong><small>'+escape(noun(task.kind))+' · '+task.planned+' planned'+(task.kind==='asm'?' · Assembler '+(p.goal.machine===1.25?'3':'2'):'')+'</small></div></div>'+
    '<div class="project-task-controls"><button type="button" data-project-minus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Mark one fewer '+escape(task.recipe)+' built" '+(archived||task.built<=0||mismatch?'disabled':'')+'>−</button>'+
-   '<span class="project-task-counter"><b>'+task.built+'</b><small>/ '+task.planned+' built</small></span>'+
+   '<span class="project-task-counter"><b>'+task.built+'</b><small>/ '+task.planned+(isAsset?' placed':' built')+'</small></span>'+
    '<button type="button" data-project-plus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Mark one more '+escape(task.recipe)+' built" '+(archived||task.built>=task.planned||mismatch||cannotRecord?'disabled':'')+'>+</button></div>'+
-   '<div class="project-task-foot"><span class="project-task-recorded">'+saved.count+' in Factory · linked to this project</span>'+
+   '<div class="project-task-foot"><span class="project-task-recorded">'+saved.count+(isAsset?' deployed in Factory':' in Factory')+' · linked to this project</span>'+
    (mismatch?'<span class="project-task-warning">Factory and project counts differ. Review the linked line in Factory.</span>':
     cannotRecord?'<span class="project-task-warning">Save a bus-fed project to record machines automatically.</span>':
     possibleDuplicates?'<span class="project-task-warning">Check for duplicates: '+possibleDuplicates+' matching unlinked machines already in Factory.</span>':'')+
@@ -143,12 +147,13 @@ function projectHTML(p){
  }).join('');
  return '<article class="project-card" data-project-card="'+escape(p.id)+'" style="--project-card-accent:'+colorFor(p.goal.id,'asm')+'">'+
   '<div class="project-card-top"><span class="project-card-icon" aria-hidden="true">'+itemGlyph(p.goal.id,34)+'</span>'+
-  '<div class="project-card-intro"><h3>'+escape(p.name)+'</h3><p>'+escape(R[p.goal.id]?.[0]||p.goal.id)+' · '+fmt(p.goal.rate)+'/min · '+(p.goal.source==='bus'?'Bus fed':'Raw inputs')+'</p></div>'+
+  '<div class="project-card-intro"><h3>'+escape(p.name)+'</h3><p>'+escape(R[p.goal.id]?.[0]||p.goal.id)+
+ (p.type==='deployment'?' · '+escape(p.goal.area||'Nauvis')+' · deployment':' · '+fmt(p.goal.rate)+'/min · '+(p.goal.source==='bus'?'Bus fed':'Raw inputs'))+'</p></div>'+
   '<span class="project-card-status">'+(archived?'ARCHIVED':pct===100?'BUILT':'IN PROGRESS')+'</span></div>'+
-  '<div class="project-card-progress"><div class="project-card-progress-top"><strong>'+progress.built+' / '+progress.planned+' machines built</strong><span>'+pct+'%</span></div>'+
+  '<div class="project-card-progress"><div class="project-card-progress-top"><strong>'+progress.built+' / '+progress.planned+(p.type==='deployment'?' items placed':' machines built')+'</strong><span>'+pct+'%</span></div>'+
   '<div class="project-progress-track"><span style="width:'+pct+'%"></span></div></div>'+
-  '<details class="project-task-details"><summary>Machine checklist <span>'+progress.complete+' / '+progress.tasks+' recipes complete</span></summary><div class="project-task-list">'+lineItems+'</div></details>'+
-  '<div class="project-card-actions"><button type="button" data-project-visit="'+escape(p.id)+'">Open in Planner</button>'+
+  '<details class="project-task-details"><summary>'+(p.type==='deployment'?'Placement checklist':'Machine checklist')+' <span>'+progress.complete+' / '+progress.tasks+' groups complete</span></summary><div class="project-task-list">'+lineItems+'</div></details>'+
+  '<div class="project-card-actions"><button type="button" data-project-visit="'+escape(p.id)+'">'+(p.type==='deployment'?'View placed inventory':'Open in Planner')+'</button>'+
   '<button type="button" data-project-rename="'+escape(p.id)+'">Rename</button>'+
   '<button type="button" data-project-archive="'+escape(p.id)+'">'+(archived?'Restore':'Archive')+'</button></div>'+
  '</article>';
@@ -157,7 +162,7 @@ function render(){
  factory.projects=normalizeProjects(factory.projects);
  const total=stats(),legacy=legacyStats();
  if($('projectsSummary'))$('projectsSummary').innerHTML=[
-  [total.active,'ACTIVE PROJECTS'],[total.planned,'MACHINES PLANNED'],[total.built,'MACHINES BUILT'],[total.archived,'ARCHIVED']
+  [total.active,'ACTIVE PROJECTS'],[total.planned,'QUANTITY PLANNED'],[total.built,'BUILT / PLACED'],[total.archived,'ARCHIVED']
  ].map(([n,label])=>'<div class="project-stat"><strong>'+fmt(n)+'</strong><small>'+label+'</small></div>').join('');
  if($('projectsLegacyStatus'))$('projectsLegacyStatus').textContent=legacy.done+'/'+legacy.total+' construction milestones complete';
  if($('projectsLegacyFill'))$('projectsLegacyFill').style.width=(legacy.total?Math.min(100,legacy.done/legacy.total*100):0)+'%';
@@ -209,35 +214,39 @@ function saveDialog(event){
 }
 function updateBuilt(id,recipe,delta){
  const project=selectedProject(id);if(!project)return;
+ const task=project.tasks.find(t=>t.recipe===recipe);if(!task)return;
+ const isAsset=task.kind==='asset';
  try{
-  const overlap=matchingUnlinked(recipe,project.goal.machine);
+  const overlap=isAsset?matchingUnlinkedAssets(recipe,project.goal.area):matchingUnlinked(recipe,project.goal.machine);
   const overlapKey=id+'|'+recipe;
   if(delta>0&&overlap>0&&!reviewedOverlaps.has(overlapKey)){
-   const msg=overlap+' matching '+(R[recipe]?.[0]||recipe)+' machines are already recorded in Factory without a project link.\n\n'+
-    'Are you certain this is a NEW machine that is not already counted in that inventory? This action adds another machine to your Factory totals.';
+   const msg=overlap+' matching '+(R[recipe]?.[0]||recipe)+' '+(isAsset?'placed structures':'machines')+
+    ' already exist in Factory as manual records.\n\n'+
+    'Are you certain this is a NEW '+(isAsset?'placed structure':'machine')+' that is not already counted?';
    if(!root.confirm(msg))return;
    reviewedOverlaps.add(overlapKey);
   }
-  const change=applyBuildDelta(project,recipe,delta,setup.machines);
+  const change=isAsset?root.NauvisAssets?.applyBuildDelta?.(project,recipe,delta,setup.assets):
+   applyBuildDelta(project,recipe,delta,setup.machines);
+  if(!change)throw Error('Infrastructure inventory is not ready.');
   const expanded=!!$('projectsList')?.querySelector('[data-project-card="'+id+'"] .project-task-details')?.open;
-  // Update the paired plan and the actual factory ledger before either save notification.
-  // Cloud snapshots will therefore always see both sides of the same adjustment.
+  // Update the paired project and exactly one actual inventory ledger before syncing.
   factory.projects=allProjects().map(p=>p.id===id?change.project:p);
-  setup.machines=change.rows;
-  const task=change.project.tasks.find(t=>t.recipe===recipe);
-  const unlinked=matchingUnlinked(recipe,project.goal.machine);
-  const item=R[recipe]?.[0]||recipe;
+  if(isAsset)setup.assets=change.rows;else setup.machines=change.rows;
+  const next=change.project.tasks.find(t=>t.recipe===recipe);
+  const name=R[recipe]?.[0]||recipe;
   root.NauvisJournal?.record?.({
    type:'construction',source:'Construction Queue',projectId:id,recipe,delta,
-   before:task.built-delta,after:task.built,
-   title:(delta>0?'Built +1 ':'Reversed −1 ')+item+' machine',
-   detail:project.name+' · '+(task.built-delta)+' → '+task.built+' built · Factory inventory updated once.'+
-     (unlinked&&delta>0?' Review '+unlinked+' unlinked '+item+' machines already recorded in Factory to avoid double-counting.':'')
+   before:next.built-delta,after:next.built,
+   title:(delta>0?(isAsset?'Placed +1 ':'Built +1 '):(isAsset?'Reversed placement −1 ':'Reversed −1 '))+name,
+   detail:project.name+' · '+(next.built-delta)+' → '+next.built+(isAsset?' deployed':' built')+
+    ' · '+(isAsset?'Factory infrastructure ledger':'Factory production-machine inventory')+' updated once.'+
+    (overlap&&delta>0?' Review '+overlap+' existing unlinked '+name+' records for possible duplicate entry.':'')
   });
   saveSetup();save();renderSetup();
-  notice=delta>0?'Built 1 machine and recorded it in Factory and the journal. Verify its destination under Factory.':
-   'Reversed 1 built machine in both Factory and your journal.';
-  render();
+  notice=delta>0?(isAsset?'Recorded one placed '+name+' in infrastructure and the journal.':'Built one '+name+' machine and updated Factory and the journal.'):
+   'Reversed one recorded item in both Factory and the journal.';
+  render();root.NauvisAssets?.render?.();
   if(expanded){
    const detail=$('projectsList')?.querySelector('[data-project-card="'+id+'"] .project-task-details');
    if(detail)detail.open=true;
@@ -246,6 +255,11 @@ function updateBuilt(id,recipe,delta){
 }
 function navigateToPlan(id){
  const project=selectedProject(id);if(!project)return;
+ if(project.type==='deployment'){
+  activateWorkspace('setup',true);
+  root.NauvisWorkspace?.jump?.('setup','#setupAssetsPanel');
+  return;
+ }
  const goal=project.goal;
  guide.goal=goal.id;guide.rate=goal.rate;guide.machine=goal.machine;guide.source=goal.source;guide.belt=goal.belt;
  renderGuide();
@@ -254,7 +268,40 @@ function navigateToPlan(id){
  if(explorer)explorer.open=true;
  root.NauvisRatioExplorer?.setGoal?.(goal);
 }
+function initializeDeployment(){
+ const pick=$('deploymentItem');if(!pick)return;
+ const preferred=root.NauvisAssets?.starterItems||[];
+ const all=[...new Set([...preferred,...allOrder])].filter(x=>R[x]);
+ pick.innerHTML=all.map(id=>'<option value="'+escape(id)+'">'+escape(R[id][0])+'</option>').join('');
+ pick.value=R['laser-turret']?'laser-turret':all[0];
+ $('projectsNewDeployment')?.addEventListener('click',()=>{
+  $('deploymentError').hidden=true;
+  $('deploymentDialog')?.showModal();
+ });
+ $('deploymentCancel')?.addEventListener('click',()=>$('deploymentDialog')?.close());
+ $('deploymentForm')?.addEventListener('submit',event=>{
+  event.preventDefault();
+  try{
+   const item=pick.value;
+   const project=root.NauvisAssets?.createProject?.(
+    $('deploymentName').value,item,Number($('deploymentCount').value),
+    uniqueId(),$('deploymentArea').value
+   );
+   if(!project)throw Error('Infrastructure project handler unavailable.');
+   setProjects([...allProjects(),project],{
+    type:'project',source:'Construction Queue',recipe:item,projectId:project.id,
+    title:'Planned infrastructure deployment',detail:project.name+' · '+project.tasks[0].planned+
+     ' '+(R[item]?.[0]||item)+' to place in '+project.goal.area+'. No Factory counts changed.'
+   });
+   $('deploymentDialog').close();
+   $('deploymentName').value='';
+   notice='Created '+project.name+'. Mark structures placed only after they exist in-game.';
+   render();activateWorkspace('factory',true);
+  }catch(err){$('deploymentError').textContent=err.message;$('deploymentError').hidden=false}
+ });
+}
 function attachEvents(){
+ initializeDeployment();
  $('projectsSaveForm')?.addEventListener('submit',saveDialog);
  $('projectsDialogClose')?.addEventListener('click',()=>{$('projectsDialog').close();editing=null;pending=null});
  $('projectsArchivedWrapper')?.addEventListener('toggle',event=>{showArchived=event.target.open});

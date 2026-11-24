@@ -606,6 +606,7 @@ body[data-workspace="build"]{
 <link rel="stylesheet" href="./item-icons.css" />
 <link rel="stylesheet" href="./workspace-v025.css" />
 <link rel="stylesheet" href="./preset-v026.css" />
+<link rel="stylesheet" href="./inventory-v027.css" />
 </head>
 <body data-workspace="balance">
 <div class="shell">
@@ -617,7 +618,7 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.26 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.27 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory &amp; Balance</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Plan &amp; Build</button></div></nav>
  </div>
@@ -696,6 +697,14 @@ body[data-workspace="build"]{
   <div class="ratio-content"></div>
  </details>
   </section>
+  <section class="section panel" id="setupAssetsPanel">
+   <div class="section-head"><h2><span class="step">4</span> Infrastructure &amp; deployed equipment</h2><span class="small">Physical structures and installed items, separate from producing assemblers</span></div>
+   <p class="setup-hintbar">Track the things actually placed in your world: mining drills, accumulators, solar panels, turrets, roboports, modules and other infrastructure. An assembler producing accumulators belongs above; the accumulators you've installed belong here.</p>
+   <div id="setupAssetStats" class="asset-stats"></div>
+   <div id="setupAssetRows" class="asset-grid"></div>
+   <div class="asset-toolbar"><button type="button" id="assetAdd" class="btn">+ Add placed infrastructure</button><button type="button" class="btn ghost" id="assetExpandItems">Show all items</button></div>
+   <p class="small">These are inventory counts for installed objects. They're not additional production lines or measured power statistics. Project-linked counts can only change from the Construction Queue.</p>
+  </section>
   <section class="section panel" id="setupBeltsPanel"><div class="section-head"><h2><span class="step">4</span> Other bus and feeder belts</h2><span class="small">Add what you physically connected</span></div>
     <div class="setup-hintbar">Iron, copper, steel and bricks are calculated above. Add plastic, coal, stone, circuit belts, or other feeds here. Belt capacity is not proof that the upstream factory produces that much.</div>
     <div id="setupFeedRows" class="setup-rows" style="margin-top:12px"></div>
@@ -706,13 +715,23 @@ body[data-workspace="build"]{
     <div id="setupComparison"></div>
     <div class="notice warn" style="margin-top:12px">Existing machines assigned to blue science, robots, or the military mall are <b>not spare machines</b>. Only lines marked “Available for new build” are considered reusable. Shared raw materials can still be bottlenecks.</div>
   </section>
-  <div class="section panel" id="setupStorePanel"><div class="section-head"><h2>Keep this inventory</h2></div><button class="btn" type="button" id="setupExample">Show a six-belt / two-to-steel example</button><button class="btn ghost" type="button" id="setupRestore" style="margin-left:8px">Restore reported smelting layout</button><p class="small">These values are saved locally in your browser. Use the export control under Construction Queue → Original circuit district to back up everything, including this inventory.</p></div>
+  <div class="section panel" id="setupStorePanel"><div class="section-head"><h2>Keep this inventory</h2></div><button class="btn" type="button" id="setupExample">Show a six-belt / two-to-steel example</button><button class="btn ghost" type="button" id="setupRestore" style="margin-left:8px">Restore reported smelting layout</button><p class="small">These values are saved locally first and included in your synced NAUVIS snapshot. Use the backup controls below before replacing old counts.</p>
+  <div class="factory-reset-box">
+   <h3>Data-only Fresh Start</h3>
+   <p>Keep all app functions, saved blueprint designs, preferences, cloud pairing, and Activity Journal. Clear only the recorded active Factory inventory and reset Construction's built progress.</p>
+   <button type="button" id="factoryBackupBtn">1. Download complete JSON backup</button>
+   <label><input type="checkbox" id="factoryBackupConfirmed" disabled> 2. I have saved the downloaded backup file</label>
+   <button type="button" id="factoryResetLaunch" disabled>3. Clear active Factory inventory…</button>
+   <p class="factory-reset-warning">This zeroes production lines, smelting, oil counts, belts, placed infrastructure, and project built counts. It also syncs the new empty inventory to your paired devices. Your historical backup, journal, and blueprint designs are preserved.</p>
+   <p id="factoryResetStatus" role="status"></p>
+  </div>
+ </div>
  </section>
 
  <section class="view" id="factory">
   <div class="hero"><div class="eyebrow">CONSTRUCTION MODE · TEAL BLUEPRINT</div><h1>Construction Queue</h1><p>Save designs from Blueprint Designer, track machines as you build them, and update actual Factory inventory in the same action. Your original circuit district remains available below.</p></div>
   <section id="projectsOverview" class="section projects-overview">
-   <div class="projects-toolbar"><div><h2>Your construction pipeline</h2><p>One built-machine action updates your project and Factory together.</p></div><button type="button" id="projectsGoPlanner" class="projects-action">+ Plan another build</button></div>
+   <div class="projects-toolbar"><div><h2>Your construction pipeline</h2><p>One built-machine action updates your project and Factory together.</p></div><div class="deployment-actions"><button type="button" id="projectsGoPlanner" class="projects-action">+ Plan another production line</button><button type="button" id="projectsNewDeployment" class="projects-action deployment-btn">+ Track infrastructure deployment</button></div></div>
    <div id="projectsSummary" class="projects-summary" aria-label="Project status summary"></div>
    <p id="projectsNotice" role="status" hidden></p>
   </section>
@@ -761,6 +780,30 @@ body[data-workspace="build"]{
   <div class="section panel"><h2>Before upgrading a belt</h2><div style="display:grid;gap:12px"><div><div class="inline"><b>Yellow</b><b>900/min</b></div><div class="track"><div style="width:33.333%;background:#e9bd61"></div></div></div><div><div class="inline"><b>Red</b><b>1,800/min</b></div><div class="track"><div style="width:66.666%;background:#e67b78"></div></div></div><div><div class="inline"><b>Blue</b><b>2,700/min</b></div><div class="track"><div style="width:100%;background:#76b3e2"></div></div></div></div><p class="small">If your furnaces produce only 700 plates/min, any of these belts will still carry only 700. Upgrade when the belt is saturated, not just because you've researched the next color.</p></div>
  </section>
  </main>
+<dialog id="factoryResetDialog" class="factory-deployment-dialog" aria-labelledby="factoryResetTitle">
+ <form id="factoryResetForm">
+  <h2 id="factoryResetTitle">Confirm data-only Factory reset</h2>
+  <p>All existing production, infrastructure, and routing records in this factory will be replaced with zero/empty values on this device and, after synchronization, paired devices. Project designs and journal history stay intact. This cannot be undone without importing your backup.</p>
+  <label>Type <strong>RESET FACTORY</strong> to confirm<input type="text" id="factoryResetPhrase" autocomplete="off" placeholder="RESET FACTORY" required></label>
+  <p id="factoryResetError" role="alert"></p>
+  <div class="project-dialog-buttons"><button type="button" id="factoryResetCancel">Cancel</button><button type="submit" id="factoryResetCommit" disabled>Clear recorded Factory data</button></div>
+ </form>
+</dialog>
+<dialog id="deploymentDialog" class="factory-deployment-dialog" aria-labelledby="deploymentDialogTitle">
+ <form id="deploymentForm">
+  <h2 id="deploymentDialogTitle">New infrastructure deployment</h2>
+  <p>Plan how many structures or items you'll physically place. No Factory counts change until you mark them placed in Construction Queue.</p>
+  <div class="deployment-fields">
+   <label>Project name<input type="text" id="deploymentName" maxlength="80" placeholder="North wall laser defenses" required></label>
+   <label>Item / structure<select id="deploymentItem" required></select></label>
+   <label>Quantity to place<input type="number" id="deploymentCount" min="1" max="1000000" step="1" value="10" required></label>
+   <label>Area / block<input type="text" id="deploymentArea" value="Nauvis" maxlength="80"></label>
+  </div>
+  <p class="deployment-help">If these structures are already entered in Factory, don't mark them newly placed again. The app will warn you about overlapping inventory.</p>
+  <p id="deploymentError" role="alert" hidden></p>
+  <div class="project-dialog-buttons"><button type="button" id="deploymentCancel">Cancel</button><button type="submit">Create deployment</button></div>
+ </form>
+</dialog>
 <dialog id="projectsDialog" aria-labelledby="projectsDialogTitle">
  <form id="projectsSaveForm">
   <h2 id="projectsDialogTitle">Save to Projects</h2>
@@ -828,7 +871,7 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v0.26 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.27 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script src="./item-icons.js"></script>
 <script src="./production-presets.js"></script>
@@ -1114,9 +1157,9 @@ function handleFactorySettingsReset(){
 
 // v0.6 Existing factory inventory. Kept separate from long-term planning state.
 const setupKey='nauvis-existing-v06';
-const setupSeed={smelt:{ironFurnaces:384,ironBelts:8,ironToSteel:4,steelFurnaces:192,steelBelts:1,copperFurnaces:192,copperBelts:4,brickFurnaces:0,brickBelts:0,furnaceSpeed:2,beltTier:1800},oil:{refineries:12,heavyCrackers:3,lightCrackers:11},machines:[],feeds:[]};
+const setupSeed={smelt:{ironFurnaces:384,ironBelts:8,ironToSteel:4,steelFurnaces:192,steelBelts:1,copperFurnaces:192,copperBelts:4,brickFurnaces:0,brickBelts:0,furnaceSpeed:2,beltTier:1800},oil:{refineries:12,heavyCrackers:3,lightCrackers:11},machines:[],feeds:[],assets:[]};
 const oldSetup=load(setupKey)||{};
-const setup={smelt:{...setupSeed.smelt,...(oldSetup.smelt||{})},oil:{...setupSeed.oil,...(oldSetup.oil||{})},machines:oldSetup.machines||[],feeds:oldSetup.feeds||[]};
+const setup={smelt:{...setupSeed.smelt,...(oldSetup.smelt||{})},oil:{...setupSeed.oil,...(oldSetup.oil||{})},machines:oldSetup.machines||[],feeds:oldSetup.feeds||[],assets:Array.isArray(oldSetup.assets)?oldSetup.assets:[]};
 const destinations=['Main bus','Blue science','Purple science','Yellow science','Robot factory','Military mall','Red circuits','Blue circuits','Storage','Available for new build','Other'];
 const itemsForSetup=allOrder.filter(k=>R[k]&&R[k][3]!=='furnace');
 const feedMaterials=[['plastic-bar','Plastic bars'],['coal','Coal'],['stone','Stone'],['electronic-circuit','Green circuits'],['advanced-circuit','Red circuits'],['processing-unit','Blue circuits'],['sulfur','Sulfur'],['battery','Batteries'],['solid-fuel','Solid fuel'],['low-density-structure','Low-density structures'],['iron-ore','Iron ore'],['copper-ore','Copper ore'],['iron-gear-wheel','Gears'],['engine-unit','Engines'],['other','Other resource']];
@@ -1216,7 +1259,7 @@ function renderSetupCompare(){const x=calculate(guide.goal,guide.rate),available
 }
 function renderSetupSummaryOnly(){renderSetupSmelting();renderSetupOil();renderSetupMachineSummary();renderSetupFeedSummary();renderSetupCompare();renderBalance()}
 function saveSetup(){window.NauvisJournal?.captureSetup?.();try{localStorage.setItem(setupKey,JSON.stringify(setup))}catch(e){};if(!window.NauvisCloudApplying)window.NauvisCloud?.changed()}
-function renderSetup(){renderSetupInputs();renderSetupMachines();renderSetupFeeds();renderSetupSummaryOnly()}
+function renderSetup(){renderSetupInputs();renderSetupMachines();renderSetupFeeds();renderSetupSummaryOnly();window.NauvisAssets?.render?.()}
 function initSetup(){
  document.querySelectorAll('#setup [data-smelt], #setup [data-oil]').forEach(inp=>inp.addEventListener('change',e=>{
   const which=inp.dataset.smelt?'smelt':'oil',field=inp.dataset.smelt||inp.dataset.oil;
@@ -1433,7 +1476,7 @@ function activateWorkspace(view,scrollPage=false){
  if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>{const c=document.querySelector('.command-chrome');if(c)document.documentElement.style.setProperty('--chrome-height',Math.ceil(c.getBoundingClientRect().height)+'px')});
 }
 function init(){el('balanceIncludeGoal').addEventListener('change',e=>{balancePrefs.includeGoal=e.target.checked;try{localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs))}catch(_e){}window.NauvisCloud?.changed();renderBalance()});el('balanceEditSetup').addEventListener('click',()=>activateWorkspace('setup',true));el('allRecipes').innerHTML=[...new Set(allOrder.filter(x=>R[x]))].map(k=>`<option value="${k}">${R[k][0]}</option>`).join('');el('allRecipes').addEventListener('change',e=>setGoal(e.target.value));el('goalNumber').addEventListener('change',e=>{guide.rate=Math.min(25000,Math.max(0,Number(e.target.value)||0));renderGuide()});for(const [id,key] of [['assemblyTier','machine'],['sourceMode','source'],['beltTier','belt']])el(id).addEventListener('change',e=>{guide[key]=key==='source'?e.target.value:Number(e.target.value);renderGuide()});document.querySelectorAll('.nav button').forEach(btn=>btn.addEventListener('click',()=>activateWorkspace(btn.dataset.view==='build'?(window.NauvisWorkspace?.lastPlanMode?.()||'build'):btn.dataset.view==='setup'?(window.NauvisWorkspace?.lastFactoryMode?.()||'setup'):btn.dataset.view,true)));
- el('exportButton').addEventListener('click',()=>{const data=JSON.stringify({version:7,plan:factory,guide,setup,balancePrefs},null,2),u=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='nauvis-plan.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)});el('importButton').addEventListener('click',()=>el('importFile').click());el('importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const r=JSON.parse(await file.text());if(r.plan&&typeof r.plan.redBlocks==='number'){Object.assign(factory,fd,r.plan,{checked:{...(r.plan.checked||{})}});if(r.guide&&R[r.guide.goal])Object.assign(guide,r.guide);factory.projects=Array.isArray(factory.projects)?factory.projects:[];if(r.setup){Object.assign(setup.smelt,setupSeed.smelt,r.setup.smelt||{});Object.assign(setup.oil,setupSeed.oil,r.setup.oil||{});setup.machines=r.setup.machines||[];setup.feeds=r.setup.feeds||[];if(r.balancePrefs){balancePrefs.includeGoal=!!r.balancePrefs.includeGoal;localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs));el('balanceIncludeGoal').checked=balancePrefs.includeGoal}window.NauvisJournal?.refreshBaseline?.();saveSetup();renderSetup();}}else if(typeof r.redBlocks==='number'){Object.assign(factory,fd,r,{checked:{...(r.checked||{})}})}else throw Error('Not a dashboard backup');save();renderGuide();renderFactory();window.NauvisProjects?.refresh();window.NauvisJournal?.refreshBaseline?.();window.NauvisJournal?.render?.();window.NauvisWorkspace?.refresh?.();window.NauvisQuick?.invalidate();alert('Your plan was imported.')}catch(err){alert('Could not import plan: '+err.message)}e.target.value=''});el('resetButton').addEventListener('click',handleFactorySettingsReset);
+ el('exportButton').addEventListener('click',()=>{const data=JSON.stringify({version:7,plan:factory,guide,setup,balancePrefs},null,2),u=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='nauvis-plan.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)});el('importButton').addEventListener('click',()=>el('importFile').click());el('importFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const r=JSON.parse(await file.text());if(r.plan&&typeof r.plan.redBlocks==='number'){Object.assign(factory,fd,r.plan,{checked:{...(r.plan.checked||{})}});if(r.guide&&R[r.guide.goal])Object.assign(guide,r.guide);factory.projects=Array.isArray(factory.projects)?factory.projects:[];if(r.setup){Object.assign(setup.smelt,setupSeed.smelt,r.setup.smelt||{});Object.assign(setup.oil,setupSeed.oil,r.setup.oil||{});setup.machines=Array.isArray(r.setup.machines)?r.setup.machines:[];setup.feeds=Array.isArray(r.setup.feeds)?r.setup.feeds:[];setup.assets=Array.isArray(r.setup.assets)?r.setup.assets:[];if(r.balancePrefs){balancePrefs.includeGoal=!!r.balancePrefs.includeGoal;localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs));el('balanceIncludeGoal').checked=balancePrefs.includeGoal}window.NauvisJournal?.refreshBaseline?.();saveSetup();renderSetup();}}else if(typeof r.redBlocks==='number'){Object.assign(factory,fd,r,{checked:{...(r.checked||{})}})}else throw Error('Not a dashboard backup');save();renderGuide();renderFactory();window.NauvisProjects?.refresh();window.NauvisJournal?.refreshBaseline?.();window.NauvisJournal?.render?.();window.NauvisWorkspace?.refresh?.();window.NauvisQuick?.invalidate();alert('Your plan was imported.')}catch(err){alert('Could not import plan: '+err.message)}e.target.value=''});el('resetButton').addEventListener('click',handleFactorySettingsReset);
  renderGuide();renderFactory();initSetup();activateWorkspace("balance");initStickyCommand();initGuide();}
 window.nauvisTest=(id,target,source='bus')=>{const prev=guide.source;guide.source=source;const output=calculate(id,target);guide.source=prev;return output};
 init();
@@ -1451,6 +1494,7 @@ window.NauvisLocal={
    Object.assign(setup.oil,setupSeed.oil,data.setup.oil||{});
    setup.machines=Array.isArray(data.setup.machines)?data.setup.machines:[];
    setup.feeds=Array.isArray(data.setup.feeds)?data.setup.feeds:[];
+   setup.assets=Array.isArray(data.setup.assets)?data.setup.assets:[];
    balancePrefs.includeGoal=!!data.balancePrefs?.includeGoal;
    el('balanceIncludeGoal').checked=balancePrefs.includeGoal;
    localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs));
@@ -1465,7 +1509,9 @@ window.NauvisLocal={
 <script src="./quick-add.js" defer></script>
 <script src="./ratio-flow.js" defer></script>
 <script src="./recipe-ratios.js" defer></script>
+<script src="./inventory-assets.js" defer></script>
 <script src="./projects.js" defer></script>
+<script src="./factory-reset.js" defer></script>
 <script src="./workspace-ui.js" defer></script>
 <script>if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));</script>
 </body>
