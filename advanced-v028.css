@@ -32,3 +32,52 @@
 .setup-machine-upgrades .setup-upgrade-note{font-size:10px;color:#a4c2d2;line-height:1.4;margin:6px 0 0}
 .setup-machine-upgrades summary:focus-visible,.ratio-advanced summary:focus-visible{outline:2px solid #78c8ff;outline-offset:2px}
 @media(max-width:560px){.ratio-advanced-fields,.setup-machine-upgrades .setup-upgrade-fields{grid-template-columns:minmax(0,1fr)}}
+
+/* v0.30: touch-friendly density and full-width machine profiles. */
+.setup-row{align-items:start;min-width:0}
+.setup-row>.setup-machine-upgrades{grid-column:1/-1;width:100%;min-width:0;margin:2px 0 0}
+.setup-machine-upgrades>summary{display:flex;align-items:center;justify-content:space-between;gap:9px;list-style:none;min-height:29px}
+.setup-machine-upgrades>summary::-webkit-details-marker{display:none}
+.setup-machine-upgrades>summary:after{content:"⌄";font-size:17px;color:#a4d6f9;flex:none}
+.setup-machine-upgrades[open]>summary:after{transform:rotate(180deg)}
+.setup-machine-upgrades>summary .small{margin-left:auto;font-size:11px;text-align:right}
+.setup-machine-upgrades .setup-upgrade-fields,.ratio-advanced-fields{grid-template-columns:repeat(2,minmax(0,1fr));align-items:end}
+.setup-machine-upgrades label{font-size:12px}
+.setup-machine-upgrades .setup-upgrade-note{font-size:11px}
+.setup-row>.slot{min-width:0}
+.setup-row>.slot input,.setup-row>.slot select{min-height:44px}
+.setup-row>.setup-machine-upgrades input,.setup-row>.setup-machine-upgrades select{font-size:16px;min-height:44px;padding:8px}
+#setupSmeltingInputs,#setupOilInputs{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+#setupSmeltingInputs .setup-input,#setupOilInputs .setup-input{min-width:0;padding:9px;gap:5px}
+#setupSmeltingInputs .setup-input label,#setupOilInputs .setup-input label{line-height:1.25;font-size:12px;min-height:2.5em}
+#setupSmeltingInputs .setup-input input,#setupOilInputs .setup-input input,#setupSmeltingInputs .setup-input select{min-height:44px;font-size:16px;padding:8px}
+#setupSmeltingInputs .hint{font-size:10px;line-height:1.25}
+#setupSmeltingInputs .setup-input:nth-child(3){grid-column:1/-1}
+.inventory-tool-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:stretch}
+.inventory-tool-actions .btn{margin:0;min-width:0;min-height:44px;padding:10px;font-size:12px;line-height:1.3}
+.ratio-header-left>span:nth-child(2){min-width:0;display:block}
+.ratio-header-title,.ratio-header-subtitle{display:block}
+.ratio-header-subtitle{margin-top:5px;line-height:1.4}
+.ratio-picker{display:grid;gap:7px}
+.ratio-picker select{width:100%;min-width:0;min-height:44px;background:#0f2030;color:#effaff;border:1px solid #527992;border-radius:10px;padding:8px;font-size:16px}
+.recipe-result-count{color:#b6cfdc;font-size:11px;margin:2px 0 6px}
+.recipe-result-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.recipe-result-grid button{display:flex;align-items:center;gap:7px;min-width:0;min-height:44px;padding:7px;text-align:left;background:#173143;border:1px solid #486c85;color:#eefaff;border-radius:8px;font-size:12px;line-height:1.2}
+.recipe-result-grid button span{min-width:0;overflow-wrap:anywhere}
+.recipe-result-grid button[aria-pressed="true"]{border-color:var(--workspace-accent);box-shadow:inset 0 0 0 1px var(--workspace-accent)}
+@media(max-width:760px){
+ .view.active>.hero{position:relative;top:auto;z-index:auto}
+ body.command-scrolled .view.active>.hero{margin:5px 0 12px}
+ #setup .section,#balance .section,#learn .section,#build .section,#factory .section{scroll-margin-top:calc(var(--chrome-height,130px) + 12px)}
+ .setup-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 36px;gap:8px}
+ .setup-row>.slot:first-child{grid-column:1/3}
+ .setup-row>.slot:nth-child(2){grid-column:1;grid-row:2}
+ .setup-row>.slot:nth-child(3){grid-column:2/4;grid-row:2}
+ .setup-row>button[data-remove-machine]{grid-column:3;grid-row:1;align-self:start}
+ .setup-row>.setup-machine-upgrades{grid-row:3}
+ .setup-row>.slot input,.setup-row>.slot select,.ratio-field input,.ratio-field select,.ratio-picker input{font-size:16px}
+ .ratio-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .ratio-field{min-width:0}
+ .ratio-field label{line-height:1.3}
+}
+@media(max-width:340px){.ratio-fields,.inventory-tool-actions,.recipe-result-grid,.setup-machine-upgrades .setup-upgrade-fields,.ratio-advanced-fields{grid-template-columns:1fr}}

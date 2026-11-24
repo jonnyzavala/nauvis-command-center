@@ -135,12 +135,12 @@ test('manual field notes cannot implicitly alter Factory counts',()=>{
  assert.doesNotMatch(journal,/setup\.machines\.push\(/);
 });
 test('new module assets and theme survive offline on iPhone',()=>{
- assert.match(sw,/nauvis-shell-v029/);
+ assert.match(sw,/nauvis-shell-v030/);
  for(const file of ['journal.js','workspace-ui.js','workspace-v025.css'])assert.ok(sw.includes("'./"+file+"'"),file);
  assert.match(html,/src="\.\/journal\.js"/);
  assert.match(html,/src="\.\/workspace-ui\.js"/);
  assert.match(html,/href="\.\/workspace-v025\.css"/);
  assert.match(style,/@media\(max-width:760px\)/);
  assert.match(style,/@media\(max-width:430px\)/);
- assert.match(html,/Nauvis Command Center v0\.29/);
+ assert.match(html,/Nauvis Command Center v0\.30/);
 });

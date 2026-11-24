@@ -90,7 +90,24 @@ function analyzeRecipeRatios(recipes,query,context){
    entries,external,outputStream,roundedTotal,exactTotal,
    kinds:entries.reduce((out,row)=>{out[row.kind]=(out[row.kind]||0)+row.count;return out},{asm:0,chem:0,furnace:0})};
 }
-if(typeof module==='object'&&module.exports)module.exports={analyzeRecipeRatios,assertFiniteRate};
+const RECIPE_GROUPS=['Science & research','Circuits & components','Raw materials & fluids','Production machines','Belts & logistics','Power & mining','Trains & vehicles','Military & equipment','Modules & beacons','Construction & other'];
+function recipeGroup(id){
+ if(/science-pack$|^lab$/.test(id))return RECIPE_GROUPS[0];
+ if(/^(speed|efficiency|productivity|quality)-module|^beacon$/.test(id))return RECIPE_GROUPS[8];
+ if(/turret|ammo|magazine|shell|grenade|armor|equipment|capsule|^rocket$|launcher|land-mine|atomic-bomb|shotgun|submachine-gun|flamethrower/.test(id))return RECIPE_GROUPS[7];
+ if(/locomotive|wagon|^rail$|^rail-|train-stop|^car$|^tank$|spidertron/.test(id))return RECIPE_GROUPS[6];
+ if(/belt|splitter|inserter|chest|roboport|construction-robot|logistic-robot|pipe|^pump$|storage-tank|combinator|speaker|display-panel|^radar$/.test(id))return RECIPE_GROUPS[4];
+ if(/mining-drill|pumpjack|solar-panel|accumulator|steam-engine|steam-turbine|boiler|electric-pole|substation|nuclear-reactor|heat-exchanger|heat-pipe|offshore-pump|power-switch|small-lamp/.test(id))return RECIPE_GROUPS[5];
+ if(/assembling-machine|furnace|chemical-plant|oil-refinery|centrifuge|rocket-silo|cargo-landing-pad/.test(id))return RECIPE_GROUPS[3];
+ if(/circuit|processing-unit|copper-cable|iron-gear-wheel|iron-stick|engine-unit|flying-robot-frame|battery$|low-density-structure/.test(id))return RECIPE_GROUPS[1];
+ if(/plate$|brick$|plastic-bar|sulfur|fuel|uranium-|lubricant|barrel$|petroleum-gas|heavy-oil|light-oil|^explosives$/.test(id))return RECIPE_GROUPS[2];
+ return RECIPE_GROUPS[9];
+}
+function recipeMatches(order,recipes,category='all',query=''){
+ const q=String(query).trim().toLowerCase();
+ return [...new Set(order)].filter(id=>recipes[id]&&(category==='all'||recipeGroup(id)===category)&&(!q||id.includes(q.replace(/\s+/g,'-'))||recipes[id][0].toLowerCase().includes(q))).sort((a,b)=>recipes[a][0].localeCompare(recipes[b][0]));
+}
+if(typeof module==='object'&&module.exports)module.exports={analyzeRecipeRatios,assertFiniteRate,recipeGroup,recipeMatches,RECIPE_GROUPS};
 root.NauvisRecipeMath=analyzeRecipeRatios;
 if(typeof document==='undefined')return;
 
@@ -103,13 +120,29 @@ const state={id:guide.goal,rate:guide.rate,machine:guide.machine,source:guide.so
  moduleType:guide.moduleType||'none',moduleCount:guide.moduleCount||0,
  machineQuality:guide.machineQuality||'normal',beaconSpeed:guide.beaconSpeed||0,preset:'custom'};
 const recipes=R,contexts={stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names};
-let recipeFilter='';
+let recipeFilter='',recipeCategory='all';
 const recommendation=()=>root.NauvisPresets?.recommendation(state.id,recipes,state.machine)||{starter:30,balanced:60,expand:120,rationale:'Choose an item and target.'};
 state.preset=root.NauvisPresets?.modeFor(state.rate,recommendation())||'custom';
 const colorFor=(id,kind)=>csscolor(id,kind);
 const itemGlyph=(id,size)=>root.NauvisIcons?.item?.(id,size)||'';
 const cards=[...document.querySelectorAll('[data-ratio-explorer]')];
 const select=(items,chosen)=>items.map(([v,title])=>'<option value="'+escape(v)+'"'+(String(v)===String(chosen)?' selected':'')+'>'+escape(title)+'</option>').join('');
+function matchingRecipes(){return recipeMatches(allOrder,recipes,recipeCategory,recipeFilter)}
+function groupedOptions(){
+ const matches=matchingRecipes();
+ const option=id=>select([[id,recipes[id][0]]],state.id);
+ return (matches.includes(state.id)?'':'<optgroup label="Current recipe">'+option(state.id)+'</optgroup>')+
+  RECIPE_GROUPS.map(group=>{
+   const ids=matches.filter(id=>recipeGroup(id)===group);
+   return ids.length?'<optgroup label="'+escape(group)+'">'+ids.map(option).join('')+'</optgroup>':'';
+  }).join('');
+}
+function recipeResults(){
+ if(!recipeFilter&&recipeCategory==='all')return '';
+ const matches=matchingRecipes(),shown=matches.slice(0,12);
+ return '<div class="recipe-result-count">'+matches.length+' matching recipe'+(matches.length===1?'':'s')+(matches.length>shown.length?' · first '+shown.length+' shown; refine search or open the list':'')+'</div>'+
+  (shown.length?'<div class="recipe-result-grid">'+shown.map(id=>'<button type="button" data-recipe-pick="'+escape(id)+'" aria-pressed="'+(id===state.id)+'">'+itemGlyph(id,25)+'<span>'+escape(recipes[id][0])+'</span></button>').join('')+'</div>':'<p class="ratio-muted">No matches in this category. Try another category or search.</p>');
+}
 function descriptionForRate(r){
  return number(r.needed)+' output/min ÷ '+precision(r.effectiveOutputPerCraft||r.outputPerCraft)+' effective per craft = '+precision(r.craftsPerMinute)+' crafts/min.';
 }
@@ -117,7 +150,6 @@ function buildView(result,card){
  const cardKey=card.dataset.ratioExplorer;
  const id=key=>'ratio-'+cardKey+'-'+key;
  const tiers=[['0.75','Assembler 2 · 0.75×'],['1.25','Assembler 3 · 1.25×']];
- const options=allOrder.filter(k=>recipes[k]&&(!recipeFilter||k===state.id||recipes[k][0].toLowerCase().includes(recipeFilter)||k.includes(recipeFilter))).map(k=>[k,recipes[k][0]]);
  const rec=recommendation();
  const advancedOn=state.moduleType!=='none'&&state.moduleCount>0||
   state.machineQuality!=='normal'||state.beaconSpeed>0;
@@ -130,14 +162,16 @@ function buildView(result,card){
   '<div class="ratio-advanced-body"><p>Apply a uniform profile to compatible machine groups. Each recipe clamps module counts to its available slots. Productivity is skipped automatically when the recipe forbids it.</p>'+
   '<div class="ratio-advanced-fields">'+
   selectField('moduleType','Tier-1 modules',[['none','No modules'],['speed1','Speed 1 · +20% speed each'],['efficiency1','Efficiency 1 · −30% energy each'],['productivity1','Productivity 1 · +4% yield each']],state.moduleType)+
-  '<div class="ratio-field"><label for="'+id('moduleCount')+'">Modules per machine (up to slots)</label><input data-ratio-field="moduleCount" id="'+id('moduleCount')+'" type="number" min="0" max="4" step="1" value="'+state.moduleCount+'"></div>'+
+  '<div class="ratio-field"><label for="'+id('moduleCount')+'">Modules per machine (up to slots)</label><input data-ratio-field="moduleCount" id="'+id('moduleCount')+'" type="number" inputmode="numeric" min="0" max="4" step="1" value="'+state.moduleCount+'"></div>'+
   selectField('machineQuality','Crafting machine quality',[['normal','Normal · 1.0×'],['uncommon','Uncommon · 1.3×'],['rare','Rare · 1.6×'],['epic','Epic · 1.9×'],['legendary','Legendary · 2.5×']],state.machineQuality)+
   '<div class="ratio-field"><label for="'+id('beaconSpeed')+'">Effective beacon speed bonus (%)</label><input data-ratio-field="beaconSpeed" id="'+id('beaconSpeed')+'" type="number" inputmode="decimal" min="0" max="300" step="1" value="'+state.beaconSpeed+'"></div></div>'+
   '<p class="ratio-advanced-note">Use the actual additive speed bonus contributed by beacons, not the number of beacons. Factorio 2.0 beacon transmission has diminishing returns. Machine quality changes crafting speed, not the quality of products. Generic furnaces are held at 2× speed without module assumptions.</p></div></details>';
- const fieldset='<div class="ratio-picker"><label for="'+id('search')+'">Find anything to produce (standard Nauvis recipes)</label>'+
-    '<input id="'+id('search')+'" data-ratio-search type="search" placeholder="Search recipes, modules, military, belts…" value="'+escape(recipeFilter)+'" autocomplete="off"></div>'+
+ const fieldset='<div class="ratio-picker"><label for="'+id('search')+'">Find a recipe</label>'+
+    '<input id="'+id('search')+'" data-ratio-search type="search" placeholder="Search recipes, modules, military, belts…" value="'+escape(recipeFilter)+'" autocomplete="off">'+
+    '<label for="'+id('category')+'">Browse category</label><select id="'+id('category')+'" data-recipe-category>'+select([['all','All recipes'],...RECIPE_GROUPS.map(g=>[g,g])],recipeCategory)+'</select>'+
+    '<div data-recipe-results>'+recipeResults()+'</div></div>'+
     '<div class="ratio-fields">'+
-    selectField('id','Recipe',options,state.id)+
+    '<div class="ratio-field"><label for="'+id('id')+'">Recipe</label><select id="'+id('id')+'" data-ratio-field="id">'+groupedOptions()+'</select></div>'+
     '<div class="ratio-field"><label for="'+id('rate')+'">Output target / min</label><input id="'+id('rate')+'" data-ratio-field="rate" type="number" inputmode="decimal" min="0" max="25000" step="0.1" value="'+state.rate+'"></div>'+
     selectField('machine','Assembler tier',tiers,state.machine)+
     selectField('source','Include upstream production?',[['bus','Bus-fed: produce local intermediates'],['raw','Raw: include smelting + chemicals']],state.source)+
@@ -212,12 +246,16 @@ function renderCard(card){
   target.innerHTML=buildView(result,card);
   root.NauvisRatioFlow?.mount(target,result,card.dataset.ratioExplorer);
   const search=target.querySelector('[data-ratio-search]');
-  search?.addEventListener('input',event=>{
-   recipeFilter=event.target.value.trim().toLowerCase();
-   const match=allOrder.filter(key=>recipes[key]&&(!recipeFilter||key===state.id||
-    recipes[key][0].toLowerCase().includes(recipeFilter)||key.includes(recipeFilter)));
+  const updatePicker=()=>{
    const pick=target.querySelector('[data-ratio-field="id"]');
-   if(pick){pick.innerHTML=select(match.map(key=>[key,recipes[key][0]]),state.id);pick.value=state.id}
+   if(pick){pick.innerHTML=groupedOptions();pick.value=state.id}
+   const results=target.querySelector('[data-recipe-results]');if(results)results.innerHTML=recipeResults();
+  };
+  search?.addEventListener('input',event=>{recipeFilter=event.target.value.trim().toLowerCase();updatePicker()});
+  target.querySelector('[data-recipe-category]')?.addEventListener('change',event=>{recipeCategory=event.target.value;updatePicker()});
+  target.querySelector('[data-recipe-results]')?.addEventListener('click',event=>{
+   const item=event.target.closest('[data-recipe-pick]');if(!item)return;
+   const pick=target.querySelector('[data-ratio-field="id"]');if(pick){pick.value=item.dataset.recipePick;pick.dispatchEvent(new Event('change',{bubbles:true}))}
   });
   target.querySelectorAll('[data-ratio-preset]').forEach(button=>button.addEventListener('click',()=>{
    const next=button.dataset.ratioPreset,rec=recommendation();
@@ -232,7 +270,7 @@ function renderCard(card){
     state.preset=root.NauvisPresets?.modeFor(state.rate,recommendation())||'custom';
    }else if(kind==='id'){
     state.id=raw;state.preset='balanced';state.rate=recommendation().balanced;
-    recipeFilter='';
+    recipeFilter='';recipeCategory='all';
    }else{
     if(kind==='moduleCount'||kind==='beaconSpeed'){
      const value=Number(raw);
@@ -276,7 +314,7 @@ root.NauvisRatioExplorer={refresh:renderAll,setGoal(goal){
   for(const key of ['id','rate','machine','source','belt','moduleType','moduleCount','machineQuality','beaconSpeed'])
    if(goal[key]!==undefined)state[key]=goal[key];
   state.preset=root.NauvisPresets?.modeFor(state.rate,recommendation())||'custom';
-  recipeFilter='';
+  recipeFilter='';recipeCategory='all';
   renderAll();
  },openAt(view){
  const card=document.querySelector('[data-ratio-explorer="'+view+'"]');

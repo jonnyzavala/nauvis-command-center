@@ -6,9 +6,9 @@ if(typeof document==='undefined')return;
 const select=(pairs,value)=>pairs.map(([key,label])=>
  '<option value="'+key+'"'+(String(key)===String(value)?' selected':'')+'>'+label+'</option>').join('');
 const kinds=[
- ['none','No modules'],['speed1','Speed 1 (+20% speed each)'],
- ['efficiency1','Efficiency 1 (−30% energy each)'],
- ['productivity1','Productivity 1 (+4% yield each, eligible recipes only)']
+ ['none','No modules'],['speed1','Speed 1 (+20%)'],
+ ['efficiency1','Efficiency 1 (−30% energy)'],
+ ['productivity1','Productivity 1 (+4%)']
 ];
 const qualities=[
  ['normal','Normal'],['uncommon','Uncommon (1.3×)'],
@@ -31,12 +31,12 @@ function attach(){
   const notice=profile?.moduleEligible===false?'Productivity 1 cannot be inserted for this recipe; no productivity effect is counted.':
    row.moduleCount>slots&&row.moduleType!=='none'?'Only '+slots+' module slots are available; requested extras are not counted.':
    'Settings apply to this recorded production line. Changing a project-linked machine profile can require reconciling its saved blueprint.';
-  details.innerHTML='<summary>Machine upgrades <span class="small">· '+applied+'/'+slots+' modules active</span></summary>'+
+  details.innerHTML='<summary><span>Machine upgrades</span> <span class="small">'+applied+'/'+slots+' modules active</span></summary>'+
    '<div class="setup-upgrade-fields">'+
    '<label>Module profile<select data-upgrade-field="moduleType">'+select(kinds,row.moduleType||'none')+'</select></label>'+
-   '<label>Modules per machine<input data-upgrade-field="moduleCount" type="number" min="0" max="4" step="1" value="'+Number(row.moduleCount||0)+'"></label>'+
+   '<label>Modules per machine<input data-upgrade-field="moduleCount" type="number" inputmode="numeric" min="0" max="4" step="1" value="'+Number(row.moduleCount||0)+'"></label>'+
    '<label>Machine quality<select data-upgrade-field="machineQuality">'+select(qualities,row.machineQuality||'normal')+'</select></label>'+
-   '<label>Effective beacon speed bonus (%)<input data-upgrade-field="beaconSpeed" type="number" min="0" max="300" step="1" value="'+Number(row.beaconSpeed||0)+'"></label>'+
+   '<label>Beacon speed bonus (%)<input data-upgrade-field="beaconSpeed" type="number" inputmode="decimal" min="0" max="300" step="1" value="'+Number(row.beaconSpeed||0)+'"></label>'+
    '</div><p class="setup-upgrade-note">'+notice+'</p>';
   element.append(details);
  });
