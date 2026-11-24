@@ -603,7 +603,7 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.45 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.46 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory &amp; Balance</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Plan &amp; Build</button></div></nav>
  </div>
@@ -647,7 +647,7 @@ body[data-workspace="build"]{
 </section>
 <section class="view" id="setup">
   <div class="hero"><div class="eyebrow">YOUR EXISTING INFRASTRUCTURE</div><h1>What do I already have?</h1><p>Enter the machines you physically built and where the belts take their output. This page tracks <b>potential capacity</b> without counting the same iron twice.</p></div>
-  <div class="notice good" style="margin-bottom:18px">Starting values reflect your reported four iron-bus arrays, four iron-for-steel arrays, four copper arrays, and four steel arrays. Check the inputs before relying on them. <b>Output assumes full ore and fuel supply.</b></div>
+  <div class="notice good" style="margin-bottom:18px"><b>Actual inventory:</b> record only equipment physically built in Factorio. Planning and network edits do not add machines here. Output assumes full ore and fuel supply.</div>
   <section class="section panel" id="setupSmeltingPanel"><div class="section-head"><h2><span class="step">1</span> Smelting and steel allocation</h2><span class="small">The furnace count and connected belts both matter</span></div>
     <div class="setup-grid" id="setupSmeltingInputs">
       <div class="setup-input"><label for="setupIronFurnaces">Iron plate furnaces</label><input type="number" inputmode="numeric" min="0" step="1" id="setupIronFurnaces" data-smelt="ironFurnaces"/><span class="hint">Total iron plate furnaces</span></div>
@@ -675,7 +675,7 @@ body[data-workspace="build"]{
   <section class="section panel" id="setupMachinesPanel"><div class="section-head"><h2><span class="step">3</span> Assemblers and chemical plants you own</h2><span class="small">One row per recipe and destination</span></div>
     <div class="setup-hintbar">For example: 6 red-circuit assemblers → Blue science, plus another 6 → Robot factory. Those are separate lines and will not be counted twice.</div>
     <div id="setupMachineRows" class="setup-rows" style="margin-top:12px"></div>
-    <button class="btn" style="margin-top:12px" id="setupAddMachine" type="button">+ Add production line</button>
+    <button class="btn" style="margin-top:12px" id="setupAddMachine" type="button">+ Record existing machines</button>
     <div id="setupMachineSummary" style="margin-top:14px"></div>
     <details class="ratio-explorer ratio-inline" data-ratio-explorer="setup">
   <summary><span class="ratio-header-left"><span class="ratio-header-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="6" height="6" rx="1.4"/><rect x="2" y="15" width="6" height="6" rx="1.4"/><rect x="16" y="9" width="6" height="6" rx="1.4"/><path d="M8 6h3v12H8m3-6h5m-3-3 3 3-3 3"/></svg></span><span><span class="ratio-header-title">Check a recipe ratio</span><span class="ratio-header-subtitle">Examine actual recipe requirements without changing your recorded inventory.</span></span></span><span class="ratio-header-end"><span>EXPAND RATIOS</span><span class="ratio-header-chevron" aria-hidden="true">⌄</span></span></summary>
@@ -685,14 +685,14 @@ body[data-workspace="build"]{
   <section class="section panel" id="setupBeltsPanel"><div class="section-head"><h2><span class="step">4</span> Other bus and feeder belts</h2><span class="small">Add what you physically connected</span></div>
     <div class="setup-hintbar">Iron, copper, steel and bricks are calculated above. Add plastic, coal, stone, circuit belts, or other feeds here. Belt capacity is not proof that the upstream factory produces that much.</div>
     <div id="setupFeedRows" class="setup-rows" style="margin-top:12px"></div>
-    <button class="btn" style="margin-top:12px" id="setupAddFeed" type="button">+ Add belt connection</button>
+    <button class="btn" style="margin-top:12px" id="setupAddFeed" type="button">+ Record existing belts</button>
     <div id="setupFeedSummary" style="margin-top:14px"></div>
   </section>
   <section class="section panel" id="setupComparePanel"><div class="section-head"><h2><span class="step">5</span> Compare with your next build</h2><span class="small">Built versus required for the guided goal</span></div>
     <div id="setupComparison"></div>
     <div class="notice warn" style="margin-top:12px">Existing machines assigned to blue science, robots, or the military mall are <b>not spare machines</b>. Only lines marked “Available for new build” are considered reusable. Shared raw materials can still be bottlenecks.</div>
   </section>
-  <div class="section panel" id="setupStorePanel"><div class="section-head"><h2>Inventory tools</h2></div><div class="inventory-tool-actions"><button class="btn" type="button" id="setupExample">Load six-belt example</button><button class="btn ghost" type="button" id="setupRestore">Load sample smelting</button></div><p class="small">These values are saved locally first and included in your synced NAUVIS snapshot. Use the backup controls below before replacing old counts.</p>
+  <div class="section panel" id="setupStorePanel"><div class="section-head"><h2>Inventory tools</h2></div><div class="inventory-tool-actions"><button class="btn" type="button" id="setupExample">Replace with six-belt sample</button><button class="btn ghost" type="button" id="setupRestore">Replace with sample smelting</button></div><p class="small">These values are saved locally first and included in your synced NAUVIS snapshot. Use the backup controls below before replacing old counts.</p>
   <div class="factory-reset-box">
    <h3>Data-only Fresh Start</h3>
    <p>Keep the planner, recipe catalog, reusable presets, preferences and cloud pairing. Clear every factory-specific record, including all saved projects and Activity Journal entries.</p>
@@ -713,7 +713,7 @@ body[data-workspace="build"]{
    <p id="projectsNotice" role="status" hidden></p>
   </section>
   <section id="projectsListPanel" class="section">
-   <div class="section-head"><h2>Saved projects</h2><span class="small">Track every machine as you build it</span></div>
+   <div class="section-head"><h2>Saved projects</h2><span class="small">Built changes actual Inventory; queued does not</span></div>
    <div id="projectsList" class="projects-cards"></div>
   </section>
   <details id="journalPanel" class="section" aria-label="Activity journal">
@@ -740,7 +740,7 @@ body[data-workspace="build"]{
    <div class="legacy-district-content">
 <div class="section panel"><div class="section-head"><h2>Planned capacity</h2><span class="tag">Potential, not measured output</span></div><div id="districtMetrics" class="metrics"></div><div id="districtBands" style="margin-top:15px"></div><p class="small" style="margin:12px 0 0">Protected bus output is an allocation target, not a physically guaranteed priority. Supply still requires proper belts, inserters and materials.</p></div>
   <div class="section"><div class="section-head"><h2>Production blocks</h2><span class="small">Machine counts divided by destination</span></div><div id="districtBlocks" class="blockgrid"></div></div>
-  <div class="section panel"><div class="section-head"><h2>Master machine inventory</h2><span class="small">All recipes, all blocks, once each</span></div><div id="districtInventory" class="tablewrap"></div></div>
+  <div class="section panel"><div class="section-head"><h2>Legacy district · planned machine totals</h2><span class="small">All recipes, all blocks, once each</span></div><div id="districtInventory" class="tablewrap"></div></div>
   <div class="section panel"><div class="section-head"><h2>Construction checklist</h2><span id="progressCaption" class="tag">0 complete</span></div><div class="progress"><span id="progressFill" style="width:0%"></span></div><div id="districtChecklist"></div></div>
   <details class="advanced section"><summary>Customize long-term factory targets (optional)</summary><p class="small">These sliders change the generous district plan, not your immediate one-item build. Existing progress checkboxes remain saved.</p><div class="settings" id="factorySettings"></div><div class="notice warn" id="factoryCapacityWarning" style="margin-top:14px"></div></details>
   <div class="section panel"><div class="section-head"><h2>Save your factory plan</h2></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="exportButton">Export backup</button><button class="btn" id="importButton">Import backup</button><button class="btn ghost" id="resetButton">Reset settings</button></div><input type="file" id="importFile" accept=".json,application/json" hidden/><p class="small">Changes are saved locally, even offline. Pair your devices using the header sync indicator to share your factory. Export remains your manual backup.</p></div>
@@ -772,11 +772,11 @@ body[data-workspace="build"]{
 </dialog>
 <dialog id="projectsDialog" aria-labelledby="projectsDialogTitle">
  <form id="projectsSaveForm">
-  <h2 id="projectsDialogTitle">Save to Projects</h2>
+  <h2 id="projectsDialogTitle">Queue construction</h2>
   <p id="projectsDialogSubtitle">Save a construction plan without adding unbuilt machines.</p>
   <div class="project-dialog-field"><label for="projectsName">Project name</label><input type="text" id="projectsName" maxlength="80" autocomplete="off" required /></div>
   <p id="projectsDialogError" role="alert" hidden></p>
-  <div class="project-dialog-buttons"><button type="button" id="projectsDialogClose">Cancel</button><button type="submit">Save project</button></div>
+  <div class="project-dialog-buttons"><button type="button" id="projectsDialogClose">Cancel</button><button type="submit" id="projectsDialogSubmit">Queue construction</button></div>
  </form>
 </dialog>
 <!-- A matching-bottom command dock contains both persistent tools. -->
@@ -812,7 +812,7 @@ body[data-workspace="build"]{
  </div>
  <div id="quickAddBody" class="quick-add-body"></div>
  <div id="quickAddFeedback" class="quick-add-feedback" role="status" aria-live="polite"></div>
- <div class="quick-add-footer"><button id="quickAddUndo" class="quick-add-undo" type="button" disabled>↶ Undo</button><button id="quickAddSave" class="quick-add-save" type="button">Add to existing factory</button></div>
+ <div class="quick-add-footer"><button id="quickAddUndo" class="quick-add-undo" type="button" disabled>↶ Undo</button><button id="quickAddSave" class="quick-add-save" type="button">Record existing machines</button></div>
  <button id="quickAddRemove" class="quick-add-remove" type="button" hidden>Remove selected line</button>
  <p id="quickAddUndoNote" class="quick-add-undo-note">Undo is available after saving a change.</p>
 </aside>
@@ -838,7 +838,7 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v0.45 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.46 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script src="./item-icons.js"></script>
 <script src="./production-effects.js"></script>
@@ -1199,13 +1199,13 @@ function setupLineOutput(row){
 }
 function renderSetupMachines(){const opts=itemsForSetup.map(k=>[k,R[k][0]]);
  el('setupMachineRows').innerHTML=setup.machines.map((row,i)=>`<div class="setup-row">
- <div class="slot"><label class="setup-recipe-label">${itemIcon(row.recipe,30)}<span>Recipe</span></label><select data-row="${i}" data-field="recipe">${xselect(opts,row.recipe)}</select><span class="smallcap">${fmt(setupLineOutput(row))}/min theoretical</span><div class="tiny">${R[row.recipe]?.[3]==='asm'?'Assembler tier':'Chemical plant'}</div>${R[row.recipe]?.[3]==='asm'?`<select aria-label="Assembler tier" data-row="${i}" data-field="tier">${xselect([['0.5','Assembler 1'],['0.75','Assembler 2'],['1.25','Assembler 3']],String(row.tier||.75))}</select>`:''}</div>
- <div class="slot"><label>Machines</label><input type="number" inputmode="numeric" min="0" step="1" value="${safeNum(row.count)}" data-row="${i}" data-field="count"/></div>
+ <div class="slot"><label class="setup-recipe-label">${itemIcon(row.recipe,30)}<span>Recipe</span></label><select data-row="${i}" data-field="recipe" ${row.projectId?'disabled':''}>${xselect(opts,row.recipe)}</select><span class="smallcap">${fmt(setupLineOutput(row))}/min theoretical</span><div class="tiny">${R[row.recipe]?.[3]==='asm'?'Assembler tier':'Chemical plant'}</div>${R[row.recipe]?.[3]==='asm'?`<select aria-label="Assembler tier" data-row="${i}" data-field="tier" ${row.projectId?'disabled':''}>${xselect([['0.5','Assembler 1'],['0.75','Assembler 2'],['1.25','Assembler 3']],String(row.tier||.75))}</select>`:''}</div>
+ <div class="slot"><label>Machines</label><input type="number" inputmode="numeric" min="0" step="1" value="${safeNum(row.count)}" data-row="${i}" data-field="count" ${row.projectId?'disabled':''}/>${row.projectId?'<span class="tiny">Construction linked · change built count in queue</span>':''}</div>
  <div class="slot"><label>Goes to</label><select data-row="${i}" data-field="destination">${xselect(destinations.map(x=>[x,x]),row.destination)}</select></div>
- <button type="button" aria-label="Remove production line" data-remove-machine="${i}">×</button>
+ <button type="button" aria-label="Remove production line" data-remove-machine="${i}" ${row.projectId?'disabled':''}>×</button>
  </div>`).join('')||'<div class="small">No production lines entered yet. Add one for each dedicated recipe, even if they make the same item for different factories.</div>';
- el('setupMachineRows').querySelectorAll('select,input').forEach(inp=>inp.addEventListener('change',e=>{const row=setup.machines[Number(e.target.dataset.row)],f=e.target.dataset.field;row[f]=(f==='count'||f==='tier')?safeNum(e.target.value):e.target.value;saveSetup();renderSetupSummaryOnly();if(f==='recipe')setTimeout(renderSetupMachines,0);else {const stat=e.target.closest('.setup-row').querySelector('.smallcap');if(stat)stat.textContent=fmt(setupLineOutput(row))+'/min theoretical'}}));
- el('setupMachineRows').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{setup.machines.splice(Number(b.dataset.removeMachine),1);saveSetup();renderSetupMachines();renderSetupSummaryOnly()}));
+ el('setupMachineRows').querySelectorAll('select,input').forEach(inp=>inp.addEventListener('change',e=>{const row=setup.machines[Number(e.target.dataset.row)],f=e.target.dataset.field;if(!row||row.projectId&&f!=='destination'){renderSetupMachines();return}if(f==='count'&&(!Number.isSafeInteger(Number(e.target.value))||Number(e.target.value)<0||e.target.value.trim()==='')){alert('Enter a nonnegative whole machine count.');renderSetupMachines();return}row[f]=(f==='count'||f==='tier')?safeNum(e.target.value):e.target.value;saveSetup();renderSetupSummaryOnly();if(f==='recipe')setTimeout(renderSetupMachines,0);else {const stat=e.target.closest('.setup-row').querySelector('.smallcap');if(stat)stat.textContent=fmt(setupLineOutput(row))+'/min theoretical'}}));
+ el('setupMachineRows').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{const i=Number(b.dataset.removeMachine);if(!setup.machines[i]||setup.machines[i].projectId)return;if(!confirm('Remove this recorded production line from actual Inventory?'))return;setup.machines.splice(i,1);saveSetup();renderSetupMachines();renderSetupSummaryOnly()}));
  window.NauvisMachineUpgrades?.attach?.();
 }
 function renderSetupMachineSummary(){const total=setup.machines.reduce((a,x)=>a+safeNum(x.count),0);
@@ -1246,10 +1246,10 @@ function initSetup(){
   const which=inp.dataset.smelt?'smelt':'oil',field=inp.dataset.smelt||inp.dataset.oil;
   setup[which][field]=safeNum(inp.value);saveSetup();renderSetupSummaryOnly();
  }));
- el('setupAddMachine').addEventListener('click',()=>{setup.machines.push({recipe:'advanced-circuit',count:1,tier:.75,destination:'Available for new build'});saveSetup();renderSetupMachines();renderSetupSummaryOnly()});
- el('setupAddFeed').addEventListener('click',()=>{setup.feeds.push({recipe:'plastic-bar',count:1,tier:'red',destination:'Main bus'});saveSetup();renderSetupFeeds();renderSetupSummaryOnly()});
- el('setupExample').addEventListener('click',()=>{if(!confirm('Replace your recorded smelting layout with sample counts?'))return;Object.assign(setup.smelt,{ironFurnaces:288,ironBelts:6,ironToSteel:2,steelFurnaces:96,steelBelts:1,furnaceSpeed:2,beltTier:1800});saveSetup();renderSetup()});
- el('setupRestore').addEventListener('click',()=>{if(!confirm('Replace your recorded smelting layout with sample counts?'))return;Object.assign(setup.smelt,setupSeed.smelt);saveSetup();renderSetup()});
+ el('setupAddMachine').addEventListener('click',()=>window.NauvisQuick?.openInventory('machine'));
+ el('setupAddFeed').addEventListener('click',()=>window.NauvisQuick?.openInventory('belt'));
+ el('setupExample').addEventListener('click',()=>{if(!confirm('Overwrite actual smelting Inventory with hypothetical sample counts? This is not a planning action.'))return;Object.assign(setup.smelt,{ironFurnaces:288,ironBelts:6,ironToSteel:2,steelFurnaces:96,steelBelts:1,furnaceSpeed:2,beltTier:1800});saveSetup();renderSetup()});
+ el('setupRestore').addEventListener('click',()=>{if(!confirm('Overwrite actual smelting Inventory with hypothetical sample counts? This is not a planning action.'))return;Object.assign(setup.smelt,setupSeed.smelt);saveSetup();renderSetup()});
  renderSetup();
 }
 

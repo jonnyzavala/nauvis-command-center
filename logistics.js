@@ -101,6 +101,11 @@ function layoutBelts(graph,stage){
 }
 // A recorded production group can consume several resources. Propagate only
 // shortages on explicitly modeled inputs; absent inputs remain unverified.
+function scenarioGraph(raw,include=false){
+ const g=normalize(raw);if(include)return g;
+ const excluded=new Set(g.nodes.filter(n=>n.link?.startsWith('project:')).map(n=>n.id));
+ return {nodes:g.nodes.filter(n=>!excluded.has(n.id)),edges:g.edges.filter(e=>!excluded.has(e.from)&&!excluded.has(e.to))};
+}
 function groupKey(n){
  if(!n?.link)return null;
  if(n.link==='smelt:steel-input'||n.link==='smelt:steel-plate')return 'smelt:steel';
@@ -165,7 +170,7 @@ function diagnostics(graph,a,lookup){
    const candidates=g.edges.filter(e=>parents.has(e.to)&&parents.has(e.from)).slice(0,40);
    const tryChange=(edges,action)=>{
     let next;try{next=analyze({...g,edges},lookup)}catch(_e){return}
-    const gain=next.nodes[n.id].received-v.received;
+    const gain=Math.min(v.demand,next.nodes[n.id].received)-Math.min(v.demand,v.received);
     if(gain>.01&&known.every(k=>k.id===n.id||next.nodes[k.id].received>=Math.min(a.nodes[k.id].received,a.nodes[k.id].demand)-.01))
      return {...action,gain,remaining:Math.max(0,v.demand-next.nodes[n.id].received)};
    };
@@ -196,12 +201,13 @@ function diagnostics(graph,a,lookup){
  }
  return {findings,totalDemand,totalSupply,productionGap:Math.max(0,totalDemand-totalSupply),knownShort:missing.length,unknown:sinks.length-known.length,unrouted:sum(sources.map(n=>a.nodes[n.id].remaining)),unknownSources:sources.filter(n=>a.nodes[n.id].missing).length};
 }
-if(typeof module==='object'&&module.exports)module.exports={normalize,connect,analyze,order,TIERS,layoutBelts,groupKey,networkResults,diagnostics};
+if(typeof module==='object'&&module.exports)module.exports={normalize,connect,analyze,order,TIERS,layoutBelts,groupKey,networkResults,diagnostics,scenarioGraph};
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 const fmt=n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:1}),opts=(arr,v)=>arr.map(([a,b])=>'<option value="'+esc(a)+'"'+(a===v?' selected':'')+'>'+esc(b)+'</option>').join('');
 const materialName=k=>R[k]?.[0]||names[k]||k.replaceAll('-',' ');
 const itemColor=k=>root.NauvisIcons?.color?.(k)||'#86c2f1';
+let includeScenario=false;
 let item='iron-plate',selected=null,connecting=null,undo=null,notice='',brushTier='red',brushCount=1,drag=null,picker=false,ignoreClickUntil=0;
 const materials=[...new Set([...Object.keys(R),...Object.keys(names),'uranium-ore'])].filter(k=>!FLUID.has(k)&&!['crude-oil','sulfuric-acid'].includes(k)).sort((a,b)=>materialName(a).localeCompare(materialName(b)));
 function data(){return normalize(setup.logistics)}
@@ -230,7 +236,7 @@ function catalog(kind,resource=item){
   if(value>0){const old=groups.get(key)||{key,label:r[0]+' · '+dest,rate:0,count:0};old.rate+=value;old.count+=num(row.count);groups.set(key,old)}
  }
  choices.push(...[...groups.values()].map(x=>({...x,label:x.count+' × '+x.label})));
- if(kind==='destination')for(const p of factory.projects||[]){
+ if(kind==='destination'&&includeScenario)for(const p of factory.projects||[]){
   if(p.status==='archived'||!p.goal||p.type==='deployment')continue;
   try{const plan=root.NauvisRecipeMath(R,p.goal,{stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names});const demand=plan.external.find(x=>x.key===item)?.needed||0;if(demand>0)choices.push({key:'project:'+p.id,label:p.name+' · planned full external demand',rate:demand})}catch(_e){}
  }
@@ -250,8 +256,8 @@ function add(kind,link=''){
  if(link&&(!entry||used(g,kind,link))){notice='This factory group is unavailable or already added.';render();return}
  const n={id:id(),item,kind,label:entry?.label||(kind==='source'?materialName(item)+' supply':kind==='destination'?'New destination':kind==='splitter'?'Splitter':'Merger'),link,autoLabel:!!entry,amount:kind==='source'?1:'',tier:brushTier};
  g.nodes.push(n);picker=false;
- if(connecting&&kind!=='source'){try{const next=connect(g,{id:id(),from:connecting,to:n.id,tier:brushTier,belts:brushCount,weight:''});selected=n.id;connecting=null;commit(next,'Node added and connected.');return}catch(e){notice=e.message}}
- selected=n.id;connecting=null;commit(g,'Node added.');
+ if(connecting&&kind!=='source'){try{const next=connect(g,{id:id(),from:connecting,to:n.id,tier:brushTier,belts:brushCount,weight:''});selected=n.id;connecting=null;commit(next,'Network node linked and connected; Inventory unchanged.');return}catch(e){notice=e.message}}
+ selected=n.id;connecting=null;commit(g,'Added to network only. Inventory unchanged.');
 }
 function join(from,to){
  try{const g=connect(data(),{id:id(),from,to,tier:brushTier,belts:brushCount,weight:''});selected=g.edges.at(-1).id;connecting=null;commit(g,'Belt route connected.')}catch(e){notice=e.message;connecting=null;render()}
@@ -262,7 +268,7 @@ function selectNode(key){
  }else{selected=selected===key?null:key;render()}
 }
 function renderGraph(g,result){
- if(!g.nodes.length)return '<div class="log-empty"><strong>Start your resource network</strong><p>Tap Add node to choose an existing factory group or add a manual supply. Connect its output to another node.</p></div>';
+ if(!g.nodes.length)return '<div class="log-empty"><strong>Start your resource network</strong><p>Tap Add to network to reference an existing factory group or enter a manual assumption. Connect its output to another node.</p></div>';
  const layout=layoutBelts(g,result.stage),links=g.edges.map(e=>({from:e.from,to:e.to})),focus=root.NauvisRatioFlow.focusGraph(links,selected,true);
  const graphWidth=$('logGraph')?.clientWidth||Math.max(180,Math.min(900,($('logisticsEditor')?.clientWidth||root.innerWidth)-36)),scale=Math.max(.68,Math.min(1,(graphWidth-10)/layout.width));
  const selectedEdge=g.edges.find(e=>e.id===selected);
@@ -296,13 +302,13 @@ function applyBrush(patch,preview=false){
  Object.assign(e,patch);
  if(preview){
   $('logBrushReadout').textContent=e.belts+' '+e.tier+' · '+fmt(cap(e))+'/min';
-  const next=sub(g),target=$('logGraph'),sx=target.scrollLeft,sy=target.scrollTop;const network=networkResults(g,lookup),preview=network.results.get(item);target.innerHTML=renderGraph(next,preview&&!preview.error?preview:analyze(next,lookup));target.scrollLeft=sx;target.scrollTop=sy;
+  const modeled=scenarioGraph(g,includeScenario),next=sub(modeled),target=$('logGraph'),sx=target.scrollLeft,sy=target.scrollTop;const network=networkResults(modeled,lookup),preview=network.results.get(item);target.innerHTML=renderGraph(next,preview&&!preview.error?preview:analyze(next,lookup));target.scrollLeft=sx;target.scrollTop=sy;
  }else commit(g,'Belt route updated.');
 }
 function addPicker(g){
  if(!picker)return '';
  const records=['source','destination'].flatMap(kind=>catalog(kind).filter(x=>!used(data(),kind,x.key)).map(x=>({kind,...x})));
- return '<div class="log-picker"><div class="log-brush-head"><strong>Add a node · '+esc(materialName(item))+'</strong><button data-log-action="picker">Close</button></div><p class="log-muted">Choose a recorded group. Its role is determined by whether it produces or consumes this resource.</p><div class="log-picker-list">'+(records.map(x=>'<button data-log-add="'+x.kind+'" data-log-link="'+esc(x.key)+'"><b>'+esc(x.label)+'</b><small>'+ (x.kind==='source'?'SUPPLY':'DEMAND')+' · '+fmt(x.rate)+'/min</small></button>').join('')||'<p class="log-muted">No unused compatible factory records yet.</p>')+'</div><div class="log-toolbar">'+[['source','Manual supply'],['destination','Manual demand'],['splitter','Splitter'],['merger','Merger']].map(([k,name])=>'<button data-log-add="'+k+'">'+name+'</button>').join('')+'</div></div>';
+ return '<div class="log-picker"><div class="log-brush-head"><strong>Add a node · '+esc(materialName(item))+'</strong><button data-log-action="picker">Close</button></div><p class="log-muted">Link a recorded group without adding machinery to Inventory. Manual nodes are network assumptions only.</p><div class="log-picker-list">'+(records.map(x=>'<button data-log-add="'+x.kind+'" data-log-link="'+esc(x.key)+'"><b>'+esc(x.label)+'</b><small>'+ (x.kind==='source'?'SUPPLY':'DEMAND')+' · '+fmt(x.rate)+'/min</small></button>').join('')||'<p class="log-muted">No unused compatible factory records yet.</p>')+'</div><div class="log-toolbar">'+[['source','Manual supply'],['destination','Manual demand'],['splitter','Splitter'],['merger','Merger']].map(([k,name])=>'<button data-log-add="'+k+'">'+name+'</button>').join('')+'</div></div>';
 }
 
 function inspector(g,a){
@@ -347,18 +353,18 @@ function diagnosticPanel(g,a,report,network){
 }
 function render(){
  const host=$('logisticsEditor');if(!host||!$('logistics')?.classList.contains('active'))return;
- const oldGraph=$('logGraph'),sx=oldGraph?.scrollLeft||0,sy=oldGraph?.scrollTop||0;const g=sub(data());if(!g.nodes.some(n=>n.id===selected)&&!g.edges.some(e=>e.id===selected))selected=null;
- let a,network;try{network=networkResults(data(),lookup);a=network.results.get(item)||analyze(g,lookup);if(a.error)throw Error(a.error)}catch(e){host.innerHTML='<p class="log-danger">'+esc(e.message)+'</p><button data-log-action="clear-graph">Clear this resource diagram</button>';return}
+ const oldGraph=$('logGraph'),sx=oldGraph?.scrollLeft||0,sy=oldGraph?.scrollTop||0;const g=sub(scenarioGraph(data(),includeScenario));if(!g.nodes.some(n=>n.id===selected)&&!g.edges.some(e=>e.id===selected))selected=null;
+ let a,network;try{network=networkResults(scenarioGraph(data(),includeScenario),lookup);a=network.results.get(item)||analyze(g,lookup);if(a.error)throw Error(a.error)}catch(e){host.innerHTML='<p class="log-danger">'+esc(e.message)+'</p><button data-log-action="clear-graph">Clear this resource diagram</button>';return}
  const report=diagnostics(g,a,network.effective);
  const src=g.nodes.filter(n=>n.kind==='source').reduce((s,n)=>s+a.nodes[n.id].supply,0),sinks=g.nodes.filter(n=>n.kind==='destination'),short=sinks.filter(n=>a.nodes[n.id].margin!==null&&a.nodes[n.id].margin<-.01).length;
  host.innerHTML='<div class="log-top"><label>Resource<select data-log-resource>'+opts(materials.map(k=>[k,materialName(k)+(data().nodes.some(n=>n.item===k)?' · network':'')]),item)+'</select></label><button data-log-action="undo" '+(!undo?'disabled':'')+'>↶ Undo</button></div>'+
- '<div class="log-stat-grid"><div><small>Rated supply/min</small><b>'+fmt(src)+'</b></div><div><small>Destinations</small><b>'+sinks.length+'</b></div><div><small>Known shortages</small><b class="'+(short?'log-danger':'')+'">'+short+'</b></div></div>'+
- '<button type="button" class="log-primary log-add-main" data-log-action="picker">＋ Add node</button>'+addPicker(g)+brush(g)+splitControl(g,a)+
+ '<label class="log-scenario-toggle"><input type="checkbox" data-log-scenario '+(includeScenario?'checked':'')+'> Include queued project demand (hypothetical; may overlap built machines)</label><div class="log-stat-grid"><div><small>Rated supply/min</small><b>'+fmt(src)+'</b></div><div><small>Destinations</small><b>'+sinks.length+'</b></div><div><small>Known shortages</small><b class="'+(short?'log-danger':'')+'">'+short+'</b></div></div>'+
+ '<button type="button" class="log-primary log-add-main" data-log-action="picker">＋ Add to network</button>'+addPicker(g)+brush(g)+splitControl(g,a)+
  '<div class="log-connect-status" '+(!connecting?'hidden':'')+'>Select a receiving node, or add a new node <button data-log-action="cancel">Cancel</button></div>'+
  '<div id="logGraph" class="log-graph">'+renderGraph(g,a)+'</div>'+
  '<details class="log-routes"><summary>Route list · '+g.edges.length+'</summary><div class="log-route-list">'+g.edges.map(e=>'<button data-log-edge="'+esc(e.id)+'" class="'+(selected===e.id?'selected':'')+'"><span>'+esc(nodeLabel(g.nodes.find(n=>n.id===e.from)))+' → '+esc(nodeLabel(g.nodes.find(n=>n.id===e.to)))+'</span><b style="color:'+({yellow:'#dfbf65',red:'#e17b71',blue:'#79b5f6'}[e.tier])+'">'+e.belts+' '+e.tier+' · '+fmt(a.routes[e.id].delivered)+'/min</b></button>').join('')+'</div></details>'+
  '<div class="log-inspector">'+inspector(g,a)+'</div>'+diagnosticPanel(g,a,report,network)+'<p class="log-message" role="status">'+esc(notice||a.warnings.join(' ')||'Changes save and sync with your factory.')+'</p>'+
- '<p class="log-muted">Planning estimate: full-belt equivalents and rated machine capacity, not measured throughput. Default splitters share equally; ordinary branches share by transport capacity. Enter relative weights (e.g. 1 and 3 for 25:75); blank uses automatic shares, 0 reserves no flow. No automatic backpressure redistribution. Linked iron supply can represent gross output or post-steel bus output (not both); planned project demand is a scenario, not added to actual inventory.</p>';if($('logGraph')){$('logGraph').scrollLeft=sx;$('logGraph').scrollTop=sy}
+ '<p class="log-muted">Planning estimate: full-belt equivalents and rated machine capacity, not measured throughput. Default splitters share equally; ordinary branches share by transport capacity. Enter relative weights (e.g. 1 and 3 for 25:75); blank uses automatic shares, 0 reserves no flow. No automatic backpressure redistribution. Linked iron supply can represent gross output or post-steel bus output (not both); planned project demand is a scenario, not added to actual inventory. Network edits change connections and assumptions only.</p>';if($('logGraph')){$('logGraph').scrollLeft=sx;$('logGraph').scrollTop=sy}
 }
 function init(){
  const host=$('logisticsEditor');if(!host)return;
@@ -373,7 +379,7 @@ function init(){
   const node=ev.target.closest('[data-log-node]');if(node){selectNode(node.dataset.logNode);return}
   const edge=ev.target.closest('[data-log-edge]');if(edge){selected=selected===edge.dataset.logEdge?null:edge.dataset.logEdge;connecting=null;render();return}
   const action=ev.target.closest('[data-log-action]')?.dataset.logAction;if(!action)return;
-  if(action==='auto-split'){const g=data(),e=g.edges.find(e=>e.id===selected),from=e?.from||selected;g.edges=g.edges.map(x=>x.from===from?{...x,weight:''}:x);commit(g,'Automatic allocation restored.');return}
+  if(action==='auto-split'){const g=data(),e=g.edges.find(e=>e.id===selected),from=e?.from||selected,ids=new Set(scenarioGraph(g,includeScenario).edges.map(e=>e.id));g.edges=g.edges.map(x=>x.from===from&&ids.has(x.id)?{...x,weight:''}:x);commit(g,'Automatic allocation restored.');return}
   if(action==='picker'){picker=!picker;render();return}
   if(action==='connect'){connecting=selected;notice='';render();return}
   if(action==='cancel'||action==='clear'){connecting=null;if(action==='clear')selected=null;render();return}
@@ -382,7 +388,7 @@ function init(){
   if(action==='clear-graph'&&root.confirm('Clear only this resource network?')){const g=data(),ids=new Set(g.nodes.filter(n=>n.item===item).map(n=>n.id));g.nodes=g.nodes.filter(n=>!ids.has(n.id));g.edges=g.edges.filter(e=>!ids.has(e.from)&&!ids.has(e.to));commit(g,'Resource diagram cleared.');}
  });
  host.addEventListener('change',ev=>{
-  const input=ev.target;if(input.matches('[data-log-split]')){const g=data(),edges=g.edges.filter(e=>e.from===input.dataset.logSplit),v=Number(input.value);if(edges.length===2&&Number.isFinite(v)&&v>=0&&v<=100){edges[0].weight=v;edges[1].weight=100-v;commit(g,'Branch allocation updated.')}return}if(input.matches('[data-log-slider],[data-log-exact]')){const v=Number(input.value);if(Number.isSafeInteger(v)&&v>=1&&v<=100)applyBrush({belts:v});else render();return}if(input.matches('[data-log-resource]')){item=input.value;selected=null;connecting=null;picker=false;notice='';render();return}
+  const input=ev.target;if(input.matches('[data-log-scenario]')){includeScenario=input.checked;selected=null;connecting=null;render();return}if(input.matches('[data-log-split]')){const g=data(),visible=scenarioGraph(g,includeScenario),ids=new Set(visible.edges.map(e=>e.id)),edges=g.edges.filter(e=>e.from===input.dataset.logSplit&&ids.has(e.id)),v=Number(input.value);if(edges.length===2&&Number.isFinite(v)&&v>=0&&v<=100){edges[0].weight=v;edges[1].weight=100-v;commit(g,'Branch allocation updated.')}return}if(input.matches('[data-log-slider],[data-log-exact]')){const v=Number(input.value);if(Number.isSafeInteger(v)&&v>=1&&v<=100)applyBrush({belts:v});else render();return}if(input.matches('[data-log-resource]')){item=input.value;selected=null;connecting=null;picker=false;notice='';render();return}
   const field=input.dataset.logField;if(!field)return;
   const g=data(),n=g.nodes.find(n=>n.id===selected),e=g.edges.find(e=>e.id===selected);
   if(n){let v=input.value;if(field==='label'&&!v.trim())v=n.kind;if(field==='amount'&&v!==''&&(!Number.isFinite(Number(v))||Number(v)<0)){notice='Use a nonnegative belt equivalent.';render();return}const patch={[field]:v};if(field==='label'||(field==='link'&&!v))patch.autoLabel=false;
@@ -412,7 +418,7 @@ function init(){
  });
  host.addEventListener('pointercancel',()=>{drag=null;render()});
  let lastWidth=root.innerWidth;root.addEventListener('resize',()=>{if(root.innerWidth!==lastWidth){lastWidth=root.innerWidth;if($('logistics')?.classList.contains('active'))render()}},{passive:true});
- root.NauvisLogistics={render,invalidate(){undo=null;selected=null;connecting=null;picker=false;drag=null;notice='';render()}};
+ root.NauvisLogistics={render,invalidate(){undo=null;selected=null;connecting=null;picker=false;drag=null;includeScenario=false;notice='';render()}};
  render();
 }
 init();

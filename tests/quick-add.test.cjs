@@ -109,3 +109,15 @@ test('snapshots are plain JSON and permit safe equality checks before undo',()=>
  assert.deepEqual(restore,before);
  assert.equal(before.setup.machines.length,0);
 });
+
+test('quick corrections preserve module settings and production entity metadata',()=>{
+ const s=original();s.setup.machines=[{recipe:'advanced-circuit',count:3,tier:.75,destination:'Robot factory',moduleType:'efficiency1',moduleCount:2,entityId:'stable'}];
+ const next=applyQuickEdit(s,machine({target:'0',count:4}),ctx).state;
+ assert.equal(next.setup.machines[0].moduleCount,2);assert.equal(next.setup.machines[0].entityId,'stable');
+});
+test('construction-linked records cannot be duplicated, removed, or change count or profile via Quick Change',()=>{
+ const s=original();s.setup.machines=[{recipe:'advanced-circuit',count:3,tier:.75,destination:'Robot factory',projectId:'p1',projectTask:'advanced-circuit',moduleType:'efficiency1',moduleCount:2}];
+ for(const change of [machine({target:'0',count:4}),machine({target:'0',tier:1.25}),machine({target:'0',recipe:'plastic-bar'}),{kind:'remove-machine',target:'0'}])assert.throws(()=>applyQuickEdit(s,change,ctx),/Construction/);
+ const n=applyQuickEdit(s,machine({target:'0',destination:'Main bus'}),ctx).state;
+ assert.equal(n.setup.machines[0].projectId,'p1');assert.equal(n.setup.machines[0].moduleCount,2);assert.equal(n.setup.machines[0].destination,'Main bus');
+});

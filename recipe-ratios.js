@@ -218,7 +218,7 @@ function buildView(result,card){
  return fieldset+
   (advancedOn?'<p class="ratio-effect-status"><strong>Upgrade profile active:</strong> machine counts and upstream ingredients reflect compatible module/quality bonuses. Review per-recipe effects under “Why this ratio?”.</p>':'')+
   '<div data-ratio-flow-root class="ratio-flow-root"></div>'+
-  '<div class="ratio-save-strip"><button class="ratio-save-project" data-ratio-project-save type="button">Save to Construction Queue <span aria-hidden="true">→</span></button><span>Turn this recipe calculation into a saved construction checklist.</span></div>'+
+  '<div class="ratio-save-strip"><button class="ratio-save-project" data-ratio-project-save type="button">Queue construction <span aria-hidden="true">→</span></button><span>Creates a planned checklist only. Actual Inventory changes when machines are marked built.</span></div>'+
   '<div data-ratio-legacy-table hidden>'+
   '<div class="ratio-overview">'+
    '<div class="ratio-number-box"><span class="ratio-kicker">ROUNDED MACHINE COUNT</span><strong>'+result.roundedTotal+'</strong><small>'+number(result.rate)+' '+escape(result.name)+'/min</small></div>'+

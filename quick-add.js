@@ -48,11 +48,16 @@ function applyQuickEdit(state,change,ctx){
      label='Added '+count+' '+(labels.recipeNames?.[row.recipe]||row.recipe)+' machines';
    }else{
      const n=validIndex(next.setup.machines,change.target);
-     next.setup.machines[n]=row;
+     const prior=next.setup.machines[n];
+     if(prior.projectId){
+       if(row.recipe!==prior.recipe||row.count!==Number(prior.count)||(isAssembler&&row.tier!==Number(prior.tier)))throw Error('This line belongs to Construction. Adjust built counts there; recipe and machine profile are locked.');
+       next.setup.machines[n]={...prior,destination:row.destination};
+     }else next.setup.machines[n]={...prior,...row};
      label='Updated '+(labels.recipeNames?.[row.recipe]||row.recipe)+' line';
    }
  }else if(change.kind==='remove-machine'){
    const n=validIndex(next.setup.machines,change.target);
+   if(next.setup.machines[n].projectId)throw Error('Project-linked machines must be removed through Construction.');
    const row=next.setup.machines.splice(n,1)[0];
    label='Removed '+(labels.recipeNames?.[row.recipe]||row.recipe)+' line';
  }else if(change.kind==='belt'){
@@ -162,7 +167,8 @@ function init(){
       '<span>'+esc(selectedLabel)+'<small>Original NAUVIS icon · local asset</small></span></div>';
      html+='<p class="quick-help">'+(machine?'New lines count actual assemblers or chemical plants, not planned machines.':'Belts represent transport capacity, not additional production.')+'</p>';
      removeButton.hidden=target==='new';
-     saveButton.textContent=target==='new'?'Add to existing factory':'Save change';
+     saveButton.textContent=target==='new'?(machine?'Record existing machines':'Record existing belts'):'Save inventory change';
+     if(machine&&row.projectId){removeButton.hidden=true;html+='<p class="quick-help">Construction-linked record. Only destination can be edited here; built quantity and machine profile belong to Construction.</p>';}
    }else if(mode==='smelt'||mode==='oil'){
      const options=specs[mode];
      if(!options.some(([k])=>k===field))field=options[0][0];
@@ -184,6 +190,7 @@ function init(){
      saveButton.textContent='Update progress';
    }
    body.innerHTML=html;
+   if(mode==='machine'&&existingTarget()?.projectId)for(const key of ['quickRecipe','quickCount','quickCountMinus','quickCountPlus','quickTier'])if($(key))$(key).disabled=true;
    if(mode==='machine'||mode==='belt'){
      $('quickTarget').addEventListener('change',e=>{target=e.target.value;render()});
      $('quickRecipe').addEventListener('change',e=>{
@@ -309,6 +316,7 @@ function init(){
  root.NauvisQuick={
    invalidate(){lastAction=null;updateUndo();if(opened){target='new';render();notice('Factory updated from another device. Refreshed current options.',false)}},
    refresh(){if(opened)render()},
+   openInventory(kind='machine'){if(!opened)open();mode=kind==='belt'?'belt':'machine';target='new';render();notice('Record only equipment already built in Factorio.',false)},
    close
  };
  updateUndo();

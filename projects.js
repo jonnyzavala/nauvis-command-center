@@ -148,10 +148,10 @@ function projectHTML(p){
   const possibleDuplicates=isAsset?matchingUnlinkedAssets(task.recipe,p.goal.area):matchingUnlinked(task.recipe,p.goal.machine);
   return '<div class="project-task" style="--project-task-accent:'+color+'">'+
    '<div class="project-task-identity"><span class="project-task-led" aria-hidden="true"></span>'+itemGlyph(task.recipe,32)+'<div><strong>'+escape(R[task.recipe]?.[0]||task.recipe)+'</strong><small>'+escape(noun(task.kind))+' · '+task.planned+' planned'+(task.kind==='asm'?' · Assembler '+(p.goal.machine===1.25?'3':'2'):'')+'</small></div></div>'+
-   '<div class="project-task-controls"><button type="button" data-project-minus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Mark one fewer '+escape(task.recipe)+' built" '+(archived||task.built<=0||mismatch?'disabled':'')+'>−</button>'+
+   '<div class="project-task-controls"><button type="button" data-project-minus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" title="Reverse built count · removes one from actual Inventory" aria-label="Mark one fewer '+escape(task.recipe)+' built" '+(archived||task.built<=0||mismatch?'disabled':'')+'>−</button>'+
    '<span class="project-task-counter"><b>'+task.built+'</b><small>/ '+task.planned+(isAsset?' placed':' built')+'</small></span>'+
-   '<button type="button" data-project-plus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Mark one more '+escape(task.recipe)+' built" '+(archived||task.built>=task.planned||mismatch||cannotRecord?'disabled':'')+'>+</button></div>'+
-   '<div class="project-task-foot"><span class="project-task-recorded">'+saved.count+(isAsset?' deployed in Factory':' in Factory')+' · linked to this project</span>'+
+   '<button type="button" data-project-plus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" title="Mark one as built · adds one to actual Inventory" aria-label="Mark one more '+escape(task.recipe)+' built" '+(archived||task.built>=task.planned||mismatch||cannotRecord?'disabled':'')+'>+</button></div>'+
+   '<div class="project-task-foot"><span class="project-task-recorded">'+saved.count+(isAsset?' deployed in Factory':' in actual Inventory')+' · linked to this project</span>'+
    (mismatch?'<span class="project-task-warning">Factory and project counts differ. Review the linked line in Factory.</span>':
     cannotRecord?'<span class="project-task-warning">Save a bus-fed project to record machines automatically.</span>':
     possibleDuplicates?'<span class="project-task-warning">Check for duplicates: '+possibleDuplicates+' matching unlinked machines already in Factory.</span>':'')+
@@ -185,7 +185,7 @@ function render(){
  if($('projectsLegacyFill'))$('projectsLegacyFill').style.width=(legacy.total?Math.min(100,legacy.done/legacy.total*100):0)+'%';
  const active=visibleProjects().filter(p=>p.status!=='archived'),archived=visibleProjects().filter(p=>p.status==='archived');
  if($('projectsList'))$('projectsList').innerHTML=active.length?active.map(projectHTML).join(''):
-  '<div class="project-empty"><strong>No saved builds yet</strong><p>Start in Planner, pick an item and a production rate, then use Save to Projects. The optional circuit district is available below.</p><button type="button" data-project-go-planner>Open Visual Planner</button></div>';
+  '<div class="project-empty"><strong>No saved builds yet</strong><p>Start in Blueprint Designer, pick an item and a production rate, then choose Queue construction. The optional circuit district is available below.</p><button type="button" data-project-go-planner>Open Visual Planner</button></div>';
  if($('projectsArchived'))$('projectsArchived').innerHTML=archived.map(projectHTML).join('')||'<p class="small">No archived projects.</p>';
  if($('projectsArchivedWrapper')){
   $('projectsArchivedWrapper').hidden=archived.length===0;
@@ -197,7 +197,8 @@ function openDialog(mode,project,result){
  editing=mode==='rename'?project.id:null;
  pending=mode==='create'?result:null;
  const title=$('projectsDialogTitle'),input=$('projectsName');
- title.textContent=editing?'Rename project':'Save production chain to Projects';
+ title.textContent=editing?'Rename project':'Queue construction';
+ $('projectsDialogSubmit').textContent=editing?'Save name':'Queue construction';
  input.value=editing?project.name:fmt(result.rate)+' '+(R[result.id]?.[0]||result.id)+'/min';
  $('projectsDialogSubtitle').textContent=editing?'Change the display name without changing machine counts.':'Create a separate construction plan from this exact recipe calculation. No machines will be added to Existing Factory.';
  $('projectsDialog').showModal();
@@ -221,7 +222,7 @@ function saveDialog(event){
     recipe:project.goal.id,title:'Saved construction project',
     detail:project.name+' · '+project.tasks.reduce((n,t)=>n+t.planned,0)+' machines planned · 0 built'
    });
-   notice='Saved '+project.name+'. Machine counts are planned, not yet built.';
+   notice='Queued '+project.name+'. Actual Inventory is unchanged until you mark machines built.';
   }
   $('projectsDialog').close();editing=null;pending=null;render();
   activateWorkspace('factory',true);

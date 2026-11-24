@@ -88,3 +88,10 @@ test('diagnostic UI offers explicit blueprint handoff without mutating inventory
  const js=read('logistics.js');
  assert.match(js,/data-log-plan/);assert.match(js,/NauvisRatioExplorer\?\.setGoal/);assert.match(js,/activateWorkspace\('build',true\)/);
 });
+
+test('queued demand is excluded from actual network by default without deleting it',()=>{
+ const {scenarioGraph}=require('../logistics.js');
+ const g={nodes:[node('s','source'),node('d','destination',{link:'project:p1'})],edges:[edge('e','s','d')]};
+ assert.equal(scenarioGraph(g).nodes.length,1);assert.equal(scenarioGraph(g).edges.length,0);
+ assert.equal(scenarioGraph(g,true).edges.length,1);assert.equal(g.edges.length,1);
+});

@@ -36,6 +36,7 @@ function attach(){
    '<label>Machine quality<select data-upgrade-field="machineQuality">'+select(qualities,row.machineQuality||'normal')+'</select></label>'+
    '<label>Beacon speed bonus (%)<input data-upgrade-field="beaconSpeed" type="number" inputmode="decimal" min="0" max="300" step="1" value="'+Number(row.beaconSpeed||0)+'"></label>'+
    '</div><p class="setup-upgrade-note">'+notice+'</p>';
+  if(row.projectId){details.querySelectorAll('input,select').forEach(x=>x.disabled=true);details.querySelector('.setup-upgrade-note').textContent='Construction-linked machine profile is locked to its saved project. Destination can still be changed in Inventory.';}
   element.append(details);
  });
  if(wired)return;
@@ -45,6 +46,7 @@ function attach(){
   const element=input.closest('.setup-row'),index=[...host.querySelectorAll('.setup-row')].indexOf(element);
   if(index<0||!setup.machines[index])return;
   const row=setup.machines[index],field=input.dataset.upgradeField;
+  if(row.projectId){root.alert('Project-linked profile is locked to its construction plan.');renderSetupMachines();return}
   const value=['moduleCount','moduleCount2','beaconSpeed'].includes(field)?Number(input.value):input.value;
   const candidate={...row,[field]:value};
   try{
