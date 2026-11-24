@@ -141,8 +141,8 @@ test('gradient and icons still share the same iPhone-responsive background strat
 test('first render loads icon system before inline rendering and caches both files offline',()=>{
  assert.ok(html.indexOf('src="./item-icons.js"')<html.indexOf('/* Verified standard recipes.'));
  assert.match(html,/href="\.\/item-icons\.css"/);
- assert.match(sw,/nauvis-shell-v025/);
+ assert.match(sw,/nauvis-shell-v026/);
  assert.match(sw,/'\.\/item-icons\.js','\.\/item-icons\.css'/);
- assert.match(html,/Nauvis Command Center v0\.25/);
+ assert.match(html,/Nauvis Command Center v0\.26/);
  assert.equal((html.match(/<button data-view=/g)||[]).length,3);
 });
