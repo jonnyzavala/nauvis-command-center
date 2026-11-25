@@ -50,7 +50,8 @@ test('existing tab navigation, sync, and offline cached code remain intact',()=>
  const uiVersion=html.match(/Nauvis Command Center v(\d+(?:\.\d+)+)/)?.[1];
  const cacheVersion=worker.match(/const VERSION='nauvis-shell-v(\d+)';/)?.[1];
  assert.ok(uiVersion,'The UI needs a visible version');
- assert.equal(cacheVersion,uiVersion.replace(/\./g,''),'Offline cache version must follow the UI version');
+ const [major,minor,...patch]=uiVersion.split('.');
+ assert.equal(cacheVersion,major+minor.padStart(2,'0')+patch.join(''),'Offline cache version must follow the UI version');
  assert.match(worker,/quick-add\.js/);
  assert.match(worker,/quick-add\.css/);
 });
