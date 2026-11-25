@@ -76,7 +76,7 @@ function beforeActivate(view){
 }
 function onActivate(view){
  for(const b of document.querySelectorAll('[data-focus-view]')){
-  const on=b.dataset.focusView===(view==='logistics'?'flow':view);b.classList.toggle('active',on);if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
+  const on=b.dataset.focusView===(['logistics','flow'].includes(view)?'build':view);b.classList.toggle('active',on);if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
  }
  if(mode==='focus'&&['build','factory','log','flow'].includes(view))lastFocus=view;
  if(mode==='full'&&(fullOnly.has(view)||view==='logistics'))lastFull=view;

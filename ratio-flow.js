@@ -460,7 +460,7 @@ function mount(target,result,cardKey){
   holder.querySelector('[data-flow-belt-summary]').innerHTML=rows.join('')||'<p class="ratio-muted">No external solid inputs.</p>';
  }
  beltToggle.addEventListener('change',()=>{state.beltMode=beltToggle.checked;root.NauvisRatioFlow.beltModeByCard.set(cardKey,state.beltMode);update()});
- slider.addEventListener('input',()=>{state.beltTier=tierList[Number(slider.value)];root.NauvisRatioFlow.beltTierByCard.set(cardKey,state.beltTier);updateBeltControls();state.redraw?.()});
+ slider.addEventListener('input',()=>{state.beltTier=tierList[Number(slider.value)];root.NauvisRatioFlow.beltTierByCard.set(cardKey,state.beltTier);updateBeltControls();state.refreshDetails?.();state.redraw?.()});
  controls.forEach(button=>button.addEventListener('click',()=>{
   root.NauvisRatioFlow.modeByCard.set(cardKey,button.dataset.flowMode);
   update();
@@ -600,6 +600,7 @@ function drawLayout(state){
  }
  cards.forEach(b=>b.addEventListener('click',()=>{state.selected=toggleSelection(state.selected,b.dataset.flowNode);showDetails();queueRedraw()}));
  showDetails();
+ state.refreshDetails=showDetails;
  state.redraw=queueRedraw;
  root.addEventListener('resize',queueRedraw,{passive:true});
  root.visualViewport?.addEventListener('resize',queueRedraw,{passive:true});
