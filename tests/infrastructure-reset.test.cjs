@@ -134,7 +134,7 @@ test('empty defaults do not repopulate historical counts after reload or sync',(
  assert.match(html,/Object\.assign\(setup\.smelt,blankSmelt,data\.setup\.smelt/);
  assert.match(html,/tasks\.length\?complete\/tasks\.length\*100:0/);
  assert.match(html,/window\.NauvisCloudApplying=true/);
- assert.match(sw,/nauvis-shell-v100/);assert.match(html,/Nauvis Command Center v1\.0/);
+ assert.match(sw,/nauvis-shell-v1001/);assert.match(html,/Nauvis Command Center v1\.0\.1/);
 });
 
 test('Fresh Start removes smelting ownership alongside construction records',()=>{
