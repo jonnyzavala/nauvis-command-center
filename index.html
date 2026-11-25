@@ -860,6 +860,7 @@ body[data-workspace="build"]{
  <footer class="footer">Nauvis Command Center v0.61 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, fuel/power delivery, beacon geometry and inserter constraints remain unmodeled.</footer>
 </div>
 <link rel="stylesheet" href="./factory-onboarding.css">
+<link rel="stylesheet" href="./factory-milestones.css">
 <script src="./item-icons.js"></script>
 <script src="./production-effects.js"></script>
 <script src="./production-presets.js"></script>
@@ -1080,7 +1081,7 @@ const factory={...blankDistrict,...(load(fkey)||{})};factory.checked={...((load(
 const el=id=>document.getElementById(id);
 const fmt=n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:1});
 const csscolor=(id,kind)=>window.NauvisIcons?.color?.(id)||(kind==='chem'?c.chem:kind==='furnace'?c.furnace:c.other);
-const save=()=>{try{localStorage.setItem(gkey,JSON.stringify(guide));localStorage.setItem(fkey,JSON.stringify(factory))}catch(e){};if(!window.NauvisCloudApplying)window.NauvisCloud?.changed()};
+const save=()=>{try{localStorage.setItem(gkey,JSON.stringify(guide));localStorage.setItem(fkey,JSON.stringify(factory))}catch(e){};if(!window.NauvisCloudApplying)window.NauvisCloud?.changed();window.NauvisMilestones?.refresh?.()};
 function rateOf(id){const r=R[id];return 60*r[2]*(r[3]==='asm'?Number(guide.machine):r[3]==='furnace'?2:1)/r[1]}
 function calculate(id,target){const need={},external={};const stop=guide.source==='bus'?STOP_BUS:STOP_RAW;
  function add(x,rate,root){if(rate<=1e-9)return;if(!R[x]||(!root&&stop.has(x))){external[x]=(external[x]||0)+rate;return}need[x]=(need[x]||0)+rate;const r=R[x];for(const [ing,qty] of Object.entries(r[4]))add(ing,rate/r[2]*qty,false)}
@@ -1273,7 +1274,7 @@ function renderSetupCompare(){
   el('setupReusePreview').addEventListener('click',()=>logistics.previewBlueprint(full));
  }catch(err){host.innerHTML='<p class="small">'+escapeHTML(err.message)+'</p>'}
 }
-function renderSetupSummaryOnly(){renderSetupSmelting();renderSetupOil();renderSetupMachineSummary();renderSetupFeedSummary();renderSetupCompare();renderBalance();window.NauvisLogistics?.render?.()}
+function renderSetupSummaryOnly(){renderSetupSmelting();renderSetupOil();renderSetupMachineSummary();renderSetupFeedSummary();renderSetupCompare();renderBalance();window.NauvisLogistics?.render?.();window.NauvisMilestones?.refresh?.()}
 function saveSetup(){window.NauvisJournal?.captureSetup?.();try{localStorage.setItem(setupKey,JSON.stringify(setup))}catch(e){};if(!window.NauvisCloudApplying)window.NauvisCloud?.changed()}
 function renderSetup(){renderSetupInputs();renderSetupMachines();renderSetupFeeds();renderSetupSummaryOnly();window.NauvisAssets?.render?.()}
 function initSetup(){
@@ -1351,6 +1352,7 @@ function renderBalance(){
  let network=null;
  try{network=window.NauvisLogistics?.actualNetwork?.()||null}catch(_e){}
  const result=resourceAuditEngine({base:computeSetup(),smelt:setup.smelt,oil:setup.oil,recipes:R,machines:setup.machines,includeGoal,goalExternal:proposed,network:network?.converged?network:null});
+ window.NauvisMilestones?.updateBalance?.(result);
  const routeRows=[];
  if(network)for(const [id,a] of network.results){if(a.error){routeRows.push({id,error:a.error,short:0,unknown:0,gap:0});continue}
   const destinations=Object.values(a.nodes).filter(n=>n.demand!==null),short=destinations.filter(n=>n.margin<-.01);
@@ -1369,7 +1371,7 @@ function renderBalance(){
    const [label,color]=statuses[r.status];
    const text=r.hasSource?`${r.margin>=0?'+':''}${f(r.margin)}`:'Unknown source';
    const bar=r.hasSource&&r.produced>0?Math.min(100,r.total/r.produced*100):0;
-   return `<tr><td><span class="balance-item-label">${itemIcon(r.id,29)}<strong>${escapeHTML(nameOf(r.id))}</strong></span><div class="little" style="color:${color}">${label}</div></td><td class="balance-number">${r.hasSource?f(r.produced):'Not entered'}${r.routeLimited?`<div class="little" style="color:${c.gold}">${f(r.modeledOutput)} route-constrained</div>`:''}</td><td class="balance-number">${f(r.needed)}</td><td class="balance-number">${r.planned?f(r.planned):'·'}</td><td class="balance-number"><b style="color:${color}">${escapeHTML(text)}</b>${r.routeLimited?`<div class="little" style="color:${r.modeledMargin<-.01?c.red:c.gold}">${r.modeledMargin>=0?'+':''}${f(r.modeledMargin)} with modeled inputs</div>`:''}<div class="balance-meter"><span style="width:${bar}%;background:${color}"></span></div></td></tr>`;
+   return `<tr><td><span class="balance-item-label">${itemIcon(r.id,29)}<strong>${escapeHTML(nameOf(r.id))}</strong></span><div class="little" style="color:${color}">${label}</div>${window.NauvisMilestones?.badge?.(r)||''}</td><td class="balance-number">${r.hasSource?f(r.produced):'Not entered'}${r.routeLimited?`<div class="little" style="color:${c.gold}">${f(r.modeledOutput)} route-constrained</div>`:''}</td><td class="balance-number">${f(r.needed)}</td><td class="balance-number">${r.planned?f(r.planned):'·'}</td><td class="balance-number"><b style="color:${color}">${escapeHTML(text)}</b>${r.routeLimited?`<div class="little" style="color:${r.modeledMargin<-.01?c.red:c.gold}">${r.modeledMargin>=0?'+':''}${f(r.modeledMargin)} with modeled inputs</div>`:''}<div class="balance-meter"><span style="width:${bar}%;background:${color}"></span></div></td></tr>`;
   }).join('')}</tbody></table></div>`;
  const alerts=result.rows.filter(x=>x.status==='short'||x.status==='unknown'||x.status==='tight').sort((a,b)=>({short:0,unknown:1,tight:2}[a.status]-{short:0,unknown:1,tight:2}[b.status]));
  const notes=[];
@@ -1519,7 +1521,7 @@ function activateWorkspace(view,scrollPage=false){
  const bar=document.querySelector('.nav'),active=document.querySelector('.nav button.active');
  if(bar&&active){const barRect=bar.getBoundingClientRect(),tabRect=active.getBoundingClientRect();const target=bar.scrollLeft+(tabRect.left-barRect.left)-(bar.clientWidth-tabRect.width)/2;bar.scrollLeft=Math.max(0,Math.min(bar.scrollWidth-bar.clientWidth,target))}
  if(scrollPage)window.scrollTo({top:0,behavior:'instant'});
- window.NauvisWorkspace?.onActivate?.(view);
+ window.NauvisWorkspace?.onActivate?.(view);window.NauvisMilestones?.refresh?.();
  if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>{const c=document.querySelector('.command-chrome');if(c)document.documentElement.style.setProperty('--chrome-height',Math.ceil(c.getBoundingClientRect().height)+'px')});
 }
 function init(){el('balanceIncludeGoal').addEventListener('change',e=>{balancePrefs.includeGoal=e.target.checked;try{localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs))}catch(_e){}window.NauvisCloud?.changed();renderBalance()});el('balanceEditSetup').addEventListener('click',()=>activateWorkspace('setup',true));el('allRecipes').innerHTML=[...new Set(allOrder.filter(x=>R[x]))].map(k=>`<option value="${k}">${R[k][0]}</option>`).join('');el('allRecipes').addEventListener('change',e=>setGoal(e.target.value));el('goalNumber').addEventListener('change',e=>{guide.rate=Math.min(25000,Math.max(0,Number(e.target.value)||0));renderGuide()});for(const [id,key] of [['assemblyTier','machine'],['sourceMode','source'],['beltTier','belt']])el(id).addEventListener('change',e=>{guide[key]=key==='source'?e.target.value:Number(e.target.value);renderGuide()});document.querySelectorAll('.nav button').forEach(btn=>btn.addEventListener('click',()=>activateWorkspace(btn.dataset.view==='build'?(window.NauvisWorkspace?.lastPlanMode?.()||'build'):btn.dataset.view==='setup'?(window.NauvisWorkspace?.lastFactoryMode?.()||'setup'):btn.dataset.view,true)));
@@ -1575,6 +1577,7 @@ window.NauvisLocal={
 <script src="./machine-upgrades.js" defer></script>
 <script src="./factory-reset.js" defer></script>
 <script src="./factory-onboarding.js" defer></script>
+<script src="./factory-milestones.js" defer></script>
 <script src="./workspace-ui.js" defer></script>
 <script src="./logistics.js" defer></script>
 <script>if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));</script>
