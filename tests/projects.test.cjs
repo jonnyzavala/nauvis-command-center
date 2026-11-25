@@ -124,7 +124,7 @@ test('the cloud snapshot continues to include plan without new tables or sync co
  assert.match(html,/snapshot\(\)\{return JSON\.parse\(JSON\.stringify\(\{version:7,plan:factory,guide,setup,balancePrefs\}\)\)\}/);
  assert.match(html,/projects:Array\.isArray\(data\.plan\.projects\)\?data\.plan\.projects:\[\]/);
  assert.match(html,/factory\.projects=Array\.isArray\(factory\.projects\)\?factory\.projects:\[\]/);
- assert.match(worker,/nauvis-shell-v057/);
+ assert.match(worker,/nauvis-shell-v058/);
  assert.match(worker,/projects\.js/);
  assert.match(worker,/projects\.css/);
 });
