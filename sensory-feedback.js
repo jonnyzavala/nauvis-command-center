@@ -90,13 +90,35 @@ function canPlay(p,event){const def=SOUNDS[event];return !!def&&p.enabled&&p.vol
 function cloudCue(before,after){if(before===after)return null;if(after==='saved'&&before==='syncing')return 'sync';if(['error','conflict','offline'].includes(after)&&!['error','conflict','offline'].includes(before))return 'warning';return null}
 function gained(before,after){const old=new Set(before||[]);return [...new Set(after||[])].filter(x=>!old.has(x))}
 function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now()){
- let context=null,last=-Infinity,voices=[],pending=null,noiseBuffer=null;
- function unlock(){
+ let context=null,last=-Infinity,voices=[],pending=null,noiseBuffer=null,lastError='';
+ function unlock(retry=false){
   if(!AudioContext||!getPrefs().enabled)return Promise.resolve(false);
-  try{if(!context)context=new AudioContext();if(context.state==='running')return Promise.resolve(true);
-   if(!pending)pending=Promise.resolve(context.resume()).then(()=>context.state==='running',()=>false).finally(()=>{pending=null});
-   return pending;
-  }catch{return Promise.resolve(false)}
+  try{
+   if(!context||context.state==='closed')context=new AudioContext();
+   if(context.state==='running'){lastError='';return Promise.resolve(true)}
+   if(pending&&!retry)return pending;
+   const ctx=context;let timer,attempt;
+   // A browser can leave resume() pending indefinitely when a gesture is not accepted.
+   // A fresh trusted tap must be allowed to retry, not inherit a stuck promise.
+   const resume=Promise.resolve(ctx.resume()).then(()=>ctx===context&&ctx.state==='running',err=>{if(ctx===context)lastError=err?.message||'Resume rejected';return false});
+   attempt=Promise.race([resume,new Promise(resolve=>{timer=setTimeout(()=>resolve(false),1200)})]).then(ok=>{if(ctx===context){if(ok)lastError='';else if(!lastError)lastError='Audio context did not resume';}return ok}).finally(()=>{clearTimeout(timer);if(pending===attempt)pending=null});
+   pending=attempt;return attempt;
+  }catch(err){lastError=err?.message||'Audio unavailable';return Promise.resolve(false)}
+ }
+ function reset(){
+  stop();const old=context;context=null;pending=null;noiseBuffer=null;last=-Infinity;lastError='';
+  try{if(old&&old.state!=='closed')Promise.resolve(old.close?.()).catch(()=>{})}catch{}
+ }
+ function testTone(){
+  const p=getPrefs();if(!p.enabled||p.volume<=0||!visible()||context?.state!=='running')return false;
+  stop();try{
+   const t=context.currentTime+.015,o=context.createOscillator(),g=context.createGain();
+   o.type='sine';o.frequency.setValueAtTime(660,t);o.frequency.setValueAtTime(880,t+.18);
+   g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(.0002,.23*p.volume/100),t+.015);g.gain.exponentialRampToValueAtTime(.0001,t+.42);
+   o.connect(g);g.connect(context.destination);voices.push(o);
+   o.onended=()=>{voices=voices.filter(v=>v!==o);try{o.disconnect();g.disconnect()}catch{}};
+   o.start(t);o.stop(t+.44);lastError='';return true;
+  }catch(err){lastError=err?.message||'Could not schedule test tone';stop();return false}
  }
  function stop(){for(const v of voices){try{v.stop()}catch{}}voices=[]}
  function buffer(){
@@ -136,9 +158,9 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
    }
    if(p.palette==='industrial')for(const layer of NOISE[event]||[])noise(layer,start,p);
    return true;
-  }catch{stop();return false}
+  }catch(err){lastError=err?.message||'Sound synthesis failed';stop();return false}
  }
- return {unlock,play,stop,state:()=>context?.state||'locked'};
+ return {unlock,play,stop,reset,testTone,error:()=>lastError,state:()=>context?.state||'locked'};
 }
 if(typeof module==='object'&&module.exports)module.exports={normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine};
 if(typeof document==='undefined')return;
@@ -154,6 +176,7 @@ function paint(){
  if(launcher){launcher.dataset.enabled=String(prefs.enabled);launcher.setAttribute('aria-label','Sensory settings · sound '+(prefs.enabled?'on':'off'))}
  if($('sensoryEnabled'))$('sensoryEnabled').checked=prefs.enabled;
  if($('sensoryPalette'))$('sensoryPalette').value=prefs.palette;
+ audioState();
  if($('sensoryVolume')){$('sensoryVolume').value=prefs.volume;$('sensoryVolumeValue').textContent=prefs.volume+'%'}
  if($('sensoryMotion'))$('sensoryMotion').value=prefs.motion;
  if($('sensoryHaptics')){$('sensoryHaptics').checked=prefs.haptics;$('sensoryHaptics').disabled=typeof navigator.vibrate!=='function'}
@@ -162,7 +185,18 @@ function paint(){
  if($('sensoryHapticNote'))$('sensoryHapticNote').textContent=typeof navigator.vibrate==='function'?'Short vibration pulses on supported devices.':'Haptics are unavailable in this browser (including iPhone Safari).';
 }
 function setPrefs(patch){prefs=normalize({...prefs,...patch});try{localStorage.setItem(KEY,JSON.stringify(prefs))}catch{}if(!prefs.enabled||!prefs.volume)engine.stop();paint();return {...prefs,categories:{...prefs.categories}}}
-function unlock(){return engine.unlock().then(ok=>{if(dialog?.open&&prefs.enabled)status(ok?'Audio ready. Try a sound below.': 'Audio unavailable or blocked. Tap Test sound to retry.');return ok})}
+function audioState(){const node=$('sensoryAudioState');if(node)node.textContent=!prefs.enabled?'Sound off':!root.AudioContext&&!root.webkitAudioContext?'Web Audio unavailable':'Audio engine: '+engine.state()}
+function unlock(retry=false){return engine.unlock(retry).then(ok=>{audioState();return ok})}
+async function testAudio(restart=false){
+ if(!prefs.enabled){status('Turn on Enable sound first.');return}
+ if(!prefs.volume){status('Raise the volume above zero.');return}
+ if(restart)engine.reset();
+ status(restart?'Restarting audio engine…':'Testing audio…');audioState();
+ const ok=await unlock(true);
+ if(!ok){status('Audio did not start ('+engine.state()+'). Try Restart audio, then reopen NAUVIS if needed.');return}
+ const played=engine.testTone();audioState();
+ status(played?'Test tone sent. If you heard nothing, check media volume, Silent Mode and audio output, then try Restart audio.':'Could not play test tone. '+engine.error());
+}
 function pulse(el,cls='sensory-pulse'){
  if(!el||document.body.dataset.sensoryMotion==='off')return;
  el.classList.remove(cls);void el.offsetWidth;el.classList.add(cls);
@@ -192,8 +226,11 @@ function updateAwards(keys){
 }
 function isUiSetting(el){return !!el.closest('#sensoryDialog,#sensoryLaunch')}
 function interactive(e){return e.target?.closest?.('button,summary,a[href],input,select,textarea,[role="button"]')}
-function gesture(e){if(!e.isTrusted)return;lastGesture=performance.now();if(prefs.enabled)unlock()}
-document.addEventListener('pointerdown',gesture,true);
+function gesture(e){if(!e.isTrusted)return;lastGesture=performance.now();if(prefs.enabled&&engine.state()!=='running'&&!e.target?.closest?.('#sensoryDialog,#sensoryLaunch'))unlock(true)}
+document.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')gesture(e)},true);
+document.addEventListener('pointerup',e=>{if(e.pointerType!=='mouse')gesture(e)},true);
+document.addEventListener('touchend',gesture,{capture:true,passive:true});
+document.addEventListener('click',gesture,true);
 document.addEventListener('keydown',e=>{if(!e.repeat)gesture(e)},true);
 document.addEventListener('click',e=>{
  const el=interactive(e);if(!e.isTrusted||!el||isUiSetting(el)||el.disabled||el.getAttribute('aria-disabled')==='true')return;
@@ -216,18 +253,21 @@ document.addEventListener('input',e=>{
  if(prev&&now-prev.time<85)return;lastRange.set(el,{time:now});cue(el.matches('[type="range"]')?'ratchet':el.matches('[type="number"]')?'tick':'key',null,{haptic:false});
 },false);
 document.addEventListener('invalid',e=>{if(e.isTrusted&&!isUiSetting(e.target))semantic('warning',e.target)},true);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)engine.stop()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)engine.stop();audioState()});
+window.addEventListener('pageshow',audioState);
 reduce?.addEventListener?.('change',paint);
-launcher?.addEventListener('click',()=>{paint();status(prefs.enabled?(engine.state()==='running'?'Audio ready.':'Tap Test sound to enable audio in this session.'):'Sound is off. Enable it when you want tactile feedback.');dialog?.showModal()});
+launcher?.addEventListener('click',()=>{paint();status(prefs.enabled?'Tap Test sound to check audio output.':'Sound is off. Enable it when you want tactile feedback.');dialog?.showModal();if(prefs.enabled)unlock(true)});
+$('sensoryTestSound')?.addEventListener('click',()=>testAudio(false));
+$('sensoryRestartAudio')?.addEventListener('click',()=>testAudio(true));
 $('sensoryClose')?.addEventListener('click',()=>dialog.close());
-$('sensoryEnabled')?.addEventListener('change',async e=>{setPrefs({enabled:e.target.checked});if(prefs.enabled){await unlock();cue('on',null,{haptic:false})}else status('Sound muted.')});
+$('sensoryEnabled')?.addEventListener('change',async e=>{setPrefs({enabled:e.target.checked});if(prefs.enabled){const ok=await unlock(true);if(ok){cue('on',null,{haptic:false});status('Sound enabled. Tap Test sound to check output.')}else status('Tap Test sound to activate audio.')}else status('Sound muted.')});
 $('sensoryVolume')?.addEventListener('input',e=>setPrefs({volume:Number(e.target.value)}));
 $('sensoryPalette')?.addEventListener('change',e=>{setPrefs({palette:e.target.value});if(prefs.enabled)unlock().then(ok=>{if(ok)cue('click',null,{haptic:false})})});
 $('sensoryMotion')?.addEventListener('change',e=>setPrefs({motion:e.target.value}));
 $('sensoryHaptics')?.addEventListener('change',e=>{setPrefs({haptics:e.target.checked});vibrate('click')});
 for(const k of CATEGORIES)$('sensoryCat-'+k)?.addEventListener('change',e=>setPrefs({categories:{...prefs.categories,[k]:e.target.checked}}));
 $('sensoryReset')?.addEventListener('click',()=>{setPrefs(DEFAULTS);status('Default sensory preferences restored.')});
-dialog?.addEventListener('click',async e=>{const event=e.target.closest('[data-sensory-test]')?.dataset.sensoryTest;if(!event)return;if(!prefs.enabled||!prefs.volume){status('Enable sound and set volume above zero first.');return}if(!prefs.categories[SOUNDS[event]?.[0]]){status('Enable this sound category first.');return}if(await unlock()){const played=cue(event,e.target,{haptic:false,preview:true});status(played?'Played '+event+' preview.':'Sound could not play. Try again.')}});
+dialog?.addEventListener('click',async e=>{const event=e.target.closest('[data-sensory-test]')?.dataset.sensoryTest;if(!event)return;if(!prefs.enabled||!prefs.volume){status('Enable sound and set volume above zero first.');return}if(!prefs.categories[SOUNDS[event]?.[0]]){status('Enable this sound category first.');return}if(await unlock(true)){const played=cue(event,e.target,{haptic:false,preview:true});status(played?'Played '+event+' preview.':'Sound could not play. '+engine.error())}else status('Audio did not start. Tap Restart audio.')});
 let cloudBefore=$('cloudStatus')?.dataset.state;
 if($('cloudStatus')&&typeof MutationObserver!=='undefined')new MutationObserver(()=>{const after=$('cloudStatus').dataset.state,event=cloudCue(cloudBefore,after);cloudBefore=after;if(event)cue(event,null,{haptic:false})}).observe($('cloudStatus'),{attributes:true,attributeFilter:['data-state']});
 root.NauvisSensory={getPrefs:()=>normalize(prefs),setPrefs,unlock,semantic,markLocalChange,resetBaseline,updateAwards,state:engine.state};

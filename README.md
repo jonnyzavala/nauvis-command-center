@@ -287,3 +287,6 @@ Guided setup still uses a review-first dialog for initializing an empty factory.
 
 ### v1.0.2 · Industrial foley and unified help
 The default industrial palette combines short filtered noise transients, damped resonances, hydraulic swells and tonal accents. 24 different action cues include distinct key, ratchet, count-up/down, check/uncheck and belt-connection sounds; the classic electronic palette remains available. Both palettes are synthesized offline; no audio downloads or factory data changes. The bottom-left question control now contains Contextual tips and Walkthroughs, with the current workspace first and replay available at any time. First-use invitations still launch actual coaching; no permanent walkthrough button above the Quick Guide hero. A running walkthrough can be resumed or ended from the same help panel.
+
+### v1.0.3 · Audio recovery
+Visible Test sound and Restart audio controls, diagnostic audio state and a category-independent test tone (still respects master mute and volume). Trusted touch release/click gestures can retry suspended audio, resume attempts are bounded, and explicit restart recreates the audio context. Test tone scheduling does not prove audible hardware output. No factory or cloud changes.
