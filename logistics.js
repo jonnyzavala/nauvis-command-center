@@ -766,8 +766,9 @@ function renderPreview(host){
  (saved?'<div class="log-actions"><button class="log-primary" data-log-preview-action="construction">Return to Construction</button><button data-log-preview-action="clear">Close saved design</button></div>':'<div class="log-actions"><button class="log-primary" data-log-preview-action="queue">Queue '+result.roundedTotal+' additional machines</button><button data-log-preview-action="save-draft">'+(draftName?'Update saved draft':'Save draft')+'</button>'+(draftName?'<button data-log-preview-action="copy-draft">Save as new draft</button>':'')+'<button data-log-preview-action="back">Return to original blueprint</button><button data-log-preview-action="clear">Close preview</button></div><p class="log-muted">Save a draft to keep it across devices without reserving supply. Queue construction separately to freeze the calculated design. Saved drafts remain reusable after queueing. Actual machines and routes remain unchanged.</p><p class="log-message" role="status">'+esc(notice)+'</p>'); 
  if(!saved)updateProposalSourcePicker(host,proposalPorts(result));
 }
+function networkVisible(){return $('logistics')?.classList.contains('active')||($('build')?.classList.contains('active')&&$('plannerNetwork')?.open&&$('plannerNetworkHost')?.contains($('logistics')))}
 function render(){
- const host=$('logisticsEditor');if(!host||!$('logistics')?.classList.contains('active'))return;
+ const host=$('logisticsEditor');if(!host||!networkVisible())return;
  if(draftLibrary){renderDraftLibrary(host);return}
  if(previewMode){try{renderPreview(host)}catch(err){host.innerHTML=modeBar()+'<p class="log-danger">'+esc(err.message)+'</p>'}return}
  if(entityMode){renderEntities(host);return}
@@ -851,7 +852,7 @@ function init(){
   if(target&&target.dataset.logNode!==d.from)join(d.from,target.dataset.logNode);else{connecting=d.from;selected=d.from;notice='Tap a destination or add one.';render()}
  });
  host.addEventListener('pointercancel',()=>{drag=null;render()});
- let lastWidth=root.innerWidth;root.addEventListener('resize',()=>{if(root.innerWidth!==lastWidth){lastWidth=root.innerWidth;if($('logistics')?.classList.contains('active'))render()}},{passive:true});
+ let lastWidth=root.innerWidth;root.addEventListener('resize',()=>{if(root.innerWidth!==lastWidth){lastWidth=root.innerWidth;if(networkVisible())render()}},{passive:true});
  root.NauvisLogistics={render,actualNetwork,previewBlueprint,openActualNetwork(){previewMode=false;draftLibrary=false;entityMode=false;selected=null;connecting=null;activateWorkspace('logistics',true);render()},viewSavedDesign,eligibleReuse,availableProduction,auditReuse,openResource(resource){inspectResource(resource);},invalidate(){blueprintDraft=null;savedDesignId=null;savedDraftId=null;draftLibrary=false;previewMode=false;proposedRoutes=[];reuseSelection.clear();undo=null;selected=null;connecting=null;picker=false;drag=null;includeScenario=false;entityPending=null;entityPicker=false;notice='';render()}};
  render();
  if(typeof renderSetupCompare==='function')renderSetupCompare();

@@ -20,8 +20,8 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(w.NauvisFocus.getMode()==='focus'&&w.document.querySelector('#build.active'),'Focus is the default and opens Planner');
   const initial=JSON.stringify(snap(w));
   w.activateWorkspace('flow',true);
-  assert(w.document.querySelector('#focusBlueprintBelts [data-ratio-lane-panel]').open&&w.document.querySelector('#focusBlueprintBelts [data-ratio-flow-root]'),'Flow opens current blueprint lane diagram and production chain automatically');
-  const beltRoot='#focusBlueprintBelts [data-ratio-flow-root]';
+  assert(w.document.querySelector('#build.active')&&!w.document.querySelector('#plannerQuickCheck,#flow'),'Legacy Flow navigation returns to the blueprint; split checker removed');
+  const beltRoot='#build [data-ratio-flow-root]';
   const beltToggle=w.document.querySelector(beltRoot+' [data-flow-belt-toggle]');
   if(!beltToggle.checked)beltToggle.click();
   const beltCard=()=>w.document.querySelector(beltRoot+' .flow-belt-resource');
@@ -36,19 +36,6 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   click(w,beltRoot+' [data-flow-belt-reset]');
   assert(beltCard().dataset.capacityStatus!=='starving','Sizing to demand removes capacity shortage');
   assert(JSON.stringify(snap(w))===initial,'Belt capacity tests do not mutate factory data');
-  click(w,'[data-flow-view="quick"]');
-  assert(w.document.querySelector('#focusBlueprintBelts').hidden&&!w.document.querySelector('#focusQuickSplit').hidden,'Quick split is an independent visual mode');
-  w.document.querySelector('#focusFlowEditor').open=true;
-  w.document.querySelector('#focusSupplyCalculator').open=true;
-  set(w,'#focusSourceCount','148','input');
-  assert(w.document.querySelector('#focusSupplyPreview').textContent.includes('5,550'),'148 steel furnaces compute rated iron output');
-  click(w,'[data-flow-action="use-machine-supply"]');
-  assert(w.NauvisFocus.analyze().s.supply===5550,'Machine calculation fills supply without recording machines');
-  click(w,'[data-flow-action="example"]');
-  assert(w.NauvisFocus.analyze().delivered===1800,'Automatic example redistributes spare branch capacity');
-  set(w,'[data-flow-field="policy"]','fixed');
-  assert(w.NauvisFocus.analyze().distributionGap===300,'Fixed allocation identifies distribution-only gap');
-  assert(JSON.stringify(snap(w))===initial,'Flow check does not mutate factory snapshot');
   click(w,'[data-focus-view="log"]');
   assert(w.document.querySelector('#focusLogHost #journalPanel')&&w.document.querySelectorAll('#journalPanel').length===1,'Log uses original journal, not a copy');
   click(w,'#focusModeToggle');
@@ -113,7 +100,9 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(saved.plan.projects.length===0&&count(w)===6&&saved.setup.logistics.edges.length===1,'Draft does not mutate actual Inventory or routes');
   w=prep(await load());
   assert(snap(w).setup.logisticsDrafts.length===1,'Draft survives browser reload');
+  w.NauvisFocus.setMode('focus');
   w.activateWorkspace('logistics');
+  assert(w.document.body.dataset.workspace==='build'&&w.document.querySelector('#plannerNetwork').open&&w.document.querySelector('#plannerNetworkHost #logisticsEditor'),'Focus network opens within Planner');
   click(w,'[data-log-mode="drafts"]');
   click(w,'[data-log-draft-open]');
   assert(w.document.querySelectorAll('[data-proposal-field]').length>0,'Saved draft restores editable route plan');
@@ -160,15 +149,10 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   const beforeFocus=JSON.stringify(snap(w));
   w.NauvisFocus.setMode('focus');w.activateWorkspace('factory');
   assert(w.document.querySelector('#focusConstructionSummary .focus-ring')&&w.document.querySelector('.focus-project-ring'),'Construction has aggregate and project progress rings');
-  w.activateWorkspace('build');click(w,'#build [data-ratio-focus-flow]');
-  assert(w.document.querySelector('#flow.active')&&!w.document.querySelector('#focusBlueprintBelts').hidden&&w.document.querySelector('#focusBlueprintBelts [data-ratio-lane-panel]').open,'Planner opens automatically populated belt layout');
-  assert(!!w.document.querySelector('#focusBlueprintBelts .focus-check-material'),'Ingredient diagram offers direct supply checks');
-  click(w,'#focusBlueprintBelts .focus-check-material');
-  assert(!w.document.querySelector('#focusQuickSplit').hidden&&w.NauvisFocus.analyze().demand>0&&w.NauvisFocus.analyze().s.supply===0,'Ingredient check auto-populates demand and belts without inventing supply');
-  assert(!!w.document.querySelector('#focusPlanInput'),'Blueprint input requirements available for quick check');
-  click(w,'[data-flow-edit="source"]');
-  assert(w.document.querySelector('#focusFlowEditor').open&&w.document.querySelector('#focusSupplyCalculator').open,'Source node opens the machine-count editor');
-  assert(JSON.stringify(snap(w))===beforeFocus,'Planner to Flow preserves actual inventory and projects');
+  w.activateWorkspace('build');
+  assert(!w.document.querySelector('[data-ratio-focus-flow],.focus-check-material,#focusQuickSplit,#plannerQuickCheck'),'No standalone checker or obsolete links remain');
+  assert(w.document.querySelector('#build [data-flow-belt-toggle]'),'Blueprint belt controls remain');
+  assert(JSON.stringify(snap(w))===beforeFocus,'Planner preserves actual inventory and projects');
   // Simulate a nonzero iOS safe-area inset.
   w.NauvisFocus.setMode('focus');w.activateWorkspace('build');
   frame.style.width='440px';await new Promise(r=>setTimeout(r,100));
@@ -191,7 +175,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
    range.selectNodeContents(ops);
    const rects=[...range.getClientRects()],kr=kicker.getBoundingClientRect(),hr=w.document.querySelector('.command-top').getBoundingClientRect();
    assert(rects.length===1&&rects[0].top<kr.top+kr.height/2&&rects[0].right<=hr.right,'Factory Operations fits on a single header line at '+width+'px');
-   for(const mode of ['learn','setup','balance','logistics','factory','build','log','flow']){
+   for(const mode of ['learn','setup','balance','logistics','factory','build','log']){
     w.activateWorkspace(mode);
     await new Promise(r=>w.requestAnimationFrame(()=>w.requestAnimationFrame(r)));
     assert(w.document.querySelector('#'+mode+'.active'),'Workspace '+mode+' visible at '+width+'px');

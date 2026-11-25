@@ -8,8 +8,8 @@ const lessons={
  {view:'build',target:'#build .ratio-picker',title:'Choose a recipe',body:'Try iron gears, or choose an item you actually want to produce. Search for it and select the recipe.',events:['#build [data-ratio-field="id"]','#build [data-recipe-pick]'],next:'Recipe selected'},
  {view:'build',target:'#build [data-ratio-field="rate"]',title:'Set an output target',body:'Enter 60 items/min for a simple example, or your own target. The planner works backward from that rate.',events:['#build [data-ratio-field="rate"]'],next:'Target selected'},
  {view:'build',target:'#build .ratio-preset-panel',title:'Try a production preset',body:'Starter, Balanced and More suggest different scales. Pick one to recalculate, or keep your custom target.',events:['#build [data-ratio-preset]'],next:'Keep my target'},
- {view:'build',target:'#build [data-ratio-flow-root]',title:'Inspect your production chain',body:'Follow the arrows from ingredients to output. The rounded machine counts tell you what to build; this is still a plan.',next:'I see the chain'},
- {view:'build',target:'#build [data-ratio-logistics-preview]',title:'Preview the network',body:'Click Preview in Logistics to inspect proposed arrays and routing. It will not add actual production machines.',events:['#build [data-ratio-logistics-preview]'],expect:'logistics'},
+ {view:'build',target:'#build [data-ratio-flow-root]',title:'Inspect your production chain',body:'Follow the arrows from ingredients to output. Show belts to compare assigned capacity with demand, and adjust the tier or counts. The rounded machine counts tell you what to build; this is still a plan.',next:'I see the chain'},
+ {view:'build',target:'#build [data-ratio-logistics-preview]',title:'Preview the network',body:'Click Advanced network preview to inspect proposed arrays and routing. It will not add actual production machines.',events:['#build [data-ratio-logistics-preview]'],expect:'logistics'},
  {view:'logistics',target:'#logisticsEditor [data-proposal-action="recommend"]',fallback:'#logisticsEditor',title:'Generate proposed belt connections',body:'Use the recommended connections control if available. Review capacity and any unresolved inputs. These are hypothetical routes, not actual Inventory.',events:['[data-proposal-action="recommend"]'],next:'Review proposal'},
  {view:'logistics',target:'#logisticsEditor [data-log-preview-action="queue"]',fallback:'#logisticsEditor',title:'Decide whether to queue it',body:'If this is a plan you genuinely want to build, click Queue and name it. Otherwise finish the exercise without saving. Queuing creates a real plan, never actual machines.',events:['[data-log-preview-action="queue"]'],next:'Finish without queuing',finish:true,modal:true},
  {view:'logistics',target:'#projectsName',modal:'#projectsDialog',title:'Name your real construction plan',body:'Enter a useful name and explicitly queue the project only if you intend to build it. Cancel if this was just practice.',events:['#projectsDialogSubmit'],success:'project',next:null},
@@ -38,7 +38,6 @@ const lessons={
  {view:'factory',target:'#projectsList',title:'Inspect a queued project',body:'A queue entry is a plan, not production. If there are no projects, use the Blueprint Designer walkthrough to create a real one when ready.',next:'Next'},
  {view:'factory',target:'#projectsList [data-project-plus]:not(:disabled)',fallback:'#projectsList',title:'Record real construction',body:'Expand a project’s tasks. A plus button records one physically placed machine or structure and updates Inventory exactly once. Never click it just to practice.',next:'Finish walkthrough'}
  ]},
- flow:{name:'Check a belt split',intro:'Check a resource without creating factory records.',steps:[{view:'flow',target:'#flow .focus-flow-switch',title:'Choose the diagram you need',body:'Choose Blueprint belts to see the current plan, or Quick split to check one resource. Tap a source to calculate supply from machines. All values are local what-if assumptions.',next:'Next'},{view:'flow',target:'#flow .focus-flow-switch',title:'Read your diagram',body:'Blueprint belts shows the receiving array and paired lanes automatically. In Quick split, coverage distinguishes production, trunk and branch gaps. Automatic splitting redistributes unused shares.',next:'Finish walkthrough'}]},
  log:{name:'Keep an engineer’s log',intro:'Save a note for your next session.',steps:[{view:'log',target:'#journalNoteInput',title:'Record your next objective',body:'Write what you want to remember for the next session. Save only if you want the note added to your actual journal.',next:'Next'},{view:'log',target:'#journalList',title:'Review your history',body:'Construction actions and notes use the same journal in both modes. No duplicate records are created.',next:'Finish walkthrough'}]},
  learn:{name:'Explore the Quick Guide',intro:'Find explanations and replay any walkthrough whenever you need help.',steps:[{view:'learn',target:'#learn .hero',title:'Your reference desk',body:'Use this guide for explanations, then tap the bottom-left question button to select a hands-on walkthrough.',next:'Finish walkthrough'}]}
 };
@@ -58,7 +57,7 @@ function clear(){clearHighlight();if(wait!==null){clearTimeout(wait);wait=null}c
 function close(){clear()}
 function header(kicker,title,body){return '<div class="coach-head"><div><small>'+esc(kicker)+'</small><strong>'+esc(title)+'</strong></div><button type="button" data-coach-action="close" aria-label="Close walkthrough">×</button></div><p>'+esc(body)+'</p>'}
 function menuHTML(){
- const here=document.body.dataset.workspace,keys=root.NauvisFocus?.getMode?.()==='focus'?['build','factory','log','flow','logistics','setup','balance','learn']:lessonKeys(),order=[here,...keys.filter(k=>k!==here)].filter(k=>lessons[k]);
+ const here=document.body.dataset.workspace,keys=root.NauvisFocus?.getMode?.()==='focus'?['build','factory','log','logistics','setup','balance','learn']:lessonKeys(),order=[here,...keys.filter(k=>k!==here)].filter(k=>lessons[k]);
  return '<div class="help-training-intro"><strong>Hands-on walkthroughs</strong><p>Follow real controls at your own pace. No sample inventory is added.</p></div><div class="coach-menu">'+order.map(k=>'<button type="button" data-coach-lesson="'+k+'" '+(k===here?'class="coach-current"':'')+'><strong>'+esc(lessons[k].name)+'</strong><small>'+esc(k===here?'Current workspace':root.NauvisFocus?.getMode?.()==='focus'&&['setup','balance','learn'].includes(k)?'Full mode · advanced':seen[k]?'Replay walkthrough':'Guided example')+'</small></button>').join('')+'</div>';
 }
 function mountMenu(host){
@@ -98,7 +97,7 @@ function focusTarget(step,scroll){
 function show(scroll=false){
  if(!current)return;
  const lesson=lessons[current],step=lesson.steps[index];if(!step){clear();return}
- if(document.body.dataset.workspace!==step.view&&!(typeof step.modal==='string'&&$(step.modal)?.open))root.activateWorkspace(step.view,false);
+ if(!(step.view==='logistics'&&root.NauvisFocus?.getMode?.()==='focus'&&document.body.dataset.workspace==='build'&&$('#plannerNetwork')?.open)&&document.body.dataset.workspace!==step.view&&!(typeof step.modal==='string'&&$(step.modal)?.open))root.activateWorkspace(step.view,false);
  if(step.panel&&$('#quickAddPanel')?.hidden){root.NauvisQuick?.openInventory?.('machine')}
  // Native project dialogs stay functional. Put instructions inside the actual dialog.
  if(typeof step.modal==='string'&&!$(step.modal)?.open){clear();return}
@@ -110,7 +109,7 @@ function show(scroll=false){
 function advance(){if(!current)return;index++;if(index>=lessons[current].steps.length){clear();return}prior=snap();show(true)}
 function afterAction(step){
  if(!current||lessons[current].steps[index]!==step)return;
- if(step.expect&&document.body.dataset.workspace!==step.expect)return;
+ if(step.expect&&document.body.dataset.workspace!==step.expect&&!(step.expect==='logistics'&&root.NauvisFocus?.getMode?.()==='focus'&&$('#plannerNetwork')?.open))return;
  if(step.expectPanel&&$('#quickAddPanel')?.hidden)return;
  if(step.success==='project'&&(snap()?.plan.projects.length||0)<=(prior?.plan.projects.length||0))return;
  if(step.success==='inventory'&&(snap()?.setup.machines.length||0)<=(prior?.setup.machines.length||0))return;
