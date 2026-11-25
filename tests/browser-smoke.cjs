@@ -22,11 +22,15 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(w.document.querySelector('#sensoryDialog').open,'Sensory settings open from header');
   assert(!w.NauvisSensory.getPrefs().enabled,'Sound starts muted');
   click(w,'#sensoryEnabled');
+  assert(w.NauvisSensory.getPrefs().palette==='industrial','Industrial palette is default');
   await w.NauvisSensory.unlock();
   assert(w.NauvisSensory.state()==='running','Real Chrome Web Audio context runs with test autoplay permission');
   click(w,'[data-sensory-test="achievement"]');
   await new Promise(r=>setTimeout(r,80));
   assert(w.document.querySelector('#sensoryStatus').textContent.includes('Played achievement'),'Sound preview triggers in real Chrome');
+  for(const cue of ['click','ratchet','countUp','countDown','check','uncheck','build','route']){click(w,'[data-sensory-test="'+cue+'"]');await new Promise(r=>setTimeout(r,15));assert(w.document.querySelector('#sensoryStatus').textContent.includes('Played '+cue+' preview'),'Industrial preview '+cue+' plays in Chrome')}
+  set(w,'#sensoryPalette','electronic');
+  assert(w.NauvisSensory.getPrefs().palette==='electronic','Classic sound palette selectable');
   set(w,'#sensoryVolume','67','input');
   set(w,'#sensoryMotion','off');
   click(w,'#sensoryCat-achievements');
@@ -35,7 +39,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(JSON.stringify(snap(w))===beforeSensory,'Sensory settings never modify factory snapshot');
   click(w,'#sensoryClose');
   w=prep(await load());
-  assert(w.NauvisSensory.getPrefs().volume===67&&!w.NauvisSensory.getPrefs().categories.achievements,'Device preferences survive reload');
+  assert(w.NauvisSensory.getPrefs().volume===67&&!w.NauvisSensory.getPrefs().categories.achievements&&w.NauvisSensory.getPrefs().palette==='electronic','Device preferences survive reload');
   click(w,'#sensoryLaunch');click(w,'#sensoryReset');
   assert(!w.NauvisSensory.getPrefs().enabled&&w.NauvisSensory.getPrefs().volume===35,'Restore defaults mutes audio');
   click(w,'#sensoryClose');
@@ -119,12 +123,18 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(count(w)===4&&snap(w).setup.smelt.ironFurnaces===24,'Guided setup records only entered actual counts');
   assert(snap(w).plan.projects.length===0&&!snap(w).setup.logistics,'Guided setup does not invent projects or connections');
   assert(!w.document.querySelector('#factoryOnboardingDialog').open&&!w.document.querySelector('#nauvisCoach').hidden,'Setup transitions to nonmodal coaching menu');
-  click(w,'#nauvisCoach [data-coach-action="close"]');
+  assert(w.document.querySelector('#helpWalkthroughContent #nauvisCoach')&&w.NauvisGuide.isOpen(),'Coaching menu is inside the existing help panel');
+  click(w,'#contextHelpClose');
   await new Promise(r=>setTimeout(r,30));
   assert(w.document.querySelector('#setup .factory-milestones').textContent.includes('Factory online'),'Inventory milestone reacts to initial production line');
   assert(w.document.querySelector('#balance .factory-milestones'),'Balance has contextual progress card');
   click(w,'#factoryOnboardingLaunch');
   assert(!w.document.querySelector('#factoryOnboardingDialog').open&&w.NauvisCoach.state().menu,'Existing factory opens nonblocking walkthrough menu');
+  assert(w.document.querySelector('#helpWalkthroughContent #nauvisCoach'),'Existing factory walkthrough launcher uses unified help');
+  click(w,'#helpTipsTab');
+  assert(!w.document.querySelector('#helpTipsContent').hidden&&w.document.querySelector('#helpWalkthroughContent').hidden,'Contextual tips remain available in same panel');
+  click(w,'#helpWalkthroughTab');
+  assert(w.document.querySelector('#helpWalkthroughContent #nauvisCoach [data-coach-lesson="setup"]').classList.contains('coach-current'),'Current workspace lesson listed first');
   click(w,'#nauvisCoach [data-coach-lesson="build"]');
   await new Promise(r=>setTimeout(r,100));
   assert(w.document.querySelector('#build.active')&&w.document.querySelector('#build .ratio-picker.nauvis-coach-target'),'Blueprint walkthrough highlights actual recipe picker');
