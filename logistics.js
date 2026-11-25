@@ -590,10 +590,12 @@ function renderEntities(host){
  '<p class="log-message" role="status">'+esc(notice||'Tap an output +, then a matching input +. Tap ↗ to inspect or edit its resource-specific network.')+'</p>'+
  '<p class="log-muted">One card per linked production group. Unconnected ingredient ports are unverified, not assumed supplied or starved. Pipe transport and proposed arrays are not yet supported. Mixed feeders share one final segment; map lines show resource allocations. All existing resource routes remain editable in Resource detail. Network changes do not modify Inventory.</p>';
 }
-function previewBlueprint(result){
+function previewBlueprint(result,autoRoutes=false){
  if(!result?.entries?.length||!(result.rate>0))return;
  blueprintDraft=clone(result);savedDesignId=null;savedDraftId=null;draftLibrary=false;reuseSelection=new Set();previewArray=result.id;previewMode=true;proposedRoutes=[];notice='';
- selected=null;entityPending=null;connecting=null;activateWorkspace('logistics',true);render();
+ selected=null;entityPending=null;connecting=null;
+ if(autoRoutes){const {result:proposal}=previewCalculation();const tier=Object.keys(TIERS).find(k=>TIERS[k]===proposal.belt)||'red';proposedRoutes=proposeRoutes(proposal,tier,id)}
+ activateWorkspace('logistics',true);render();
 }
 function drafts(){return root.NauvisEffects.normalizeLogisticsDrafts(setup.logisticsDrafts)}
 function draftRecord(){
@@ -852,7 +854,7 @@ function init(){
  });
  host.addEventListener('pointercancel',()=>{drag=null;render()});
  let lastWidth=root.innerWidth;root.addEventListener('resize',()=>{if(root.innerWidth!==lastWidth){lastWidth=root.innerWidth;if($('logistics')?.classList.contains('active'))render()}},{passive:true});
- root.NauvisLogistics={render,actualNetwork,previewBlueprint,viewSavedDesign,eligibleReuse,availableProduction,auditReuse,openResource(resource){inspectResource(resource);},invalidate(){blueprintDraft=null;savedDesignId=null;savedDraftId=null;draftLibrary=false;previewMode=false;proposedRoutes=[];reuseSelection.clear();undo=null;selected=null;connecting=null;picker=false;drag=null;includeScenario=false;entityPending=null;entityPicker=false;notice='';render()}};
+ root.NauvisLogistics={render,actualNetwork,previewBlueprint,openActualNetwork(){previewMode=false;draftLibrary=false;entityMode=false;selected=null;connecting=null;activateWorkspace('logistics',true);render()},viewSavedDesign,eligibleReuse,availableProduction,auditReuse,openResource(resource){inspectResource(resource);},invalidate(){blueprintDraft=null;savedDesignId=null;savedDraftId=null;draftLibrary=false;previewMode=false;proposedRoutes=[];reuseSelection.clear();undo=null;selected=null;connecting=null;picker=false;drag=null;includeScenario=false;entityPending=null;entityPicker=false;notice='';render()}};
  render();
  if(typeof renderSetupCompare==='function')renderSetupCompare();
  if(typeof renderBalance==='function')renderBalance();

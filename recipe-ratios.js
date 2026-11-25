@@ -288,7 +288,7 @@ function buildView(result,card){
   '<div class="focus-only focus-planner-kpis"><div><small>BUILD MACHINES</small><strong>'+result.roundedTotal+'</strong><span>Whole machines</span></div><div><small>OUTPUT TARGET</small><strong>'+number(result.rate)+'</strong><span>items/min</span></div><div><small>EXTERNAL INPUTS</small><strong>'+result.external.length+'</strong><span>Material types</span></div></div>'+
   (advancedOn?'<p class="ratio-effect-status"><strong>Upgrade profile active:</strong> machine counts and upstream ingredients reflect compatible module/quality bonuses. Review per-recipe effects under “Why this ratio?”.</p>':'')+
   '<div data-ratio-flow-root class="ratio-flow-root"></div>'+lanePanel(result)+
-  '<div class="ratio-save-strip focus-only"><button class="ratio-save-project" data-ratio-focus-flow type="button">Check input belts →</button><span>Load a material requirement into a quick what-if belt check.</span></div>'+
+  '<div class="ratio-save-strip focus-only"><button class="ratio-save-project" data-ratio-focus-flow type="button">Open belt diagrams →</button><span>See the current blueprint’s lane layout and production chain in Flow &amp; Belts.</span></div>'+
   '<div class="ratio-save-strip"><button class="ratio-save-project" data-ratio-logistics-preview type="button">Preview in Logistics <span aria-hidden="true">→</span></button><span>Test proposed production and explicitly available existing supply without changing Inventory.</span></div>'+
   '<div class="ratio-save-strip"><button class="ratio-save-project" data-ratio-project-save type="button">Queue construction <span aria-hidden="true">→</span></button><span>Creates a planned checklist only. Actual Inventory changes when machines are marked built.</span></div>'+
   '<div data-ratio-legacy-table hidden>'+
@@ -389,7 +389,27 @@ function renderCard(card){
 }
 function renderAll(){cards.forEach(renderCard)}
 cards.forEach(card=>card.addEventListener('toggle',()=>{if(card.open)renderCard(card)}));
-root.NauvisRatioExplorer={refresh:renderAll,setGoal(goal){
+function currentResult(){return analyzeRecipeRatios(recipes,state,contexts)}
+function renderBeltView(host){
+ if(!host)return;
+ const result=currentResult();
+ if(!result.entries.length){host.innerHTML='<p class="ratio-muted">Choose a recipe and production target in Planner first.</p>';return}
+ const open=laneOpen;laneOpen=true;
+ host.innerHTML='<div class="focus-blueprint-title"><small>CURRENT BLUEPRINT · AUTOMATIC INPUTS</small><h3>'+escape(result.name)+' <span>'+number(result.rate)+'/min</span></h3><div class="focus-blueprint-controls"><label>Belt tier<select data-focus-blueprint-belt>'+select([[900,'Yellow · 900/min'],[1800,'Red · 1,800/min'],[2700,'Blue · 2,700/min']],result.belt)+'</select></label><button type="button" data-focus-jump="build">Edit blueprint ↗</button></div></div>'+lanePanel(result)+'<div class="focus-blueprint-divider">PRODUCTION CHAIN</div><div data-ratio-flow-root class="ratio-flow-root"></div>';
+ laneOpen=open;
+ host.querySelector('[data-focus-blueprint-belt]')?.addEventListener('change',e=>{state.belt=Number(e.target.value);renderAll();renderBeltView(host)});
+ host.querySelector('[data-ratio-lane-array]')?.addEventListener('change',e=>{laneArray=e.target.value;renderBeltView(host)});
+ host.querySelector('[data-ratio-lane-rounded]')?.addEventListener('change',e=>{laneRounded=e.target.checked;renderBeltView(host)});
+ const entry=result.entries.find(e=>e.key===laneArray)||result.entries.find(e=>e.key===result.id)||result.entries.at(-1);
+ const plan=entry?planArrayLanes(entry,result.belt,laneRounded):null;
+ host.querySelectorAll('.ratio-lane-rates>div').forEach((row,i)=>{
+  const requirement=plan?.requirements[i];if(!requirement)return;
+  const btn=document.createElement('button');btn.type='button';btn.className='focus-check-material';btn.textContent='Check supply →';btn.setAttribute('aria-label','Check '+requirement.name+' supply for '+entry.name);
+  btn.addEventListener('click',()=>root.NauvisFocus?.checkMaterial?.({key:requirement.id,name:requirement.name,needed:requirement.needed,belt:result.belt,destination:entry.name+' · '+entry.count+' machines'}));row.append(btn);
+ });
+ root.NauvisRatioFlow?.mount(host,result,'focus-belts');
+}
+root.NauvisRatioExplorer={refresh:renderAll,currentResult,renderBeltView,setGoal(goal){
   if(!goal||!recipes[goal.id])return;
   for(const key of ['id','rate','machine','source','belt','moduleType','moduleCount','moduleType2','moduleCount2','machineQuality','beaconSpeed'])
    if(goal[key]!==undefined)state[key]=goal[key];
