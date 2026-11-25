@@ -61,6 +61,6 @@ test('the featured visuals keep current mobile layout and offline support',()=>{
  assert.match(worker,/nauvis-shell-v1014/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(worker,/recipe-ratios\.js/);
- assert.match(html,/Nauvis Command Center v1\.1\.3/);
+ assert.match(html,/Nauvis Command Center v1\.1\.4/);
  assert.match(html,/sync\/cloud-sync\.js/);
 });

@@ -99,10 +99,10 @@ test('layout stays inside explorer and switches to vertical diagram on iPhone',(
  assert.match(style,/\.ratio-flow-node-label strong\{font-size:11px\}/);
 });
 test('version and offline caching include the visual graph without editing cloud sync',()=>{
- assert.match(html,/Nauvis Command Center v1\.1\.3/);
+ assert.match(html,/Nauvis Command Center v1\.1\.4/);
  assert.match(html,/href="\.\/ratio-flow\.css"/);
  assert.match(html,/src="\.\/ratio-flow\.js" defer/);
- assert.match(worker,/nauvis-shell-v1013/);
+ assert.match(worker,/nauvis-shell-v1014/);
  assert.match(worker,/ratio-flow\.css/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(html,/sync\/cloud-sync\.js/);
@@ -253,4 +253,12 @@ test('physical belt strokes count belts, not lanes',()=>{
  assert.match(feederLines(1,'red','Copper','Plastic',1800),/900\/min capacity per ingredient/);
  assert.match(feederLines(1,'red','Copper',null,1800),/one lane/);
  assert.match(beltLines(100,'red'),/\+84 more belts/);
+});
+
+test('belt requirements distinguish fractional throughput and whole physical belts',()=>{
+ const {beltRequirement,parallelPoints}=require('../ratio-flow.js');
+ assert.deepEqual(beltRequirement(2700,'red'),{capacity:1800,equivalent:1.5,count:2});
+ assert.equal(beltRequirement(2700,'yellow').count,3);
+ assert.equal(beltRequirement(2700,'blue').count,1);
+ assert.deepEqual(parallelPoints([{x:0,y:0},{x:10,y:0},{x:10,y:10}],2),[{x:0,y:2},{x:8,y:2},{x:8,y:10}]);
 });

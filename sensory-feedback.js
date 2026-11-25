@@ -57,6 +57,13 @@ const SOUNDS={
  sync:['sync',[[500,500,.065,0,'sine',.14],[750,750,.10,.06,'sine',.17]]],
  warning:['sync',[[115,103,.14,0,'sawtooth',.13],[165,132,.18,.13,'triangle',.25]]]
 };
+// Longer original reward motifs and distinguishable navigation sounds in both palettes.
+for(const palette of [SOUNDS,ELECTRONIC]){
+ palette.phase=['construction',[[330,330,.16,0,'triangle',.25],[440,440,.22,.14,'sine',.24],[660,660,.36,.31,'sine',.22]]];
+ palette.complete[1].push([523,523,.34,.58,'sine',.23],[659,659,.4,.78,'triangle',.22],[1047,1047,.65,1.02,'sine',.22],[784,784,.7,1.02,'sine',.12]);
+ palette.achievement[1].push([784,784,.3,.7,'triangle',.20],[1047,1047,.35,.9,'sine',.24],[1319,1319,.65,1.12,'sine',.22],[1568,1568,.7,1.18,'triangle',.12]);
+ for(const [name,hz] of Object.entries({navPlanner:392,navConstruction:262,navLog:523,navGuide:440,navInventory:330}))palette[name]=['controls',[[hz,hz*.8,.07,0,'triangle',.23],[hz*1.5,hz*1.5,.12,.065,'sine',.19]]];
+}
 // [duration, offset, center Hz, Q, gain, texture, envelope]
 const NOISE={
  click:[[.026,0,1900,.9,.35,'white','impact'],[.018,.017,900,1.5,.18,'white','impact']],
@@ -196,7 +203,7 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
  }
  function play(event,preview=false){
   const p=getPrefs();if(!canPlay(p,event)||!visible()||context?.state!=='running')return false;
-  const now=clock(),special=['complete','achievement','saved','queue','warning','build','reverse','route'].includes(event);
+  const now=clock(),special=['phase','complete','achievement','saved','queue','warning','build','reverse','route'].includes(event);
   if(!preview&&!special&&now-last<55)return false;
   if(special||preview)stop();
   if(voices.length>24)stop();
@@ -281,7 +288,7 @@ function updateAwards(keys){
  const active=document.querySelector('.view.active .factory-milestones');
  if(active)pulse(active,'sensory-award-flash');
  // One reward sound per burst, never on initial load, cloud restore, or tab switch.
- if(performance.now()-lastAward>1800){lastAward=performance.now();if(pendingReward!==null)clearTimeout(pendingReward);const delay=performance.now()-lastSemantic<250?680:0;pendingReward=setTimeout(()=>{pendingReward=null;if(!document.hidden&&earned.some(k=>priorAwards?.includes(k)))cue('achievement',null,{semantic:true,haptic:false})},delay)}
+ if(performance.now()-lastAward>1800){lastAward=performance.now();if(pendingReward!==null)clearTimeout(pendingReward);const delay=performance.now()-lastSemantic<250?1850:0;pendingReward=setTimeout(()=>{pendingReward=null;if(!document.hidden&&earned.some(k=>priorAwards?.includes(k)))cue('achievement',null,{semantic:true,haptic:false})},delay)}
  return earned;
 }
 function isUiSetting(el){return !!el.closest('#sensoryDialog,#sensoryLaunch')}
@@ -295,7 +302,9 @@ document.addEventListener('keydown',e=>{if(!e.repeat)gesture(e)},true);
 document.addEventListener('click',e=>{
  const el=interactive(e);if(!e.isTrusted||!el||isUiSetting(el)||el.disabled||el.getAttribute('aria-disabled')==='true')return;
  if(el.matches('input,select,textarea'))return;
- const kind=el.matches('[data-view],[data-plan-target],[data-factory-target],[data-milestone-action]')?'nav':el.matches('summary')?(el.parentElement.open?'close':'open'):el.matches('[data-project-plus],[data-project-minus]')?null:el.matches('#quickCountPlus,[data-quick-plus]')?'countUp':el.matches('#quickCountMinus,[data-quick-minus]')?'countDown':el.matches('[aria-pressed]')?(el.getAttribute('aria-pressed')==='true'?'on':'off'):'click';
+ const tab=el.dataset.focusView||el.dataset.view;
+ const tabSound=({build:'navPlanner',factory:'navConstruction',log:'navLog',learn:'navGuide',setup:'navInventory'})[tab];
+ const kind=tabSound|| (el.matches('[data-view],[data-plan-target],[data-factory-target],[data-milestone-action]')?'nav':el.matches('summary')?(el.parentElement.open?'close':'open'):el.matches('[data-project-plus],[data-project-minus]')?null:el.matches('#quickCountPlus,[data-quick-plus]')?'countUp':el.matches('#quickCountMinus,[data-quick-minus]')?'countDown':el.matches('[aria-pressed]')?(el.getAttribute('aria-pressed')==='true'?'on':'off'):'click');
  if(!kind)return;
  // Semantic success hooks run first (after actual writes). Generic feedback never claims success.
  if(performance.now()-lastSemantic<100)return;
