@@ -123,8 +123,22 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   w.activateWorkspace('build');click(w,'#build [data-ratio-focus-flow]');
   assert(w.document.querySelector('#flow.active')&&w.document.querySelector('#focusPlanInput'),'Planner passes input requirements to Flow');
   assert(JSON.stringify(snap(w))===beforeFocus,'Planner to Flow preserves actual inventory and projects');
+  // Simulate a nonzero iOS safe-area inset.
+  w.NauvisFocus.setMode('focus');w.activateWorkspace('build');
+  frame.style.width='440px';await new Promise(r=>setTimeout(r,100));
+  w.document.documentElement.style.setProperty('--nauvis-safe-top','62px');
+  await new Promise(r=>setTimeout(r,100));
+  const head=w.document.querySelector('.command-top');
+  assert(head.getBoundingClientRect().top>=62,'Header content clears simulated 62px status-bar inset');
+  const rail=w.getComputedStyle(w.document.querySelector('.nav-track'),'::after');
+  assert(rail.display!=='none'&&rail.backgroundImage.includes('linear-gradient')&&rail.content!=='none','One continuous gradient rail is visible');
+  assert([...w.document.querySelectorAll('[data-focus-view]')].every(b=>w.getComputedStyle(b,'::after').display==='none'),'Legacy segmented rails are suppressed');
+  const chips=[...w.document.querySelector('.command-actions').children].map(n=>n.getBoundingClientRect());
+  assert(chips.length===4&&chips.every(r=>Math.abs(r.width-chips[0].width)<1&&Math.abs(r.height-chips[0].height)<1),'Four header chips share equal dimensions');
+  assert(w.document.querySelector('#cloudStatusText').textContent==='Local','Local-only display is shortened without changing cloud state');
+  w.document.documentElement.style.removeProperty('--nauvis-safe-top');
   // Responsive viewports exercise each actual workspace in a real layout engine.
-  for(const width of [1100,390,320]){
+  for(const width of [1100,440,390,320]){
    frame.style.width=width+'px';
    await new Promise(r=>setTimeout(r,100));
    const kicker=w.document.querySelector('.brand-kicker'),ops=kicker.querySelector('.operations-label'),range=w.document.createRange();

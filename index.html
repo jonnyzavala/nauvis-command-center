@@ -609,6 +609,7 @@ body[data-workspace="build"]{
  @media(max-width:350px){.command-top .brand-kicker,.command-top .brand-kicker .operations-label{font-size:8px;letter-spacing:.1em}}
  </style>
  <link rel="stylesheet" href="./factory-coach.css" />
+ <link rel="stylesheet" href="./header-polish.css" />
 </head>
 <body data-workspace="balance">
 <div class="shell">
@@ -620,7 +621,7 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button type="button" id="focusModeToggle" aria-pressed="true">Full mode</button><button type="button" id="sensoryLaunch" class="sensory-launch" aria-haspopup="dialog" aria-controls="sensoryDialog" title="Sound, motion and tactile feedback"><svg class="sensory-speaker" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4zM15 9a4 4 0 0 1 0 6m3-9a8 8 0 0 1 0 12"/></svg><span class="sensory-label">Feedback</span></button><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v1.1 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button type="button" id="focusModeToggle" aria-pressed="true">Full mode</button><button type="button" id="sensoryLaunch" class="sensory-launch" aria-haspopup="dialog" aria-controls="sensoryDialog" title="Sound, motion and tactile feedback"><svg class="sensory-speaker" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4zM15 9a4 4 0 0 1 0 6m3-9a8 8 0 0 1 0 12"/></svg><span class="sensory-label">Feedback</span></button><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version" aria-label="Version 1.1.1" title="NAUVIS 1.1.1 · Switch 2 · Desktop ready">v1.1.1</div></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" class="full-nav-button" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" class="active full-nav-button" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory &amp; Balance</button><button data-view="build" class="full-nav-button" type="button"><span class="nav-dot" aria-hidden="true"></span>Plan &amp; Build</button><button type="button" data-focus-view="build"><span class="nav-dot" aria-hidden="true"></span>Planner</button><button type="button" data-focus-view="factory"><span class="nav-dot" aria-hidden="true"></span>Construction</button><button type="button" data-focus-view="log"><span class="nav-dot" aria-hidden="true"></span>Log</button><button type="button" data-focus-view="flow"><span class="nav-dot" aria-hidden="true"></span>Flow &amp; Belts</button></div></nav>
  </div>
@@ -884,7 +885,7 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v1.1 · Factorio 2.0 / Space Age · Optional cloud sync · Engineer. Build. Optimize. Physical input routing, actual train deliveries, circuit-controlled pumps, fuel/power delivery, beacon geometry and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v1.1.1 · Factorio 2.0 / Space Age · Optional cloud sync · Engineer. Build. Optimize. Physical input routing, actual train deliveries, circuit-controlled pumps, fuel/power delivery, beacon geometry and inserter constraints remain unmodeled.</footer>
 </div>
 <link rel="stylesheet" href="./factory-onboarding.css">
 <link rel="stylesheet" href="./factory-milestones.css">
