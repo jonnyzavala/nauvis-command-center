@@ -304,3 +304,6 @@ Flow & Belts includes an optional machine-count supply calculator for supported 
 
 ### v1.1.1 · Standalone header polish
 Real safe-area insets plus 4px in standalone mode; one continuous Focus gradient, equal-sized header chips and Local display label. No sync or factory data changes. Chrome tests simulate a nonzero safe area; physical iOS standalone still needs device verification.
+
+### v1.1.2 · Checklist-first construction
+Active project checklists open by default, precede collapsed reference material, and show colored per-group progress bars. One-step controls remain; arbitrary batch size, finish group and confirmed finish project use a validated all-or-nothing batch of the same linked Inventory adjustments. Each action records one journal entry and saves paired counts together. Re-rendering preserves existing disclosure states and restores the acted-on row's viewport position. Completion feedback uses status messages, short motion-aware highlights and existing sound/haptic preferences. No live factory changes or schema changes.

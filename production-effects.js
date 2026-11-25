@@ -167,7 +167,7 @@ function editSmelting(smelt,patch,projects){
  return next;
 }
 function applySmeltBuildDelta(project,recipe,delta,smelt,projects){
- if(delta!==1&&delta!==-1)throw Error('Build adjustment must be one furnace.');
+ if(!Number.isSafeInteger(delta)||delta===0)throw Error('Build adjustment must be a nonzero whole number.');
  const t=project?.tasks?.find(x=>x.recipe===recipe),field=SMELT_FIELDS[recipe];
  if(!Object.hasOwn(SMELT_FIELDS,recipe)||t?.kind!=='furnace')throw Error('Unsupported smelting task.');
  smeltOwnership(smelt,projects);

@@ -107,7 +107,7 @@ test('journal normalization rejects corrupt and duplicate IDs and caps old histo
 test('project build actions log one construction event and preserve journal baseline during paired save',()=>{
  assert.match(projects,/type:'construction',source:'Construction Queue'/);
  assert.match(projects,/root\.NauvisJournal\?\.record\?\.\(\{/);
- assert.match(projects,/before:next\.built-delta,after:next\.built/);
+ assert.match(projects,/before:recipe\?change\.changes\[0\]\.before:before\.built,after:recipe\?change\.changes\[0\]\.after:after\.built/);
  assert.match(projects,/setup\.machines=change\.rows/);
  assert.match(projects,/saveSetup\(\);save\(\);renderSetup\(\)/);
  assert.match(journal,/baseline=JSON\.stringify\(setup\)/);
@@ -135,14 +135,14 @@ test('manual field notes cannot implicitly alter Factory counts',()=>{
  assert.doesNotMatch(journal,/setup\.machines\.push\(/);
 });
 test('new module assets and theme survive offline on iPhone',()=>{
- assert.match(sw,/nauvis-shell-v1011/);
+ assert.match(sw,/nauvis-shell-v1012/);
  for(const file of ['journal.js','workspace-ui.js','workspace-v025.css'])assert.ok(sw.includes("'./"+file+"'"),file);
  assert.match(html,/src="\.\/journal\.js"/);
  assert.match(html,/src="\.\/workspace-ui\.js"/);
  assert.match(html,/href="\.\/workspace-v025\.css"/);
  assert.match(style,/@media\(max-width:760px\)/);
  assert.match(style,/@media\(max-width:430px\)/);
- assert.match(html,/Nauvis Command Center v1\.1\.1/);
+ assert.match(html,/Nauvis Command Center v1\.1\.2/);
 });
 
 test('six-mode spectrum retains blue and teal anchors and a continuous stable rail',()=>{

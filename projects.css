@@ -221,3 +221,37 @@ body[data-workspace="factory"]{--workspace-accent:var(--nauvis-projects)}
 .project-design-row b{font-variant-numeric:tabular-nums;flex-shrink:0}
 
 .project-task-profile{border:1px solid #416d68;border-radius:10px;padding:10px;min-width:0;background:rgba(108,224,209,.045)}.project-task-profile>summary{cursor:pointer;font-size:12px;font-weight:750;color:#bcebe4}.project-profile-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(128px,100%),1fr));gap:8px;margin:10px 0}.project-profile-fields label{display:grid;gap:4px;font-size:11px;min-width:0}.project-profile-fields input,.project-profile-fields select{width:100%;min-width:0;box-sizing:border-box}
+
+/* Checklist-first construction. Batch controls are compact, with the original one-at-a-time buttons retained. */
+.project-card .project-task-details{margin-top:12px;border-color:color-mix(in srgb,var(--project-card-accent) 40%,#385568)}
+.project-task-details>summary{font-size:14px;border-bottom:1px solid transparent}
+.project-task-details[open]>summary{border-bottom-color:#36566a}
+.project-task{gap:8px;position:relative}
+.project-task-done{background:linear-gradient(90deg,#28594738,transparent);border-radius:8px}
+.project-task-done .project-task-counter b{color:#8be4bb}
+.project-task-progress{height:5px;border-radius:6px;background:#30495b;overflow:hidden}
+.project-task-progress>span{display:block;height:100%;background:var(--project-task-accent);border-radius:inherit;transition:width .22s ease}
+.project-task-done .project-task-progress>span{background:#79d0ad}
+.project-batch-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(54px,.7fr) minmax(0,1fr);gap:6px;align-items:end}
+.project-batch-controls button,.project-finish-row button{min-height:36px;border:1px solid #537186;background:#294359;color:#e9f6fb;border-radius:8px;font-size:11px;font-weight:800;padding:5px 6px}
+.project-batch-controls button:disabled,.project-finish-row button:disabled{opacity:.5;cursor:not-allowed}
+.project-batch-amount{display:grid;gap:2px;min-width:0;font-size:9px;color:#b4cddc;text-align:center}
+.project-batch-amount input{width:100%;min-width:0;height:36px;text-align:center;background:#152b3a;border:1px solid #537186;border-radius:8px;color:#f0f7fb;font-size:14px;font-weight:800;padding:4px}
+.project-batch-controls .project-group-complete{grid-column:1/-1;border-color:#56957e;background:#235043;color:#baf6dc}
+.project-task-done .project-group-complete{opacity:1;background:#244e41;color:#a8e6c7}
+.project-finish-row{display:grid;gap:6px;padding:10px;border-top:1px solid #36566a}
+.project-finish-row button{border-color:#70b8a8;background:#29584f;color:#d4fff1;font-size:13px;min-height:42px}
+.project-finish-row small{font-size:10px;color:#a8c1ce;text-align:center}
+.project-reference-heading{font-size:10px;font-weight:800;color:#9cb4c1;text-transform:uppercase;letter-spacing:.07em;margin-top:14px}
+.project-card .project-design{margin-top:6px;opacity:.88}
+body[data-app-mode=focus] #projectsSummary{display:none}
+body[data-app-mode=focus] #projectsOverview .projects-toolbar p{display:none}
+.project-feedback-toast{position:fixed;z-index:200;bottom:calc(max(12px,env(safe-area-inset-bottom,0px)) + 65px);left:50%;transform:translateX(-50%);max-width:calc(100vw - 28px);padding:10px 18px;border-radius:12px;border:1px solid #6ec7a5;background:#1b453c;color:#e0fff2;box-shadow:0 6px 22px #0008;font-size:14px;font-weight:850;pointer-events:none;text-align:center;white-space:nowrap}
+.project-feedback-toast[hidden]{display:none}.project-feedback-win{border-color:#efcf87;color:#ffe8a9;background:#4a3d25}.project-feedback-group{border-color:#a0efd2}
+body[data-sensory-motion=full] .project-celebrate{animation:project-win .85s ease-out}body[data-sensory-motion=full] .project-count-flash .project-task-counter b{animation:project-tick .22s ease-out}
+body[data-sensory-motion=subtle] .project-celebrate,body[data-sensory-motion=subtle] .project-count-flash{animation:project-tick .18s ease-out}
+@keyframes project-win{0%,100%{box-shadow:none}30%{box-shadow:0 0 20px #9ee5be66,inset 0 0 16px #b8f7d533}}
+@keyframes project-tick{0%{filter:brightness(1.65)}100%{filter:none}}
+@media(prefers-reduced-motion:reduce){.project-celebrate,.project-count-flash,.project-task-progress>span{animation:none!important;transition:none!important}}
+
+.project-reference{margin-top:14px;border-top:1px solid #395367;color:#a7bdca;padding-top:10px}.project-reference>summary{font-size:11px;font-weight:750;cursor:pointer;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap}.project-reference>summary span{font-size:10px;font-weight:500;color:#98b0bf}.project-reference-body{margin-top:8px;display:grid;gap:7px}.project-reference .project-design,.project-reference .project-task-profile{margin:0;border-color:#385367;background:#1a3040}.project-profile-reference>small{display:block;margin:6px 0;color:#9eb5c4;font-size:10px}.project-reference .project-task-profile>summary{font-size:11px;color:#b9ceda}
