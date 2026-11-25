@@ -48,15 +48,16 @@ function progress(projects){
 if(typeof module==='object'&&module.exports)module.exports={TIERS,DEFAULT,normalize,analyze,progress,machineSupply};
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id),fmt=n=>Number(n).toLocaleString(undefined,{maximumFractionDigits:1}),esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let flowView='blueprint';
 let mode='focus',state=normalize({...DEFAULT,item:'Resource',supply:0,branches:[]}),planInputs=[],sourceCalc={recipe:'iron-plate',type:'steel',count:0};
 try{mode=localStorage.getItem(MODE)==='full'?'full':'focus';const saved=localStorage.getItem(FLOW);if(saved)state=normalize(JSON.parse(saved))}catch{}
 const fullOnly=new Set(['learn','setup','balance']);
 const journal=$('journalPanel'),anchor=document.createComment('Original activity journal location');journal?.before(anchor);
+const network=$('logistics'),networkAnchor=document.createComment('Full mode network location');network.before(networkAnchor);
 let lastFocus='build',lastFull='balance';
 function applyMode(next,view){
  mode=next==='full'?'full':'focus';document.body.dataset.appMode=mode;
  try{localStorage.setItem(MODE,mode)}catch{}
+ if(mode==='focus'){network.classList.remove('view','active');$('plannerNetworkHost').append(network)}else{networkAnchor.after(network);network.classList.add('view');network.classList.toggle('active',document.body.dataset.workspace==='logistics')}
  if(journal){if(mode==='focus'){$('focusLogHost').append(journal);journal.open=true}else{anchor.after(journal)}}
  $('focusModeToggle').textContent=mode==='focus'?'Full mode':'Focus mode';
  $('focusModeToggle').setAttribute('aria-label',mode==='focus'?'Switch to Full Command Center':'Switch to Focus Mode');
@@ -67,20 +68,20 @@ function applyMode(next,view){
 function setMode(next){
  if(next===mode)return;
  const v=document.body.dataset.workspace;
- if(mode==='focus')lastFocus=['build','factory','log','flow'].includes(v)?v:'flow';else lastFull=fullOnly.has(v)||v==='logistics'?v:'balance';
+ if(mode==='focus')lastFocus=['build','factory','log'].includes(v)?v:'build';else lastFull=fullOnly.has(v)||v==='logistics'?v:'balance';
  applyMode(next,next==='focus'?lastFocus:lastFull);
 }
 function beforeActivate(view){
  if(mode==='focus'&&fullOnly.has(view)){lastFocus=document.body.dataset.workspace||'build';applyMode('full')}
- if(mode==='full'&&(view==='log'||view==='flow'))applyMode('focus');
+ if(mode==='full'&&view==='log')applyMode('focus');
 }
 function onActivate(view){
  for(const b of document.querySelectorAll('[data-focus-view]')){
-  const on=b.dataset.focusView===(['logistics','flow'].includes(view)?'build':view);b.classList.toggle('active',on);if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
+  const on=b.dataset.focusView===(view==='logistics'&&mode==='focus'?'build':view);b.classList.toggle('active',on);if(on)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
  }
- if(mode==='focus'&&['build','factory','log','flow'].includes(view))lastFocus=view;
+ if(mode==='focus'&&['build','factory','log'].includes(view))lastFocus=view;
  if(mode==='full'&&(fullOnly.has(view)||view==='logistics'))lastFull=view;
- if(view==='flow'){refreshPlanInputs();showFlow(flowView)}refresh();
+ if(view==='build'&&$('plannerQuickCheck').open){refreshPlanInputs();renderInputs();renderResults()}refresh();
 }
 function refresh(){
  const snap=root.NauvisLocal?.snapshot?.();if(!snap)return;
@@ -113,14 +114,13 @@ function refreshPlanInputs(result=root.NauvisRatioExplorer?.currentResult?.()){
  const tier=Object.keys(TIERS).find(k=>TIERS[k]===result.belt)||'red';
  planInputs=(result.external||[]).filter(x=>!x.isFluid).map(x=>({key:x.key,name:x.name,needed:x.needed,tier,destination:result.name+' blueprint'}));
 }
-function showFlow(next){
- flowView=next==='quick'?'quick':'blueprint';
- $('focusBlueprintBelts').hidden=flowView!=='blueprint';
- $('focusQuickSplit').hidden=flowView!=='quick';
- document.querySelectorAll('[data-flow-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.flowView===flowView)));
- if(flowView==='blueprint')root.NauvisRatioExplorer?.renderBeltView?.($('focusBlueprintBelts'));
- else{refreshPlanInputs();renderInputs();renderResults()}
+function showTool(id){
+ if(document.body.dataset.workspace!=='build')root.activateWorkspace('build',false);
+ const panel=$(id);panel.open=true;
+ panel.scrollIntoView({block:'start',behavior:'instant'});
 }
+function openQuick(){refreshPlanInputs();renderInputs();renderResults();showTool('plannerQuickCheck')}
+function openNetwork(){showTool('plannerNetwork');root.NauvisLogistics?.render?.()}
 function openEditor(kind,index){
  const editor=$('focusFlowEditor');editor.open=true;
  let target=editor;
@@ -159,11 +159,8 @@ $('focusFlowInputs')?.addEventListener('click',e=>{
 $('focusModeToggle')?.addEventListener('click',()=>setMode(mode==='focus'?'full':'focus'));
 document.querySelectorAll('[data-focus-view]').forEach(b=>b.addEventListener('click',()=>root.activateWorkspace(b.dataset.focusView,true)));
 document.addEventListener('click',e=>{const b=e.target.closest('[data-focus-jump]');if(b)root.activateWorkspace(b.dataset.focusJump,true)});
-document.querySelectorAll('[data-flow-view]').forEach(b=>b.addEventListener('click',()=>showFlow(b.dataset.flowView)));
- document.querySelectorAll('[data-flow-open-network]').forEach(b=>b.addEventListener('click',()=>{
-  if(b.dataset.flowOpenNetwork==='actual'){root.NauvisLogistics?.openActualNetwork?.();return}
-  const result=root.NauvisRatioExplorer?.currentResult?.();if(result?.entries?.length&&result.rate>0)root.NauvisLogistics?.previewBlueprint?.(result,true);else root.alert('Choose a production target in Planner first.');
- }));
+$('plannerQuickCheck')?.addEventListener('toggle',e=>{if(e.target.open){refreshPlanInputs();renderInputs();renderResults()}});
+$('plannerNetwork')?.addEventListener('toggle',e=>{if(e.target.open&&mode==='focus')root.NauvisLogistics?.render?.()});
  $('focusFlowResults')?.addEventListener('click',e=>{
   const b=e.target.closest('[data-flow-edit]');if(!b)return;
   const kind=b.dataset.flowEdit;
@@ -175,10 +172,10 @@ document.querySelectorAll('[data-flow-view]').forEach(b=>b.addEventListener('cli
   const tier=Object.keys(TIERS).find(k=>TIERS[k]===x.belt)||'red',neededBelts=Math.max(1,Math.ceil(x.needed/TIERS[tier]));
   if(R[x.key]&&['asm','chem','furnace'].includes(R[x.key][3])){sourceCalc.recipe=x.key;sourceCalc.type=R[x.key][3]==='furnace'?'steel':R[x.key][3]==='asm'?'0.75':'1';sourceCalc.count=0}
   state=normalize({...DEFAULT,item:x.name,supply:0,tier,belts:neededBelts,branches:[{name:x.destination,demand:x.needed,tier,belts:neededBelts,lanes:2,weight:1}]});
-  saveFlow();showFlow('quick');return true
+  saveFlow();openQuick();return true
  }
- function fromPlan(result){refreshPlanInputs(result);flowView='blueprint';root.activateWorkspace('flow',true)}
-root.NauvisFocus={setMode,beforeActivate,onActivate,refresh,fromPlan,checkMaterial:loadMaterial,getMode:()=>mode,analyze:()=>analyze(state)};
+ function fromPlan(result){refreshPlanInputs(result);openQuick()}
+root.NauvisFocus={setMode,beforeActivate,onActivate,refresh,fromPlan,openQuick,openNetwork,checkMaterial:loadMaterial,getMode:()=>mode,analyze:()=>analyze(state)};
 // Safari may expose a visual viewport smaller than the fixed layout viewport.
 const dock=$('commandDock');
 function pinDock(){const vv=root.visualViewport;if(!dock)return;const offset=vv&&vv.scale===1?Math.max(0,document.documentElement.clientHeight-vv.height-vv.offsetTop):0;dock.style.setProperty('--dock-viewport-offset',offset+'px')}
