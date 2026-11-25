@@ -272,14 +272,16 @@ function ensureEntityPort(graph,port,entity,idFactory){
  const key=idFactory();graph.nodes.push({id:key,item:port.item,kind:port.kind,label:entity.label,link:port.link,autoLabel:true,amount:'',tier:'red',entityAnchor:port.kind==='destination'});return key;
 }
 function reuseCandidates(rows,recipes,graph,factors,rates,claims=new Map()){
- const result=new Map(),g=normalize(graph);
+ const result=new Map(),g=normalize(graph),effects=root.NauvisEffects||(typeof require==='function'?require('./production-effects.js'):null);
  for(const row of rows||[]){
-  if(row.destination!=='Available for new build'||!recipes[row.recipe]||!(Number(row.count)>0))continue;
-  const key='machine:'+row.recipe+'|'+row.destination;
-  const r=result.get(key)||{key,item:row.recipe,count:0,rate:0};
+  if(!recipes[row.recipe]||!(Number(row.count)>0))continue;
+  const key=effects.machineKey(row);
+  const r=result.get(key)||{key,item:row.recipe,count:0,rate:0,available:true};
+  r.available=r.available&&row.destination==='Available for new build';
   r.count+=Number(row.count);r.rate+=rates(row.recipe,recipes[row.recipe],row).output;result.set(key,r);
  }
  return [...result.values()].filter(r=>{
+  if(!r.available)return false;
   const nodes=g.nodes.filter(n=>n.kind==='source'&&n.link===r.key);
   return nodes.length<=1&&!g.edges.some(e=>nodes.some(n=>n.id===e.from));
  }).map(r=>({...r,rate:Math.max(0,r.rate*Math.max(0,Math.min(1,factors?.get(r.key)??1))-(claims.get(r.key)||0))})).filter(r=>r.rate>1e-9);
@@ -312,11 +314,11 @@ function catalog(kind,resource=item){
  if(kind==='destination')for(const [resource,countKey,key,per] of [['iron-ore','ironFurnaces','iron',s.rates['iron-plate'].inputRated],['copper-ore','copperFurnaces','copper',s.rates['copper-plate'].inputRated],['stone','brickFurnaces','brick',s.rates['stone-brick'].inputRated]])if(item===resource&&num(sm[countKey])>0)choices.push({key:'smelt:'+key+'-input',label:num(sm[countKey])+' '+key+' smelters',rate:per});
  for(const row of setup.machines){
   const r=R[row.recipe];if(!r)continue;
-  const rates=root.NauvisEffects.recordedRates(row.recipe,r,row),dest=row.destination||'Unspecified',key='machine:'+row.recipe+'|'+dest;
+  const rates=root.NauvisEffects.recordedRates(row.recipe,r,row),dest=row.destination||'Unspecified',key=root.NauvisEffects.machineKey(row);
   const value=kind==='source'?(row.recipe===item?rates.output:0):(rates.inputs[item]||0);
-  if(value>0){const old=groups.get(key)||{key,label:r[0]+' · '+dest,rate:0,count:0};old.rate+=value;old.count+=num(row.count);groups.set(key,old)}
+  if(value>0){const old=groups.get(key)||{key,label:r[0],destinations:new Set(),rate:0,count:0};old.destinations.add(dest);old.rate+=value;old.count+=num(row.count);groups.set(key,old)}
  }
- choices.push(...[...groups.values()].map(x=>({...x,label:x.count+' × '+x.label})));
+ choices.push(...[...groups.values()].map(({destinations,...x})=>({...x,label:x.count+' × '+x.label+' · '+[...destinations].join(' / ')+(x.key.includes('|id:')?' · #'+x.key.split('|id:').at(-1).slice(-6):'')})));
  if(kind==='destination'&&includeScenario)for(const p of factory.projects||[]){
   if(p.status==='archived'||!p.goal||p.type==='deployment')continue;
   try{const plan=p.design?.analysis||root.NauvisRecipeMath(R,p.goal,{stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names});const demand=(plan.external.find(x=>x.key===item)?.needed||0)+(plan.reused?.find(x=>x.key===item)?.rate||0);if(demand>0)choices.push({key:'project:'+p.id,label:p.name+' · planned full external demand',rate:demand})}catch(_e){}
@@ -594,7 +596,8 @@ function auditReuse(){
  const network=actualNetwork(),valid=network.converged&&!Array.from(network.results.values()).some(x=>x.error),claims=root.NauvisProjects?.reuseClaims?.()||new Map(),rated=new Map();
  for(const row of setup.machines){
   if(row.destination!=='Available for new build'||!R[row.recipe])continue;
-  const k='machine:'+row.recipe+'|'+row.destination;
+  const k=root.NauvisEffects.machineKey(row);
+  if(setup.machines.some(other=>root.NauvisEffects.machineKey(other)===k&&Number(other.count)>0&&other.destination!=='Available for new build'))continue;
   rated.set(k,(rated.get(k)||0)+root.NauvisEffects.recordedRates(row.recipe,R[row.recipe],row).output);
  }
  return [...claims].map(([key,required])=>{
@@ -649,7 +652,7 @@ function renderPreview(host){
  const proposed=result.entries.map(e=>'<article class="log-entity-card log-preview-proposed"><header><small>'+(saved?'SAVED DESIGN · '+(saved.tasks.find(t=>t.recipe===e.key)?.built||0)+' / '+e.count+' BUILT':'PROPOSED · NOT BUILT')+'</small><strong>'+itemGlyph(e.key)+' '+esc(e.name)+'</strong><span>'+e.count+' new machines · '+fmt(e.needed)+'/min target</span></header><div class="log-entity-section">REQUIRED INPUTS</div>'+e.ingredients.map(i=>'<div class="log-preview-ingredient"><span>'+itemGlyph(i.id)+' '+esc(i.name)+'</span><b>'+fmt(i.needed)+'/min</b></div>').join('')+'<button data-log-preview-array="'+esc(e.key)+'" aria-pressed="'+(entry?.key===e.key)+'">Inspect recommended feeder lanes</button></article>').join('');
  host.innerHTML=modeBar()+'<div class="log-preview-header"><small>'+(saved?'SAVED CONSTRUCTION DESIGN · READ ONLY':draftName?'SAVED DRAFT · PROPOSED':'HYPOTHETICAL BUILD · SESSION PREVIEW')+'</small><h3>'+esc(draftName||full.name)+' · '+fmt(full.rate)+'/min new output</h3><p>'+(saved?'Frozen construction design. Built counts are tracked in Construction; this view never recalculates the saved machine counts.':'Actual Inventory and saved network are unchanged. Select available recorded output to reduce this new build; verify delivery before constructing.')+'</p><div class="log-stat-grid"><div><small>Original machines</small><b>'+baseline+'</b></div><div><small>New machines</small><b>'+result.roundedTotal+'</b></div><div><small>Avoided</small><b>'+avoided+'</b></div></div></div>'+
  (saved?'<div class="log-mixed-panel"><strong>Saved reuse commitments</strong>'+((result.reuseClaims||[]).map(c=>'<div class="log-preview-ingredient"><span>'+itemGlyph(c.item)+' '+itemLabel(c.item)+'</span><b>'+fmt(c.rate)+'/min</b></div>').join('')||'<p class="log-muted">No reuse.</p>')+'<p class="log-muted">'+(saved.reuseReleased?'Released; historical design only.':'Retained as planning commitments, not verified belt deliveries.')+'</p></div>':'<div class="log-mixed-panel"><div class="log-brush-head"><strong>Reuse recorded production</strong><span>'+candidates.length+' eligible</span></div>'+
- (candidates.length?candidates.map(c=>'<label class="log-reuse-option"><input type="checkbox" data-log-reuse="'+esc(c.key)+'" '+(reuseSelection.has(c.key)?'checked':'')+'><span>'+itemGlyph(c.item)+' <b>'+itemLabel(c.item)+'</b><small>'+c.count+' recorded machines · '+fmt(c.rate)+'/min uncommitted candidate capacity'+(reuseSelection.has(c.key)?' · '+fmt(used.get(c.item)||0)+'/min assigned':'')+'</small></span></label>').join(''):'<p class="log-muted">No eligible recorded production. Assign an existing line to “Available for new build” in Inventory, and leave it without outgoing network commitments to make it eligible.</p>')+
+ (candidates.length?candidates.map(c=>'<label class="log-reuse-option"><input type="checkbox" data-log-reuse="'+esc(c.key)+'" '+(reuseSelection.has(c.key)?'checked':'')+'><span>'+itemGlyph(c.item)+' <b>'+itemLabel(c.item)+'</b><small>'+c.count+' recorded machines'+(c.key.includes('|id:')?' · #'+esc(c.key.split('|id:').at(-1).slice(-6)):'')+' · '+fmt(c.rate)+'/min uncommitted candidate capacity'+(reuseSelection.has(c.key)?' · '+fmt(used.get(c.item)||0)+'/min assigned':'')+'</small></span></label>').join(''):'<p class="log-muted">No eligible recorded production. Assign an existing line to “Available for new build” in Inventory, and leave it without outgoing network commitments to make it eligible.</p>')+
  (missing.length?'<p class="log-danger">'+missing.length+' saved reuse selection(s) are no longer eligible; excluded from the calculation. <button data-log-preview-action="clear-missing">Clear unavailable selections</button></p>':'')+'<p class="log-muted">Only explicitly available lines without outgoing modeled routes are offered. Missing ingredient routes remain unverified; selected reuse remains hypothetical until queued. Queued commitments reduce availability for subsequent designs, but do not prove delivery. The final output target remains additional production.</p></div>')+
  '<div class="log-brush-head"><strong>Proposed production arrays</strong><span>'+result.entries.length+' stages</span></div><div class="log-entity-grid">'+proposed+'</div>'+
  '<div class="log-mixed-panel"><strong>Remaining external inputs</strong>'+ (result.external.length?result.external.map(x=>'<div class="log-preview-ingredient"><span>'+itemGlyph(x.key)+' '+esc(x.name)+'</span><b>'+fmt(x.needed)+'/min'+(x.isFluid?' · pipe':'')+'</b></div>').join(''):'<p class="log-muted">None at this recipe boundary.</p>')+'<p class="log-muted">External inputs still require supply; not automatically taken from your main bus.</p></div>'+

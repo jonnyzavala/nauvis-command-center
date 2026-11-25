@@ -44,7 +44,7 @@ function applyQuickEdit(state,change,ctx){
    const row={recipe:change.recipe,count,tier,destination:change.destination};
    if(change.target==='new'){
      if(count===0)throw Error('A new production line needs at least one machine.');
-     next.setup.machines.push(row);
+     next.setup.machines.push(labels.newMachineKey?{...row,entityKey:labels.newMachineKey(row.recipe)}:row);
      label='Added '+count+' '+(labels.recipeNames?.[row.recipe]||row.recipe)+' machines';
    }else{
      const n=validIndex(next.setup.machines,change.target);
@@ -52,7 +52,7 @@ function applyQuickEdit(state,change,ctx){
      if(prior.projectId){
        if(row.recipe!==prior.recipe||row.count!==Number(prior.count)||(isAssembler&&row.tier!==Number(prior.tier)))throw Error('This line belongs to Construction. Adjust built counts there; recipe and machine profile are locked.');
        next.setup.machines[n]={...prior,destination:row.destination};
-     }else next.setup.machines[n]={...prior,...row};
+     }else next.setup.machines[n]={...prior,...row,...(labels.newMachineKey&&row.recipe!==prior.recipe?{entityKey:labels.newMachineKey(row.recipe)}:{})};
      label='Updated '+(labels.recipeNames?.[row.recipe]||row.recipe)+' line';
    }
  }else if(change.kind==='remove-machine'){
@@ -117,7 +117,7 @@ function init(){
    destinations:destinations.slice(),
    recipeKinds:Object.fromEntries(itemsForSetup.map(x=>[x,R[x][3]])),
    recipeNames:Object.fromEntries(itemsForSetup.map(x=>[x,R[x][0]])),
-   plan:factory
+   plan:factory,newMachineKey:recipe=>root.NauvisEffects.newMachineKey(recipe)
  };
  const snap=()=>clone({setup,checked:factory.checked});
  const serialized=()=>JSON.stringify(snap());

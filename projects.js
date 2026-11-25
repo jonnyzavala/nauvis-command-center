@@ -34,7 +34,7 @@ function validateReuseClaims(analysis,claims){
  }
  const totals=new Map(),keys=new Set();
  for(const c of claims||[]){
-  if(!c?.item||c.key!=='machine:'+c.item+'|Available for new build'||!Number.isFinite(c.rate)||c.rate<=0||keys.has(c.key))throw Error('Invalid reuse commitment.');
+  if(!c?.item||!(typeof c.key==='string'&&c.key.length<=300&&c.key.startsWith('machine:'+c.item+'|'))||!Number.isFinite(c.rate)||c.rate<=0||keys.has(c.key))throw Error('Invalid reuse commitment.');
   keys.add(c.key);totals.set(c.item,(totals.get(c.item)||0)+c.rate);
  }
  if(totals.size!==reused.size||[...reused].some(([k,v])=>Math.abs((totals.get(k)||0)-v)>1e-6))throw Error('Reuse commitments differ from the calculated plan. Reopen preview.');
@@ -157,6 +157,8 @@ function applyBuildDelta(project,recipe,delta,rows){
   throw Error('Project and Factory counts differ. Review the linked Factory row before changing progress.');
  const tier=task.kind==='asm'?Number(project.goal.machine):1;
  const line=related[0];
+ const effects=root.NauvisEffects||(typeof require==='function'?require('./production-effects.js'):null);
+ const entityKey=line?effects.machineKey(line):task.entityKey||effects.newMachineKey(recipe,'project:'+project.id+':'+recipe);
  if(line&&(!Number.isSafeInteger(Number(line.count))||Number(line.count)<0))
   throw Error('Linked Factory line has an invalid machine count.');
  const nextRows=source.map(row=>({...row}));
@@ -165,11 +167,11 @@ function applyBuildDelta(project,recipe,delta,rows){
   if(next===0)nextRows.splice(index,1);
   else nextRows[index]={...nextRows[index],count:next};
  }else if(next>0){
-  nextRows.push({recipe,count:next,tier,destination:'Other',projectId:project.id,projectTask:recipe,
+  nextRows.push({recipe,count:next,tier,destination:'Other',projectId:project.id,projectTask:recipe,entityKey,
    moduleType:project.goal.moduleType||'none',moduleCount:project.goal.moduleCount||0,moduleType2:project.goal.moduleType2||'none',moduleCount2:project.goal.moduleCount2||0,
    machineQuality:project.goal.machineQuality||'normal',beaconSpeed:project.goal.beaconSpeed||0});
  }
- return {project:{...project,tasks:project.tasks.map(t=>t.recipe===recipe?{...t,built:next}:t)},rows:nextRows};
+ return {project:{...project,tasks:project.tasks.map(t=>t.recipe===recipe?{...t,built:next,entityKey}:t)},rows:nextRows};
 }
 function normalizeProjects(value){
  if(!Array.isArray(value))return [];
