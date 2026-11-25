@@ -40,7 +40,7 @@ function progress(projects){
 if(typeof module==='object'&&module.exports)module.exports={TIERS,DEFAULT,normalize,analyze,progress};
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id),fmt=n=>Number(n).toLocaleString(undefined,{maximumFractionDigits:1}),esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let mode='focus',state=normalize(DEFAULT);
+let mode='focus',state=normalize({...DEFAULT,item:'Resource',supply:0,branches:[]}),planInputs=[];
 try{mode=localStorage.getItem(MODE)==='full'?'full':'focus';const saved=localStorage.getItem(FLOW);if(saved)state=normalize(JSON.parse(saved))}catch{}
 const fullOnly=new Set(['learn','setup','balance']);
 const journal=$('journalPanel'),anchor=document.createComment('Original activity journal location');journal?.before(anchor);
@@ -71,13 +71,13 @@ function onActivate(view){
  }
  if(mode==='focus'&&['build','factory','log','flow'].includes(view))lastFocus=view;
  if(mode==='full'&&(fullOnly.has(view)||view==='logistics'))lastFull=view;
- if(view==='flow')renderResults();refresh();
+ if(view==='flow'){renderInputs();renderResults()}refresh();
 }
 function refresh(){
  const snap=root.NauvisLocal?.snapshot?.();if(!snap)return;
  const p=progress(snap.plan.projects),pct=Math.round(p.pct),last=(snap.plan.journal||[]).at(-1);
  const ring='<div class="focus-ring" style="--p:'+pct+'%" role="img" aria-label="'+pct+' percent built"><strong>'+pct+'%</strong><small>BUILT</small></div>';
- const html='<div class="focus-summary-top">'+ring+'<div class="focus-summary-copy"><small>CONSTRUCTION PROGRESS</small><strong>'+fmt(p.built)+' <span>/ '+fmt(p.planned)+'</span></strong><span>'+p.remaining+' remaining · '+p.active+' active projects</span></div></div><div class="focus-bar"><span style="width:'+pct+'%"></span></div>';
+ const html='<div class="focus-summary-top">'+ring+'<div class="focus-summary-copy"><small>CONSTRUCTION PROGRESS</small><strong>'+fmt(p.built)+' <span>/ '+fmt(p.planned)+'</span></strong><span>'+p.remaining+' remaining · '+p.active+' active projects</span></div></div><div class="focus-bar"><span style="width:'+pct+'%"></span></div>'+(p.complete>0?'<div class="focus-complete">🏆 '+p.complete+' project'+(p.complete===1?'':'s')+' complete</div>':'');
  if($('focusConstructionSummary'))$('focusConstructionSummary').innerHTML=html;
  if($('focusLogStats'))$('focusLogStats').innerHTML='<div><small>JOURNAL ENTRIES</small><strong>'+fmt((snap.plan.journal||[]).length)+'</strong></div><div><small>PROJECTS COMPLETE</small><strong>'+p.complete+' / '+p.active+'</strong></div>';
  if($('focusSessionNote'))$('focusSessionNote').textContent=last?last.title+' · '+last.detail:'No session notes yet. Save a short note when you finish playing.';
@@ -87,7 +87,7 @@ function field(name,k,v,type='number'){return '<label>'+esc(name)+'<input data-f
 function beltFields(b,prefix){return '<label>Belt tier<select data-flow-field="'+prefix+'tier">'+opts(b.tier)+'</select></label>'+field('Belts',prefix+'belts',b.belts)+'<label>Lane usage<select data-flow-field="'+prefix+'lanes"><option value="2" '+(b.lanes===2?'selected':'')+'>Both lanes</option><option value="1" '+(b.lanes===1?'selected':'')+'>One lane</option></select></label>'}
 function renderInputs(){
  const host=$('focusFlowInputs');if(!host)return;
- host.innerHTML='<div class="focus-flow-fields">'+field('Resource','item',state.item,'text')+field('Available supply / min','supply',state.supply)+beltFields(state,'')+'</div><div class="focus-flow-policy"><label>Distribution model<select data-flow-field="policy"><option value="automatic" '+(state.policy==='automatic'?'selected':'')+'>Automatic · redistribute unused capacity</option><option value="fixed" '+(state.policy==='fixed'?'selected':'')+'>Fixed shares · no redistribution</option></select></label></div><div class="focus-flow-branches">'+state.branches.map((b,i)=>'<article class="focus-branch-input"><div class="focus-branch-heading"><strong>Destination '+(i+1)+'</strong><button type="button" data-flow-remove="'+i+'" aria-label="Remove destination '+(i+1)+'">×</button></div><div class="focus-flow-fields">'+field('Name','b:'+i+':name',b.name,'text')+field('Demand / min','b:'+i+':demand',b.demand)+beltFields(b,'b:'+i+':')+(state.policy==='fixed'?field('Relative share','b:'+i+':weight',b.weight):'')+'</div></article>').join('')+'</div><div class="focus-flow-actions"><button type="button" data-flow-action="add" '+(state.branches.length>=8?'disabled':'')+'>+ Add destination</button><button type="button" data-flow-action="example">Load example</button><button type="button" data-flow-action="clear">Clear check</button></div>';
+ host.innerHTML=(planInputs.length?'<div class="focus-flow-policy"><label>Use a planned input<select id="focusPlanInput"><option value="">Choose material from this blueprint</option>'+planInputs.map((x,i)=>'<option value="'+i+'">'+esc(x.name)+' · '+fmt(x.needed)+'/min</option>').join('')+'</select></label><button type="button" data-flow-action="load-plan">Load selected input</button></div>':'')+'<div class="focus-flow-fields">'+field('Resource','item',state.item,'text')+field('Available supply / min','supply',state.supply)+beltFields(state,'')+'</div><div class="focus-flow-policy"><label>Distribution model<select data-flow-field="policy"><option value="automatic" '+(state.policy==='automatic'?'selected':'')+'>Automatic · redistribute unused capacity</option><option value="fixed" '+(state.policy==='fixed'?'selected':'')+'>Fixed shares · no redistribution</option></select></label></div><div class="focus-flow-branches">'+state.branches.map((b,i)=>'<article class="focus-branch-input"><div class="focus-branch-heading"><strong>Destination '+(i+1)+'</strong><button type="button" data-flow-remove="'+i+'" aria-label="Remove destination '+(i+1)+'">×</button></div><div class="focus-flow-fields">'+field('Name','b:'+i+':name',b.name,'text')+field('Demand / min','b:'+i+':demand',b.demand)+beltFields(b,'b:'+i+':')+(state.policy==='fixed'?field('Relative share','b:'+i+':weight',b.weight):'')+'</div></article>').join('')+'</div><div class="focus-flow-actions"><button type="button" data-flow-action="add" '+(state.branches.length>=8?'disabled':'')+'>+ Add destination</button><button type="button" data-flow-action="example">Load example</button><button type="button" data-flow-action="clear">Clear check</button></div>';
 }
 function saveFlow(){try{localStorage.setItem(FLOW,JSON.stringify(state))}catch{}}
 function renderResults(){
@@ -105,7 +105,8 @@ $('focusFlowInputs')?.addEventListener('input',e=>{
 $('focusFlowInputs')?.addEventListener('change',e=>{if(!e.target.dataset.flowField)return;const policy=e.target.dataset.flowField==='policy';state=normalize(state);saveFlow();if(policy)renderInputs();renderResults()});
 $('focusFlowInputs')?.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;
- if(b.dataset.flowRemove!==undefined)state.branches.splice(Number(b.dataset.flowRemove),1);
+ if(b.dataset.flowAction==='load-plan'){const i=$('focusPlanInput')?.value;if(i===''||!planInputs[Number(i)])return;const x=planInputs[Number(i)];state=normalize({...DEFAULT,item:x.name,supply:0,tier:x.tier,branches:[{name:x.destination,demand:x.needed,tier:x.tier,belts:Math.max(1,Math.ceil(x.needed/TIERS[x.tier])),lanes:2,weight:1}]})}
+ else if(b.dataset.flowRemove!==undefined)state.branches.splice(Number(b.dataset.flowRemove),1);
  else if(b.dataset.flowAction==='add'&&state.branches.length<8)state.branches.push({name:'Destination '+(state.branches.length+1),demand:0,tier:state.tier,belts:1,lanes:2,weight:1});
  else if(b.dataset.flowAction==='example')state=normalize(DEFAULT);
  else if(b.dataset.flowAction==='clear')state=normalize({...DEFAULT,item:'',supply:0,branches:[]});
@@ -115,6 +116,7 @@ $('focusFlowInputs')?.addEventListener('click',e=>{
 $('focusModeToggle')?.addEventListener('click',()=>setMode(mode==='focus'?'full':'focus'));
 document.querySelectorAll('[data-focus-view]').forEach(b=>b.addEventListener('click',()=>root.activateWorkspace(b.dataset.focusView,true)));
 document.addEventListener('click',e=>{const b=e.target.closest('[data-focus-jump]');if(b)root.activateWorkspace(b.dataset.focusJump,true)});
-root.NauvisFocus={setMode,beforeActivate,onActivate,refresh,getMode:()=>mode,analyze:()=>analyze(state)};
+function fromPlan(result){const tier=Object.keys(TIERS).find(k=>TIERS[k]===result.belt)||'red';planInputs=(result.external||[]).filter(x=>!x.isFluid).map(x=>({name:x.name,needed:x.needed,tier,destination:result.name+' blueprint'}));root.activateWorkspace('flow',true)}
+root.NauvisFocus={setMode,beforeActivate,onActivate,refresh,fromPlan,getMode:()=>mode,analyze:()=>analyze(state)};
 renderInputs();renderResults();applyMode(mode,mode==='focus'?'build':'balance');
 })(typeof window==='undefined'?globalThis:window);
