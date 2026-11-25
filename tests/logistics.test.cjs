@@ -114,3 +114,23 @@ test('production network and resource detail share saved endpoints and edge iden
  const g={nodes:[{id:'s',kind:'source',item:'iron-plate',link:'smelt:iron-gross'},{id:'d',kind:'destination',item:'iron-plate',link:'smelt:steel-input'}],edges:[{id:'r',from:'s',to:'d',tier:'red',belts:2}]};
  const p=entityProjection(g);assert.equal(p.edges[0].id,'r');assert.equal(p.edges[0].from,'smelt:iron');assert.equal(p.edges[0].to,'smelt:steel');assert.equal(p.edges[0].sourceEndpoint,'s');assert.equal(p.edges[0].belts,2);
 });
+
+test('mixed feeder shares one physical identity without doubling resource capacity',()=>{
+ const {pairLanes,physicalFeeders,networkResults,updateRoute,unpairLanes,cap,sanitizeBundles}=require('../logistics.js');
+ const g={nodes:[{id:'a',kind:'source',item:'iron-plate',amount:4,tier:'yellow'},{id:'b',kind:'source',item:'copper-plate',amount:4,tier:'yellow'},{id:'c',kind:'destination',item:'iron-plate',link:'machine:array'},{id:'d',kind:'destination',item:'copper-plate',link:'machine:array'}],edges:[{id:'a1',from:'a',to:'c',tier:'yellow',belts:1,lanes:1},{id:'b1',from:'b',to:'d',tier:'yellow',belts:1,lanes:1}]};
+ const p=pairLanes(g,'a1','b1','shared'),res=networkResults(p,()=>({rate:600}));
+ assert.equal(physicalFeeders(p).length,1);assert.equal(physicalFeeders(p)[0].belts,1);
+ assert.equal(res.results.get('iron-plate').nodes.c.received,450);assert.equal(res.results.get('copper-plate').nodes.d.received,450);
+ const up=updateRoute(p,'a1',{tier:'red',belts:2});assert.equal(cap(up.edges[0]),1800);assert.equal(cap(up.edges[1]),1800);
+ assert.throws(()=>updateRoute(p,'a1',{lanes:2}),/Unpair/);
+ assert.equal(physicalFeeders(unpairLanes(p,'a1')).length,2);
+ assert.equal(sanitizeBundles({...p,edges:[p.edges[0]]}).edges[0].bundle,undefined);
+ assert.equal(g.edges[0].bundle,undefined);
+ assert.throws(()=>pairLanes({...g,edges:[g.edges[0],{...g.edges[1],belts:2}]},'a1','b1','shared'));
+});
+test('legacy full belts and half-belt shortages are sized correctly',()=>{
+ const {cap,diagnostics,analyze}=require('../logistics.js');
+ assert.equal(cap({tier:'red',belts:2}),3600);assert.equal(cap({tier:'red',belts:2,lanes:1}),1800);
+ const g={nodes:[node('s','source',{amount:4,tier:'yellow'}),node('d','destination',{amount:1.5,tier:'yellow'})],edges:[{...edge('r','s','d',1,'','yellow'),lanes:1}]};
+ const a=diagnostics(g,analyze(g),()=>null);assert.equal(a.findings[0].short,900);assert.equal(a.findings[0].actions.find(x=>x.type==='transport').extra,2);
+});

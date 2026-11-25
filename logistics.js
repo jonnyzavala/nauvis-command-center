@@ -4,7 +4,8 @@
 'use strict';
 const TIERS={yellow:900,red:1800,blue:2700},KINDS=['source','splitter','merger','destination'];
 const num=v=>Number.isFinite(Number(v))?Math.max(0,Number(v)):0;
-const cap=e=>num(e.belts)*(TIERS[e.tier]||0);
+const laneCount=e=>e.lanes===1?1:2;
+const cap=e=>num(e.belts)*(TIERS[e.tier]||0)*laneCount(e)/2;
 const weight=v=>v===''||v==null?'':num(v);
 const blank=()=>({nodes:[],edges:[]});
 const id=()=>root.crypto?.randomUUID?.()||Date.now().toString(36)+Math.random().toString(36).slice(2);
@@ -114,6 +115,48 @@ function groupKey(n){
  if(n.link==='smelt:stone-brick'||n.link==='smelt:brick-input')return 'smelt:brick';
  return n.link.startsWith('machine:')?n.link:null;
 }
+// Shared final feeders reserve one physical lane per resource.
+function compatiblePair(g,a,b){
+ if(!a||!b||a.id===b.id||a.bundle||b.bundle||laneCount(a)!==1||laneCount(b)!==1||a.tier!==b.tier||a.belts!==b.belts)return false;
+ const x=g.nodes.find(n=>n.id===a.to),y=g.nodes.find(n=>n.id===b.to);
+ return !!(x&&y&&x.kind==='destination'&&y.kind==='destination'&&x.item!==y.item&&groupKey(x)&&groupKey(x)===groupKey(y));
+}
+function sanitizeBundles(raw){
+ const g=normalize(raw),groups=new Map();
+ for(const e of g.edges)if(typeof e.bundle==='string'&&e.bundle){if(!groups.has(e.bundle))groups.set(e.bundle,[]);groups.get(e.bundle).push(e)}
+ for(const e of g.edges)if(e.bundle&&(!groups.has(e.bundle)||groups.get(e.bundle).length!==2))delete e.bundle;
+ for(const pair of groups.values())if(pair.length===2){const [a,b]=pair;if(!compatiblePair(g,{...a,bundle:null},{...b,bundle:null})){delete a.bundle;delete b.bundle}}
+ return g;
+}
+function pairLanes(raw,first,second,bundle){
+ const g=sanitizeBundles(raw),a=g.edges.find(e=>e.id===first),b=g.edges.find(e=>e.id===second);
+ if(!compatiblePair(g,a,b))throw Error('Pair two unused half-belt routes with matching tier and count feeding different ingredients into the same recorded array.');
+ if(typeof bundle!=='string'||!bundle||g.edges.some(e=>e.bundle===bundle))throw Error('Shared belt identity must be unique.');
+ a.bundle=b.bundle=bundle;return g;
+}
+function unpairLanes(raw,key){
+ const g=sanitizeBundles(raw),e=g.edges.find(x=>x.id===key);if(e?.bundle){const bundle=e.bundle;for(const x of g.edges)if(x.bundle===bundle)delete x.bundle}return g;
+}
+function updateRoute(raw,key,patch){
+ const g=sanitizeBundles(raw),e=g.edges.find(x=>x.id===key);if(!e)throw Error('Route not found.');
+ if(patch.lanes!==undefined&&![1,2].includes(patch.lanes))throw Error('Choose one or two lanes.');
+ if(e.bundle&&patch.lanes!==undefined&&patch.lanes!==1)throw Error('Unpair the mixed feeder before assigning both lanes to one resource.');
+ if(patch.tier!==undefined&&!TIERS[patch.tier])throw Error('Invalid belt tier.');
+ if(patch.belts!==undefined&&(!Number.isSafeInteger(patch.belts)||patch.belts<1||patch.belts>100))throw Error('Choose 1–100 physical belts.');
+ Object.assign(e,patch);
+ if(e.bundle)for(const partner of g.edges.filter(x=>x.id!==key&&x.bundle===e.bundle)){
+  if(patch.tier!==undefined)partner.tier=patch.tier;
+  if(patch.belts!==undefined)partner.belts=patch.belts;
+ }
+ return g;
+}
+function physicalFeeders(raw){
+ const g=sanitizeBundles(raw),seen=new Set(),out=[];
+ for(const e of g.edges){if(e.bundle&&seen.has(e.bundle))continue;if(e.bundle)seen.add(e.bundle);
+  const members=e.bundle?g.edges.filter(x=>x.bundle===e.bundle):[e];out.push({id:e.bundle||e.id,tier:e.tier,belts:e.belts,members,mixed:members.length===2});
+ }
+ return out;
+}
 function networkResults(raw,lookup){
  const g=normalize(raw),networks=new Map();
  for(const n of g.nodes){if(!networks.has(n.item))networks.set(n.item,{nodes:[],edges:[]});networks.get(n.item).nodes.push(n)}
@@ -157,8 +200,8 @@ function diagnostics(graph,a,lookup){
   if(status==='short'){
    if(!incoming.length)finding.actions.push({type:'connect',text:'Connect a supply route to this destination.'});
    if(incoming.length&&capacity<v.demand-.01){
-    const e=incoming[0],extra=Math.ceil((v.demand-capacity)/TIERS[e.tier]-1e-10);
-    finding.actions.push({type:'transport',edge:e.id,extra,tier:e.tier,text:'Incoming belt capacity is insufficient. Add at least '+extra+' '+e.tier+' belt(s) to the incoming capacity (assuming this tier).'});
+    const e=incoming[0],extra=Math.ceil((v.demand-capacity)/(TIERS[e.tier]*laneCount(e)/2)-1e-10);
+    finding.actions.push({type:'transport',edge:e.id,extra,tier:e.tier,text:'Incoming belt capacity is insufficient. Add at least '+extra+' '+e.tier+' belt(s) at the current lane allocation.'});
    }
    if(incoming.length&&reachableSupply<v.demand-.01){
     finding.actions.push({type:'source',amount:v.demand-reachableSupply,text:'Connected producers cannot supply this destination even if it receives all their output.'});
@@ -176,9 +219,9 @@ function diagnostics(graph,a,lookup){
    };
    const alternatives=[];
    for(const e of candidates){
-    const extra=Math.max(1,Math.ceil(short/TIERS[e.tier]-1e-10)),belts=Math.min(100,e.belts+extra);
-    if(belts>e.belts){const x=tryChange(g.edges.map(z=>z.id===e.id?{...z,belts}:z),{type:'test-belt',edge:e.id,belts,tier:e.tier});if(x)alternatives.push(x)}
-    for(const tier of Object.keys(TIERS).filter(t=>TIERS[t]>TIERS[e.tier])){
+    const extra=Math.max(1,Math.ceil(short/(TIERS[e.tier]*laneCount(e)/2)-1e-10)),belts=Math.min(100,e.belts+extra);
+    if(!e.bundle&&belts>e.belts){const x=tryChange(g.edges.map(z=>z.id===e.id?{...z,belts}:z),{type:'test-belt',edge:e.id,belts,tier:e.tier});if(x)alternatives.push(x)}
+    for(const tier of Object.keys(TIERS).filter(t=>!e.bundle&&TIERS[t]>TIERS[e.tier])){
      const x=tryChange(g.edges.map(z=>z.id===e.id?{...z,tier}:z),{type:'test-belt',edge:e.id,belts:e.belts,tier});if(x)alternatives.push(x)
     }
     const siblings=g.edges.filter(z=>z.from===e.from);
@@ -194,6 +237,7 @@ function diagnostics(graph,a,lookup){
    }
    alternatives.sort((x,y)=>y.gain-x.gain||((x.type==='test-share'?0:1)-(y.type==='test-share'?0:1)));
    const best=alternatives[0];if(best)finding.actions.push(best);
+   if(candidates.some(e=>e.bundle))finding.actions.push({type:'shared',text:'A mixed feeder is involved. Review both lanes together before changing its tier or count; single-resource upgrade tests exclude shared feeders.'});
    if(!best&&incoming.length&&capacity>=v.demand-.01&&reachableSupply>=v.demand-.01)finding.actions.push({type:'trace',text:'Check upstream route capacities and branch allocation. No tested single change improves this destination without reducing another known destination below its current supported demand. Multiple coordinated changes may help.'});
    if(totalSupply>reachableSupply+.01)finding.actions.push({type:'other-source',amount:totalSupply-reachableSupply,text:'Other recorded producers exist outside this route. Check their commitments before connecting them.'});
   }
@@ -227,16 +271,16 @@ function ensureEntityPort(graph,port,entity,idFactory){
  if(existing)return existing.id;
  const key=idFactory();graph.nodes.push({id:key,item:port.item,kind:port.kind,label:entity.label,link:port.link,autoLabel:true,amount:'',tier:'red',entityAnchor:port.kind==='destination'});return key;
 }
-if(typeof module==='object'&&module.exports)module.exports={normalize,connect,analyze,order,TIERS,layoutBelts,groupKey,networkResults,diagnostics,scenarioGraph,entityProjection,ensureEntityPort};
+if(typeof module==='object'&&module.exports)module.exports={normalize,connect,analyze,order,TIERS,layoutBelts,groupKey,networkResults,diagnostics,scenarioGraph,entityProjection,ensureEntityPort,laneCount,cap,compatiblePair,sanitizeBundles,pairLanes,unpairLanes,updateRoute,physicalFeeders};
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 const fmt=n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:1}),opts=(arr,v)=>arr.map(([a,b])=>'<option value="'+esc(a)+'"'+(a===v?' selected':'')+'>'+esc(b)+'</option>').join('');
 const materialName=k=>R[k]?.[0]||names[k]||k.replaceAll('-',' ');
 const itemColor=k=>root.NauvisIcons?.color?.(k)||'#86c2f1';
 let includeScenario=false,entityMode=true,entityPicker=false,entityPending=null,entityFilter='all',entityView=null;
-let item='iron-plate',selected=null,connecting=null,undo=null,notice='',brushTier='red',brushCount=1,drag=null,picker=false,ignoreClickUntil=0;
+let item='iron-plate',selected=null,connecting=null,undo=null,notice='',brushTier='red',brushCount=1,brushLanes=2,drag=null,picker=false,ignoreClickUntil=0;
 const materials=[...new Set([...Object.keys(R),...Object.keys(names),'uranium-ore'])].filter(k=>!FLUID.has(k)&&!['crude-oil','sulfuric-acid'].includes(k)).sort((a,b)=>materialName(a).localeCompare(materialName(b)));
-function data(){return normalize(setup.logistics)}
+function data(){return sanitizeBundles(setup.logistics)}
 function sub(g){const nodes=g.nodes.filter(n=>n.item===item),ids=new Set(nodes.map(n=>n.id));return {nodes,edges:g.edges.filter(e=>ids.has(e.from)&&ids.has(e.to))}}
 function catalog(kind,resource=item){
  const item=resource;
@@ -273,7 +317,7 @@ const linkKey=k=>k==='smelt:iron-gross'?'smelt:iron-plate':k;
 function used(g,kind,link,except){return g.nodes.some(n=>n.id!==except&&n.item===item&&n.kind===kind&&n.link&&linkKey(n.link)===linkKey(link))}
 const nodeLabel=n=>n?.autoLabel&&n.link?lookup(n)?.label||n.label:n?.label||'';
 function commit(next,msg){
- undo=clone(data());setup.logistics=normalize(next);saveSetup();notice=msg||'Saved to factory.';root.NauvisWorkspace?.refresh?.('logistics');render();
+ undo=clone(data());next=sanitizeBundles(next);setup.logistics=normalize(next);saveSetup();notice=msg||'Saved to factory.';root.NauvisWorkspace?.refresh?.('logistics');render();
 }
 function editNode(key,patch){const g=data();g.nodes=g.nodes.map(n=>n.id===key?{...n,...patch}:n);commit(g,'Node updated.')}
 function add(kind,link=''){
@@ -282,11 +326,11 @@ function add(kind,link=''){
  if(link&&(!entry||used(g,kind,link))){notice='This factory group is unavailable or already added.';render();return}
  const n={id:id(),item,kind,label:entry?.label||(kind==='source'?materialName(item)+' supply':kind==='destination'?'New destination':kind==='splitter'?'Splitter':'Merger'),link,autoLabel:!!entry,amount:kind==='source'?1:'',tier:brushTier};
  g.nodes.push(n);picker=false;
- if(connecting&&kind!=='source'){try{const next=connect(g,{id:id(),from:connecting,to:n.id,tier:brushTier,belts:brushCount,weight:''});selected=n.id;connecting=null;commit(next,'Network node linked and connected; Inventory unchanged.');return}catch(e){notice=e.message}}
+ if(connecting&&kind!=='source'){try{const next=connect(g,{id:id(),from:connecting,to:n.id,tier:brushTier,belts:brushCount,lanes:brushLanes,weight:''});selected=n.id;connecting=null;commit(next,'Network node linked and connected; Inventory unchanged.');return}catch(e){notice=e.message}}
  selected=n.id;connecting=null;commit(g,'Added to network only. Inventory unchanged.');
 }
 function join(from,to){
- try{const g=connect(data(),{id:id(),from,to,tier:brushTier,belts:brushCount,weight:''});selected=g.edges.at(-1).id;connecting=null;commit(g,'Belt route connected.')}catch(e){notice=e.message;connecting=null;render()}
+ try{const g=connect(data(),{id:id(),from,to,tier:brushTier,belts:brushCount,lanes:brushLanes,weight:''});selected=g.edges.at(-1).id;connecting=null;commit(g,'Belt route connected.')}catch(e){notice=e.message;connecting=null;render()}
 }
 function selectNode(key){
  if(connecting&&key!==connecting){
@@ -301,7 +345,7 @@ function renderGraph(g,result){
  if(selectedEdge){focus.edges.add(selectedEdge.from+'|'+selectedEdge.to);focus.nodes.add(selectedEdge.from);focus.nodes.add(selectedEdge.to)}
  const paths=layout.routes.map(r=>{
   const e=r.edge,active=focus.edges.has(e.from+'|'+e.to),color=({yellow:'#e5c35f',red:'#e17b71',blue:'#79b5f6'}[e.tier]);
-  const lines=r.lanes.map(points=>{const d=root.NauvisRatioFlow.roundedPath(points,5);return '<path d="'+d+'" fill="none" stroke="#101f2b" stroke-width="3.6"/><path data-physical-belt="'+esc(e.id)+'" d="'+d+'" fill="none" stroke="'+color+'" stroke-width="'+(active?3:2.5)+'" stroke-linecap="round" stroke-linejoin="round"/>'}).join('');
+  const lines=r.lanes.map(points=>{const d=root.NauvisRatioFlow.roundedPath(points,5);return '<path d="'+d+'" fill="none" stroke="#101f2b" stroke-width="3.6"/><path data-physical-belt="'+esc(e.id)+'" d="'+d+'" fill="none" stroke="'+color+'" stroke-width="'+(active?3:2.5)+'" '+(laneCount(e)===1?'stroke-dasharray="6 3" ':'')+'stroke-linecap="round" stroke-linejoin="round"/>'}).join('');
   const hits=r.lanes.map(points=>'<path data-log-edge="'+esc(e.id)+'" d="'+root.NauvisRatioFlow.roundedPath(points,5)+'" fill="none" stroke="transparent" stroke-width="10" class="log-edge-hit"/>').join('');
   return '<g opacity="'+(selected&&!active&&!connecting?.48:1)+'">'+lines+'</g>'+hits;
  }).join('');
@@ -319,13 +363,13 @@ function splitControl(g,a){
  return '<div class="log-brush"><div class="log-brush-head"><strong>Branch allocation</strong><button data-log-action="auto-split">Automatic</button></div><div class="log-brush-head"><span>'+esc(nodeLabel(g.nodes.find(n=>n.id===first.to)))+' <b id="logShareA">'+share+'%</b></span><span>'+esc(nodeLabel(g.nodes.find(n=>n.id===second.to)))+' <b id="logShareB">'+(100-share)+'%</b></span></div><div class="log-brush-count"><input type="range" min="0" max="100" step="5" value="'+share+'" data-log-split="'+esc(from)+'" aria-label="Share of first branch"></div><p class="log-muted">Planned allocation; physical belt count stays unchanged.</p></div>';
 }
 function brush(g){
- const e=g.edges.find(e=>e.id===selected),tier=e?.tier||brushTier,count=e?.belts||brushCount;
- return '<div class="log-brush"><div class="log-brush-head"><strong>'+(e?'Edit selected route':'New connection')+'</strong><span id="logBrushReadout">'+count+' '+tier+' · '+fmt(count*TIERS[tier])+'/min</span></div><div class="log-brush-tiers">'+Object.keys(TIERS).map(t=>'<button type="button" data-log-tier="'+t+'" aria-pressed="'+(tier===t)+'" style="--belt:'+({yellow:'#e5c35f',red:'#e17b71',blue:'#79b5f6'}[t])+'">'+t+'</button>').join('')+'</div><div class="log-brush-count"><button type="button" data-log-step="-1" aria-label="One fewer belt">−</button><input aria-label="Physical belts" data-log-slider type="range" min="1" max="'+Math.max(16,count)+'" step="1" value="'+count+'"><button type="button" data-log-step="1" aria-label="One more belt">+</button><input aria-label="Exact belt count" data-log-exact type="number" inputmode="numeric" min="1" max="100" step="1" value="'+count+'"></div></div>';
+ const e=g.edges.find(e=>e.id===selected),tier=e?.tier||brushTier,count=e?.belts||brushCount,lanes=e?laneCount(e):brushLanes;
+ return '<div class="log-brush"><div class="log-brush-head"><strong>'+(e?'Edit selected route':'New connection')+'</strong><span id="logBrushReadout">'+count+' '+tier+' · '+fmt(count*TIERS[tier]*lanes/2)+'/min</span></div><div class="log-brush-tiers">'+Object.keys(TIERS).map(t=>'<button type="button" data-log-tier="'+t+'" aria-pressed="'+(tier===t)+'" style="--belt:'+({yellow:'#e5c35f',red:'#e17b71',blue:'#79b5f6'}[t])+'">'+t+'</button>').join('')+'</div><div class="log-mode log-lane-mode"><button data-log-lanes="2" aria-pressed="'+(lanes===2)+'" '+(e?.bundle?'disabled':'')+'>Full belt · both lanes</button><button data-log-lanes="1" aria-pressed="'+(lanes===1)+'">Half belt · one lane</button></div>'+(e?.bundle?'<p class="log-muted">Mixed feeder: count and tier changes apply to both lanes.</p>':'')+'<div class="log-brush-count"><button type="button" data-log-step="-1" aria-label="One fewer belt">−</button><input aria-label="Physical belts" data-log-slider type="range" min="1" max="'+Math.max(16,count)+'" step="1" value="'+count+'"><button type="button" data-log-step="1" aria-label="One more belt">+</button><input aria-label="Exact belt count" data-log-exact type="number" inputmode="numeric" min="1" max="100" step="1" value="'+count+'"></div></div>';
 }
 function applyBrush(patch,preview=false){
- const g=data(),e=g.edges.find(e=>e.id===selected);
- if(!e){if(patch.tier)brushTier=patch.tier;if(patch.belts)brushCount=patch.belts;if(!preview)render();else $('logBrushReadout').textContent=brushCount+' '+brushTier+' · '+fmt(brushCount*TIERS[brushTier])+'/min';return}
- Object.assign(e,patch);
+ let g=data();const e=g.edges.find(e=>e.id===selected);
+ if(!e){if(patch.tier)brushTier=patch.tier;if(patch.belts)brushCount=patch.belts;if(patch.lanes)brushLanes=patch.lanes;if(!preview)render();else $('logBrushReadout').textContent=brushCount+' '+brushTier+' · '+fmt(brushCount*TIERS[brushTier]*brushLanes/2)+'/min';return}
+ try{g=updateRoute(g,e.id,patch);Object.assign(e,g.edges.find(x=>x.id===e.id))}catch(err){notice=err.message;render();return}
  if(preview){
   $('logBrushReadout').textContent=e.belts+' '+e.tier+' · '+fmt(cap(e))+'/min';
   const modeled=scenarioGraph(g,includeScenario),next=sub(modeled),target=$('logGraph'),sx=target.scrollLeft,sy=target.scrollTop;const network=networkResults(modeled,lookup),preview=network.results.get(item);target.innerHTML=renderGraph(next,preview&&!preview.error?preview:analyze(next,lookup));target.scrollLeft=sx;target.scrollTop=sy;
@@ -337,6 +381,15 @@ function addPicker(g){
  return '<div class="log-picker"><div class="log-brush-head"><strong>Add a node · '+esc(materialName(item))+'</strong><button data-log-action="picker">Close</button></div><p class="log-muted">Link a recorded group without adding machinery to Inventory. Manual nodes are network assumptions only.</p><div class="log-picker-list">'+(records.map(x=>'<button data-log-add="'+x.kind+'" data-log-link="'+esc(x.key)+'"><b>'+esc(x.label)+'</b><small>'+ (x.kind==='source'?'SUPPLY':'DEMAND')+' · '+fmt(x.rate)+'/min</small></button>').join('')||'<p class="log-muted">No unused compatible factory records yet.</p>')+'</div><div class="log-toolbar">'+[['source','Manual supply'],['destination','Manual demand'],['splitter','Splitter'],['merger','Merger']].map(([k,name])=>'<button data-log-add="'+k+'">'+name+'</button>').join('')+'</div></div>';
 }
 
+function laneInspector(e){
+ const g=data(),other=e.bundle?g.edges.find(x=>x.id!==e.id&&x.bundle===e.bundle):null;
+ const routeItem=x=>g.nodes.find(n=>n.id===x.from)?.item;
+ const candidates=g.edges.filter(x=>compatiblePair(g,e,x));
+ return '<div class="log-lane-detail"><b>'+ (other?'Mixed feeder · shared physical belts':laneCount(e)===1?'Half belt · other lane unused':'Full belt · same resource on both lanes')+'</b>'+
+ '<div class="log-lane-visual" style="--belt:'+({yellow:'#e5c35f',red:'#e17b71',blue:'#79b5f6'}[e.tier])+'">'+
+ [routeItem(e),other?routeItem(other):laneCount(e)===2?routeItem(e):null].map(k=>'<div style="--material:'+esc(k?itemColor(k):'#41515e')+'"><span>'+ (k?esc(materialName(k)):'Unused lane')+'</span><b>'+fmt(k?e.belts*TIERS[e.tier]/2:0)+'/min</b></div>').join('')+'</div>'+
+ (other?'<button data-log-unpair="'+esc(e.id)+'">Unpair lanes</button><p class="log-muted">Shared final feeder only; upstream supply routes remain separate.</p>':candidates.length?'<label>Share the other lane with<select data-log-pair="'+esc(e.id)+'">'+opts([['','Select another half-belt route'],...candidates.map(x=>[x.id,materialName(routeItem(x))+' · '+nodeLabel(g.nodes.find(n=>n.id===x.from))])],'')+'</select></label>':laneCount(e)===1?'<p class="log-muted">Connect another half-belt ingredient to the same recorded array with matching tier and belt count to pair the lanes.</p>':'')+'</div>';
+}
 function inspector(g,a){
  const n=g.nodes.find(n=>n.id===selected),e=g.edges.find(e=>e.id===selected);
  if(n){const v=a.nodes[n.id],linked=catalog(n.kind),isEndpoint=['source','destination'].includes(n.kind);
@@ -347,7 +400,7 @@ function inspector(g,a){
  (v.missing?'<p class="log-danger">Linked record unavailable or already used by another node.</p>':'')+
  '<div class="log-actions">'+(n.kind!=='destination'?'<button data-log-action="connect" class="log-primary">Connect to another node</button>':'')+'<button data-log-action="delete">Remove node</button></div>';
  }
- if(e){const v=a.routes[e.id];return '<div class="log-inspect-head"><div><small>BELT ROUTE</small><h3>'+esc(nodeLabel(g.nodes.find(n=>n.id===e.from)))+' → '+esc(nodeLabel(g.nodes.find(n=>n.id===e.to)))+'</h3></div><button data-log-action="clear">×</button></div><div class="log-form-grid"><label>Physical belts<input type="number" inputmode="numeric" min="1" max="100" step="1" data-log-field="belts" value="'+e.belts+'"></label><label>Belt tier<select data-log-field="tier">'+opts(Object.keys(TIERS).map(k=>[k,k]),e.tier)+'</select></label></div><label>Relative allocation weight (blank = automatic; 0 = no share)<input type="number" min="0" step="0.25" inputmode="decimal" data-log-field="weight" value="'+e.weight+'"></label><div class="log-stat-grid"><div><small>Capacity/min</small><b>'+fmt(v.capacity)+'</b></div><div><small>Planned/min</small><b>'+fmt(v.delivered)+'</b></div><div><small>Share</small><b>'+fmt(v.share*100)+'%</b></div></div><button data-log-action="delete">Remove connection</button>';
+ if(e){const v=a.routes[e.id];return '<div class="log-inspect-head"><div><small>BELT ROUTE</small><h3>'+esc(nodeLabel(g.nodes.find(n=>n.id===e.from)))+' → '+esc(nodeLabel(g.nodes.find(n=>n.id===e.to)))+'</h3></div><button data-log-action="clear">×</button></div><div class="log-form-grid"><label>Physical belts<input type="number" inputmode="numeric" min="1" max="100" step="1" data-log-field="belts" value="'+e.belts+'"></label><label>Belt tier<select data-log-field="tier">'+opts(Object.keys(TIERS).map(k=>[k,k]),e.tier)+'</select></label></div><label>Relative allocation weight (blank = automatic; 0 = no share)<input type="number" min="0" step="0.25" inputmode="decimal" data-log-field="weight" value="'+e.weight+'"></label><div class="log-stat-grid"><div><small>Capacity/min</small><b>'+fmt(v.capacity)+'</b></div><div><small>Planned/min</small><b>'+fmt(v.delivered)+'</b></div><div><small>Share</small><b>'+fmt(v.share*100)+'%</b></div></div>'+laneInspector(e)+'<button data-log-action="delete">Remove connection</button>';
  }
  return '<p class="log-muted">Drag a + output port onto any compatible receiving card, or tap + then tap the destination. Tap a belt to edit its quantity and tier above the canvas.</p>';
 }
@@ -404,11 +457,21 @@ function connectEntity(from,to){
  if(!a||!b||a.entity.key===b.entity.key||a.port.item!==b.port.item) {notice='Choose a matching input on a different entity.';render();return}
  const g=data();try{
   const source=ensureEntityPort(g,a.port,a.entity,id),dest=ensureEntityPort(g,b.port,b.entity,id);
-  const next=connect(g,{id:id(),from:source,to:dest,tier:brushTier,belts:brushCount,weight:''});entityPending=null;commit(next,'Connected '+materialName(a.port.item)+'. Inventory unchanged.');
+  const next=connect(g,{id:id(),from:source,to:dest,tier:brushTier,belts:brushCount,lanes:brushLanes,weight:''});entityPending=null;commit(next,'Connected '+materialName(a.port.item)+'. Inventory unchanged.');
  }catch(err){notice=err.message;render()}
 }
 function inspectResource(resource,key=null){
  entityMode=false;item=resource;selected=key;connecting=null;entityPending=null;picker=false;render();
+}
+function mixedFeederPanel(graph){
+ const groups=physicalFeeders(graph),pairs=groups.filter(x=>x.mixed);
+ const candidates=graph.edges.filter(x=>laneCount(x)===1&&!x.bundle);
+ const itemOf=e=>graph.nodes.find(n=>n.id===e.from)?.item;
+ const pairRows=pairs.map(p=>'<div class="log-shared-row"><div><b>'+p.belts+' '+p.tier+' mixed feeder'+(p.belts===1?'':'s')+'</b><small>'+esc(nodeLabel(graph.nodes.find(n=>n.id===p.members[0].to)))+'</small></div>'+laneInspector(p.members[0])+'</div>').join('');
+ const offers=candidates.map(e=>{const others=candidates.filter(x=>compatiblePair(graph,e,x)&&x.id.localeCompare(e.id)>0);return others.length?'<div class="log-shared-row"><b>'+esc(materialName(itemOf(e)))+' → '+esc(nodeLabel(graph.nodes.find(n=>n.id===e.to)))+'</b><label>Pair with<select data-log-pair="'+esc(e.id)+'">'+opts([['','Select compatible ingredient'],...others.map(x=>[x.id,materialName(itemOf(x))])],'')+'</select></label></div>':''}).join('');
+ return '<section class="log-mixed-panel"><div class="log-brush-head"><strong>Shared final feeders</strong><span>'+pairs.length+' paired groups</span></div>'+
+ (pairRows||'<p class="log-muted">No paired lanes yet. Use Half belt for two ingredients going to the same recorded production array.</p>')+offers+
+ '<p class="log-muted">A paired feeder counts once at the receiving array. Dashed map routes show each resource allocation, not duplicate physical shared belt segments. Upstream routes are not merged geometrically.</p></section>';
 }
 function renderEntities(host){
  const graph=scenarioGraph(data(),includeScenario),records=entityCatalog(),projection=entityProjection(graph,records);
@@ -438,7 +501,7 @@ function renderEntities(host){
    (inputs.length?'<div class="log-entity-section">INPUTS</div>'+inputs.join(''):'')+(outputs.length?'<div class="log-entity-section">OUTPUTS</div>'+outputs.join(''):'')+other.join('')+
    '<button class="log-entity-remove" data-log-entity-remove="'+esc(e.key)+'">Remove from network</button></article>';
  }).join('');
- const routes=projection.edges.map(e=>'<button data-log-resource-open="'+esc(e.item)+'" data-port-node="'+esc(e.id)+'"><span>'+esc(projection.entities.find(x=>x.key===e.from)?.label)+' → '+esc(projection.entities.find(x=>x.key===e.to)?.label)+'</span><b style="color:'+({yellow:'#dfbf65',red:'#e17b71',blue:'#79b5f6'}[e.tier])+'">'+esc(materialName(e.item))+' · '+e.belts+' '+e.tier+' · '+fmt(network.results.get(e.item)?.routes?.[e.id]?.delivered)+'/min</b></button>').join('');
+ const routes=projection.edges.map(e=>'<button data-log-resource-open="'+esc(e.item)+'" data-port-node="'+esc(e.id)+'"><span>'+esc(projection.entities.find(x=>x.key===e.from)?.label)+' → '+esc(projection.entities.find(x=>x.key===e.to)?.label)+'</span><b style="color:'+({yellow:'#dfbf65',red:'#e17b71',blue:'#79b5f6'}[e.tier])+'">'+esc(materialName(e.item))+' · '+e.belts+' '+e.tier+(laneCount(e)===1?' · half lane':'')+(e.bundle?' · mixed':'')+' · '+fmt(network.results.get(e.item)?.routes?.[e.id]?.delivered)+'/min</b></button>').join('');
  // A compact map collapses endpoints belonging to one recorded production
  // array. If the cross-resource projection contains a cycle, preserve the
  // graph and show its explicit route list instead of inventing a layout.
@@ -446,7 +509,7 @@ function renderEntities(host){
  if(projection.entities.length&&projection.edges.length)try{
   const visual={nodes:projection.entities.map(e=>({id:e.key})),edges:projection.edges};
   const stage=order(visual.nodes,visual.edges).stage,layout=layoutBelts(visual,stage,{nodeWidth:164,nodeHeight:60}),scale=Math.max(.65,Math.min(1,((host.clientWidth||root.innerWidth)-24)/layout.width));
-  const paths=layout.routes.map(r=>r.lanes.map(points=>'<path d="'+root.NauvisRatioFlow.roundedPath(points,5)+'" stroke="'+({yellow:'#e5c35f',red:'#e17b71',blue:'#79b5f6'}[r.edge.tier])+'" stroke-width="2.5" fill="none"/>').join('')).join('');
+  const paths=layout.routes.map(r=>r.lanes.map(points=>'<path d="'+root.NauvisRatioFlow.roundedPath(points,5)+'" stroke="'+({yellow:'#e5c35f',red:'#e17b71',blue:'#79b5f6'}[r.edge.tier])+'" stroke-width="2.5" '+(laneCount(r.edge)===1?'stroke-dasharray="6 3" ':'')+'fill="none"/>').join('')).join('');
   const boxes=layout.boxes.map(b=>{const e=projection.entities.find(x=>x.key===b.key);return '<button data-log-entity-focus="'+esc(e.key)+'" class="log-map-node" style="left:'+b.x+'px;top:'+b.y+'px;width:'+b.w+'px;height:'+b.h+'px">'+esc(e.label)+'</button>'}).join('');
   map='<div class="log-graph log-entity-map"><div class="log-scaled" style="width:'+Math.ceil(layout.width*scale)+'px;height:'+Math.ceil(layout.height*scale)+'px"><div class="log-canvas" style="width:'+layout.width+'px;height:'+layout.height+'px;transform:scale('+scale+')"><svg width="'+layout.width+'" height="'+layout.height+'" viewBox="0 0 '+layout.width+' '+layout.height+'">'+paths+'</svg>'+boxes+'</div></div></div>';
  }catch(_e){map='<p class="log-muted">Cross-resource cycle: inspect the connected entity cards and route list below.</p>'}
@@ -455,9 +518,9 @@ function renderEntities(host){
  '<button class="log-primary log-add-main" data-log-entity-action="picker">＋ Add recorded array</button>'+pickerHTML+controls+
  (pending?'<div class="log-connect-status">Connect '+esc(materialName(pending.port.item))+' from '+esc(pending.entity.label)+' <button data-log-entity-action="cancel">Cancel</button></div>':'')+
  map+'<div class="log-entity-grid">'+(cards||'<div class="log-empty"><strong>Choose a recorded production array</strong><p>Inputs and outputs are generated from your inventory and recipe. Adding an entity does not add machines.</p></div>')+'</div>'+
- '<details class="log-routes"><summary>Physical resource routes · '+projection.edges.length+'</summary><div class="log-route-list">'+routes+'</div></details>'+
+ '<details class="log-routes"><summary>Resource routes · '+projection.edges.length+'</summary><div class="log-route-list">'+routes+'</div></details>'+mixedFeederPanel(graph)+
  '<p class="log-message" role="status">'+esc(notice||'Tap an output +, then a matching input +. Tap ↗ to inspect or edit its resource-specific network.')+'</p>'+
- '<p class="log-muted">One card per linked production group. Unconnected ingredient ports are unverified, not assumed supplied or starved. Pipe transport, mixed lanes and proposed arrays are not yet supported. All existing resource routes remain editable in Resource detail. Network changes do not modify Inventory.</p>';
+ '<p class="log-muted">One card per linked production group. Unconnected ingredient ports are unverified, not assumed supplied or starved. Pipe transport and proposed arrays are not yet supported. Mixed feeders share one final segment; map lines show resource allocations. All existing resource routes remain editable in Resource detail. Network changes do not modify Inventory.</p>';
 }
 function render(){
  const host=$('logisticsEditor');if(!host||!$('logistics')?.classList.contains('active'))return;
@@ -471,9 +534,9 @@ function render(){
  '<button type="button" class="log-primary log-add-main" data-log-action="picker">＋ Add to network</button>'+addPicker(g)+brush(g)+splitControl(g,a)+
  '<div class="log-connect-status" '+(!connecting?'hidden':'')+'>Select a receiving node, or add a new node <button data-log-action="cancel">Cancel</button></div>'+
  '<div id="logGraph" class="log-graph">'+renderGraph(g,a)+'</div>'+
- '<details class="log-routes"><summary>Route list · '+g.edges.length+'</summary><div class="log-route-list">'+g.edges.map(e=>'<button data-log-edge="'+esc(e.id)+'" class="'+(selected===e.id?'selected':'')+'"><span>'+esc(nodeLabel(g.nodes.find(n=>n.id===e.from)))+' → '+esc(nodeLabel(g.nodes.find(n=>n.id===e.to)))+'</span><b style="color:'+({yellow:'#dfbf65',red:'#e17b71',blue:'#79b5f6'}[e.tier])+'">'+e.belts+' '+e.tier+' · '+fmt(a.routes[e.id].delivered)+'/min</b></button>').join('')+'</div></details>'+
+ '<details class="log-routes"><summary>Route list · '+g.edges.length+'</summary><div class="log-route-list">'+g.edges.map(e=>'<button data-log-edge="'+esc(e.id)+'" class="'+(selected===e.id?'selected':'')+'"><span>'+esc(nodeLabel(g.nodes.find(n=>n.id===e.from)))+' → '+esc(nodeLabel(g.nodes.find(n=>n.id===e.to)))+'</span><b style="color:'+({yellow:'#dfbf65',red:'#e17b71',blue:'#79b5f6'}[e.tier])+'">'+e.belts+' '+e.tier+(laneCount(e)===1?' · half':'')+(e.bundle?' · mixed':'')+' · '+fmt(a.routes[e.id].delivered)+'/min</b></button>').join('')+'</div></details>'+
  '<div class="log-inspector">'+inspector(g,a)+'</div>'+diagnosticPanel(g,a,report,network)+'<p class="log-message" role="status">'+esc(notice||a.warnings.join(' ')||'Changes save and sync with your factory.')+'</p>'+
- '<p class="log-muted">Planning estimate: full-belt equivalents and rated machine capacity, not measured throughput. Default splitters share equally; ordinary branches share by transport capacity. Enter relative weights (e.g. 1 and 3 for 25:75); blank uses automatic shares, 0 reserves no flow. No automatic backpressure redistribution. Linked iron supply can represent gross output or post-steel bus output (not both); planned project demand is a scenario, not added to actual inventory. Network edits change connections and assumptions only.</p>';if($('logGraph')){$('logGraph').scrollLeft=sx;$('logGraph').scrollTop=sy}
+ '<p class="log-muted">Planning estimate: lane-aware belt capacity and rated machine capacity, not measured throughput. Default splitters share equally; ordinary branches share by transport capacity. Enter relative weights (e.g. 1 and 3 for 25:75); blank uses automatic shares, 0 reserves no flow. No automatic backpressure redistribution. Linked iron supply can represent gross output or post-steel bus output (not both); planned project demand is a scenario, not added to actual inventory. Network edits change connections and assumptions only.</p>';if($('logGraph')){$('logGraph').scrollLeft=sx;$('logGraph').scrollTop=sy}
 }
 function init(){
  const host=$('logisticsEditor');if(!host)return;
@@ -492,6 +555,8 @@ function init(){
   const select=ev.target.closest('[data-log-select]');if(select){selected=select.dataset.logSelect;connecting=null;render();$('logGraph')?.scrollIntoView({block:'nearest',behavior:'smooth'});return}
   const addBtn=ev.target.closest('[data-log-add]');if(addBtn){add(addBtn.dataset.logAdd,addBtn.dataset.logLink||'');return}
   const port=ev.target.closest('[data-log-port]');if(port){connecting=port.dataset.logPort;selected=connecting;notice='';render();return}
+  const unpair=ev.target.closest('[data-log-unpair]');if(unpair){commit(unpairLanes(data(),unpair.dataset.logUnpair),'Shared lanes separated into independent half-belt routes.');return}
+  const lanes=ev.target.closest('[data-log-lanes]');if(lanes){applyBrush({lanes:Number(lanes.dataset.logLanes)});return}
   const tier=ev.target.closest('[data-log-tier]');if(tier){applyBrush({tier:tier.dataset.logTier});return}
   const step=ev.target.closest('[data-log-step]');if(step){const e=data().edges.find(e=>e.id===selected),n=Math.max(1,Math.min(100,(e?.belts||brushCount)+Number(step.dataset.logStep)));applyBrush({belts:n});return}
   const node=ev.target.closest('[data-log-node]');if(node){selectNode(node.dataset.logNode);return}
@@ -506,13 +571,13 @@ function init(){
   if(action==='clear-graph'&&root.confirm('Clear only this resource network?')){const g=data(),ids=new Set(g.nodes.filter(n=>n.item===item).map(n=>n.id));g.nodes=g.nodes.filter(n=>!ids.has(n.id));g.edges=g.edges.filter(e=>!ids.has(e.from)&&!ids.has(e.to));commit(g,'Resource diagram cleared.');}
  });
  host.addEventListener('change',ev=>{
-  const input=ev.target;if(input.matches('[data-log-scenario]')){includeScenario=input.checked;selected=null;connecting=null;render();return}if(input.matches('[data-log-split]')){const g=data(),visible=scenarioGraph(g,includeScenario),ids=new Set(visible.edges.map(e=>e.id)),edges=g.edges.filter(e=>e.from===input.dataset.logSplit&&ids.has(e.id)),v=Number(input.value);if(edges.length===2&&Number.isFinite(v)&&v>=0&&v<=100){edges[0].weight=v;edges[1].weight=100-v;commit(g,'Branch allocation updated.')}return}if(input.matches('[data-log-slider],[data-log-exact]')){const v=Number(input.value);if(Number.isSafeInteger(v)&&v>=1&&v<=100)applyBrush({belts:v});else render();return}if(input.matches('[data-log-resource]')){item=input.value;selected=null;connecting=null;picker=false;notice='';render();return}
+  const input=ev.target;if(input.matches('[data-log-pair]')){if(input.value)try{commit(pairLanes(data(),input.dataset.logPair,input.value,id()),'Mixed feeder paired. Both resources reserve one lane. Inventory unchanged.')}catch(err){notice=err.message;render()}return}if(input.matches('[data-log-scenario]')){includeScenario=input.checked;selected=null;connecting=null;render();return}if(input.matches('[data-log-split]')){const g=data(),visible=scenarioGraph(g,includeScenario),ids=new Set(visible.edges.map(e=>e.id)),edges=g.edges.filter(e=>e.from===input.dataset.logSplit&&ids.has(e.id)),v=Number(input.value);if(edges.length===2&&Number.isFinite(v)&&v>=0&&v<=100){edges[0].weight=v;edges[1].weight=100-v;commit(g,'Branch allocation updated.')}return}if(input.matches('[data-log-slider],[data-log-exact]')){const v=Number(input.value);if(Number.isSafeInteger(v)&&v>=1&&v<=100)applyBrush({belts:v});else render();return}if(input.matches('[data-log-resource]')){item=input.value;selected=null;connecting=null;picker=false;notice='';render();return}
   const field=input.dataset.logField;if(!field)return;
   const g=data(),n=g.nodes.find(n=>n.id===selected),e=g.edges.find(e=>e.id===selected);
   if(n){let v=input.value;if(field==='label'&&!v.trim())v=n.kind;if(field==='amount'&&v!==''&&(!Number.isFinite(Number(v))||Number(v)<0)){notice='Use a nonnegative belt equivalent.';render();return}const patch={[field]:v};if(field==='label'||(field==='link'&&!v))patch.autoLabel=false;
    if(field==='link'&&v){if(used(g,n.kind,v,n.id)){notice='This record is already represented in this resource network.';render();return}patch.label=catalog(n.kind).find(x=>x.key===v)?.label||n.label;patch.autoLabel=true}
    editNode(n.id,patch);
-  }else if(e){const v=field==='tier'||(field==='weight'&&input.value==='')?input.value:Number(input.value);if(field==='belts'&&(!Number.isSafeInteger(v)||v<1||v>100)||field==='weight'&&v!==''&&(!Number.isFinite(v)||v<0)){notice='Invalid belt count or weight.';render();return}g.edges=g.edges.map(x=>x.id===e.id?{...x,[field]:v}:x);commit(g,'Connection updated.')}
+  }else if(e){const v=field==='tier'||(field==='weight'&&input.value==='')?input.value:Number(input.value);if(field==='belts'&&(!Number.isSafeInteger(v)||v<1||v>100)||field==='weight'&&v!==''&&(!Number.isFinite(v)||v<0)){notice='Invalid belt count or weight.';render();return}try{commit(updateRoute(g,e.id,{[field]:v}),'Connection updated.')}catch(err){notice=err.message;render()}}
  });
  host.addEventListener('input',ev=>{if(ev.target.matches('[data-log-split]')){const v=Number(ev.target.value);$('logShareA').textContent=v+'%';$('logShareB').textContent=(100-v)+'%';return}if(ev.target.matches('[data-log-slider]')){const v=Number(ev.target.value),exact=host.querySelector('[data-log-exact]');if(exact)exact.value=v;applyBrush({belts:v},true)}});
  // Pointer capture keeps the cable drag alive when the finger leaves its source port.

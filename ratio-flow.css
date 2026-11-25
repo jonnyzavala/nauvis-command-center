@@ -255,3 +255,20 @@
 .ratio-flow-auto .ratio-link.normal{stroke-opacity:1;stroke-width:1.8}
 .ratio-flow-auto .ratio-flow-port.normal,.ratio-flow-auto .ratio-flow-junction.normal{opacity:1}
 @media(max-width:650px){.ratio-flow-options{gap:10px}.ratio-flow-controls{justify-content:space-between}.ratio-flow-options .ratio-flow-input-toggle{gap:5px}}
+
+/* v0.48 · Per-array ingredient lane optimization */
+.ratio-lane-panel{margin:12px 0;border:1px solid #486982;border-radius:12px;background:#172c40;overflow:hidden}
+.ratio-lane-panel>summary{padding:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;cursor:pointer;font-size:12px}
+.ratio-lane-panel>summary span{color:#9acbfa;font-size:11px;text-align:right}
+.ratio-lane-body{padding:0 12px 12px;display:grid;gap:10px;font-size:12px}
+.ratio-lane-body>label{display:grid;gap:5px}
+.ratio-lane-body .ratio-lane-check{display:flex;align-items:center;gap:8px}.ratio-lane-check input{width:18px;height:18px;min-height:0;flex:0 0 18px}
+.ratio-lane-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.ratio-lane-summary>div{display:grid;gap:4px;background:#102338;padding:8px;border-radius:7px}
+.ratio-lane-summary small{font-size:10px;color:#b6c8d9}.ratio-lane-summary b{font-size:18px;color:#c4e1ff}
+.ratio-lane-rates{display:grid;gap:4px}.ratio-lane-rates>div{display:grid;grid-template-columns:22px minmax(0,1fr) auto auto;align-items:center;gap:5px;padding:4px;font-size:11px}
+.ratio-lane-rates small{color:#a4bacd}
+.ratio-lane-row{display:grid;grid-template-columns:32px minmax(0,1fr) 34px;align-items:center;gap:7px;margin:5px 0}.ratio-lane-row>small{font-size:10px;color:#b7c8d7}
+.ratio-lane-belt{border:1px solid var(--lane-tier);background:#303740;border-radius:6px;padding:3px;display:grid;gap:3px}
+.ratio-lane-belt>span{display:flex;align-items:center;gap:6px;padding:4px 6px;min-height:26px;border-left:4px solid var(--lane-material);background:color-mix(in srgb,var(--lane-material) 15%,#203140);font-size:11px;border-radius:3px}
+.ratio-lane-belt b{overflow-wrap:anywhere}

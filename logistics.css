@@ -120,3 +120,13 @@
 .log-panel .log-entity-remove{width:100%;margin-top:8px;font-size:10px;color:#bdd0dd;background:transparent;border-color:#40576a}
 .log-panel .log-map-node{position:absolute;display:grid;place-items:center;min-height:0;padding:5px;overflow:hidden;font-size:12px;line-height:1.2;border:1px solid var(--workspace-accent);background:#213549}
 .log-entity-map{margin:10px 0}
+
+/* v0.48 · Lane-aware feeder allocation */
+.log-lane-mode{margin:8px 0}.log-lane-mode button{font-size:11px}
+.log-lane-detail,.log-mixed-panel{border:1px solid #465e72;border-radius:10px;padding:10px;margin:10px 0;background:#172c3c;font-size:12px}
+.log-lane-visual{border:1px solid var(--belt);border-radius:7px;padding:3px;background:#303740;display:grid;gap:3px;margin:8px 0}
+.log-lane-visual>div{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;border-left:5px solid var(--material);background:color-mix(in srgb,var(--material) 17%,#1d2934);border-radius:3px;min-width:0}
+.log-lane-visual b{font-variant-numeric:tabular-nums;flex-shrink:0;color:#e6edf5}
+.log-shared-row{padding:8px 0;border-top:1px solid #40586c;display:grid;gap:5px}
+.log-shared-row>div:first-child{display:grid;gap:4px}
+.log-shared-row small{color:#b9c9da}.log-shared-row .log-lane-detail{margin:0}

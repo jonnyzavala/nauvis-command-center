@@ -107,7 +107,33 @@ function recipeMatches(order,recipes,category='all',query=''){
  const q=String(query).trim().toLowerCase();
  return [...new Set(order)].filter(id=>recipes[id]&&(category==='all'||recipeGroup(id)===category)&&(!q||id.includes(q.replace(/\s+/g,'-'))||recipes[id][0].toLowerCase().includes(q))).sort((a,b)=>recipes[a][0].localeCompare(recipes[b][0]));
 }
-if(typeof module==='object'&&module.exports)module.exports={analyzeRecipeRatios,assertFiniteRate,recipeGroup,recipeMatches,RECIPE_GROUPS};
+// Minimum dedicated lanes per ingredient, then pair odd residual lanes
+// within ONE receiving production array. This never pairs unrelated arrays.
+function planIngredientLanes(ingredients,belt,scale=1){
+ if(![900,1800,2700].includes(belt)||!Number.isFinite(scale)||scale<0)throw Error('Invalid lane planning profile.');
+ const lane=belt/2,merged=new Map(),fluids=[];
+ for(const x of ingredients||[]){
+  const needed=Number(x.needed)*scale;if(!Number.isFinite(needed)||needed<=0)continue;
+  if(x.fluid){fluids.push({...x,needed});continue}
+  const old=merged.get(x.id)||{id:x.id,name:x.name,needed:0};old.needed+=needed;merged.set(x.id,old);
+ }
+ const requirements=[...merged.values()].map(x=>({...x,lanes:Math.ceil(x.needed/lane-1e-10)})),groups=[],odd=[];
+ let dedicated=0;
+ for(const x of requirements){
+  dedicated+=Math.ceil(x.lanes/2);
+  const full=Math.floor(x.lanes/2);
+  if(full)groups.push({count:full,a:x.id,b:x.id});
+  if(x.lanes%2)odd.push(x);
+ }
+ odd.sort((a,b)=>b.needed%belt-a.needed%belt||a.id.localeCompare(b.id));
+ for(let i=0;i<odd.length;i+=2)groups.push({count:1,a:odd[i].id,b:odd[i+1]?.id||null});
+ const physical=groups.reduce((s,g)=>s+g.count,0);
+ return {belt,lane,requirements,groups,fluids,dedicated,physical,saved:dedicated-physical};
+}
+function planArrayLanes(entry,belt,rounded=false){
+ return planIngredientLanes(entry.ingredients,belt,rounded&&entry.needed>0?entry.count*entry.perMachine/entry.needed:1);
+}
+if(typeof module==='object'&&module.exports)module.exports={analyzeRecipeRatios,assertFiniteRate,recipeGroup,recipeMatches,RECIPE_GROUPS,planIngredientLanes,planArrayLanes};
 root.NauvisRecipeMath=analyzeRecipeRatios;
 if(typeof document==='undefined')return;
 
@@ -120,7 +146,7 @@ const state={id:guide.goal,rate:guide.rate,machine:guide.machine,source:guide.so
  moduleType:guide.moduleType||'none',moduleCount:guide.moduleCount||0,moduleType2:guide.moduleType2||'none',moduleCount2:guide.moduleCount2||0,
  machineQuality:guide.machineQuality||'normal',beaconSpeed:guide.beaconSpeed||0,preset:'custom'};
 const recipes=R,contexts={stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names};
-let recipeFilter='',recipeCategory='all';
+let recipeFilter='',recipeCategory='all',laneRounded=false,laneArray=null,laneOpen=false;
 const recommendation=()=>root.NauvisPresets?.recommendation(state.id,recipes,state.machine)||{starter:30,balanced:60,expand:120,rationale:'Choose an item and target.'};
 state.preset=root.NauvisPresets?.modeFor(state.rate,recommendation())||'custom';
 const colorFor=(id,kind)=>csscolor(id,kind);
@@ -145,6 +171,21 @@ function recipeResults(){
 }
 function descriptionForRate(r){
  return number(r.needed)+' output/min ÷ '+precision(r.effectiveOutputPerCraft||r.outputPerCraft)+' effective per craft = '+precision(r.craftsPerMinute)+' crafts/min.';
+}
+function lanePanel(result){
+ const entry=result.entries.find(e=>e.key===laneArray)||result.entries.find(e=>e.key===result.id)||result.entries.at(-1);
+ if(!entry)return '';
+ const plan=planArrayLanes(entry,result.belt,laneRounded),tier=result.belt===900?'yellow':result.belt===1800?'red':'blue',by=new Map(plan.requirements.map(x=>[x.id,x]));
+ const laneMarkup=k=>'<span style="--lane-material:'+escape(k?colorFor(k,recipes[k]?.[3]||'asm'):'#405163')+'">'+(k?itemGlyph(k,22)+'<b>'+escape(by.get(k)?.name||k)+'</b>':'<b>Unused lane</b>')+'</span>';
+ const groups=plan.groups.map(g=>'<div class="ratio-lane-row"><strong>'+g.count+'×</strong><div class="ratio-lane-belt">'+laneMarkup(g.a)+laneMarkup(g.b)+'</div><small>'+ (g.a===g.b?'Full':g.b?'Mixed':'Half')+'</small></div>').join('');
+ return '<details class="ratio-lane-panel" data-ratio-lane-panel '+(laneOpen?'open':'')+'><summary><b>Ingredient belt layout</b><span>'+plan.physical+' '+tier+' · '+plan.saved+' saved</span></summary>'+
+ '<div class="ratio-lane-body"><label>Receiving production array<select data-ratio-lane-array>'+select(result.entries.map(x=>[x.key,x.name+' · '+x.count+' machines']),entry.key)+'</select></label>'+
+ '<label class="ratio-lane-check"><input type="checkbox" data-ratio-lane-rounded '+(laneRounded?'checked':'')+'> Feed every rounded machine at full speed</label>'+
+ '<div class="ratio-lane-summary"><div><small>Separate belts</small><b>'+plan.dedicated+'</b></div><div><small>Shared lanes</small><b>'+plan.physical+'</b></div><div><small>Capacity per lane/min</small><b>'+number(plan.lane)+'</b></div></div>'+
+ '<div class="ratio-lane-rates">'+plan.requirements.map(x=>'<div>'+itemGlyph(x.id,20)+'<span>'+escape(x.name)+'</span><b>'+number(x.needed)+'/min</b><small>'+x.lanes+' lane'+(x.lanes===1?'':'s')+'</small></div>').join('')+'</div>'+
+ '<div class="ratio-lane-layout" style="--lane-tier:'+({yellow:'#e5c35f',red:'#e17b71',blue:'#79b5f6'}[tier])+'">'+(groups||'<p class="ratio-muted">No solid input belts required.</p>')+'</div>'+
+ (plan.fluids.length?'<p class="ratio-muted">Pipe inputs (excluded): '+plan.fluids.map(f=>escape(f.name)+' '+number(f.needed)+'/min').join(', ')+'.</p>':'')+
+ '<p class="ratio-muted">Minimum dedicated lanes for this array, paired when possible. '+(laneRounded?'Uses full rounded machine capacity; supporting producers may need expansion.':'Uses exact target-rate ingredient demand, not the extra capacity from machine rounding.')+' Physical inserter throughput, loading and fuel are not modeled. Layout is advisory.</p></div></details>';
 }
 function buildView(result,card){
  const cardKey=card.dataset.ratioExplorer;
@@ -217,7 +258,7 @@ function buildView(result,card){
  const outputDesc=output.isFluid?'Output uses pipes; pipe throughput not modeled':(output.belts+' × '+(result.belt===900?'yellow':result.belt===1800?'red':'blue')+' belt'+(output.belts===1?'':'s')+' for final output');
  return fieldset+
   (advancedOn?'<p class="ratio-effect-status"><strong>Upgrade profile active:</strong> machine counts and upstream ingredients reflect compatible module/quality bonuses. Review per-recipe effects under “Why this ratio?”.</p>':'')+
-  '<div data-ratio-flow-root class="ratio-flow-root"></div>'+
+  '<div data-ratio-flow-root class="ratio-flow-root"></div>'+lanePanel(result)+
   '<div class="ratio-save-strip"><button class="ratio-save-project" data-ratio-project-save type="button">Queue construction <span aria-hidden="true">→</span></button><span>Creates a planned checklist only. Actual Inventory changes when machines are marked built.</span></div>'+
   '<div data-ratio-legacy-table hidden>'+
   '<div class="ratio-overview">'+
@@ -288,6 +329,9 @@ function renderCard(card){
    }
    renderAll();
   }));
+  target.querySelector('[data-ratio-lane-panel]')?.addEventListener('toggle',e=>{laneOpen=e.target.open});
+  target.querySelector('[data-ratio-lane-array]')?.addEventListener('change',e=>{laneArray=e.target.value;laneOpen=true;renderAll()});
+  target.querySelector('[data-ratio-lane-rounded]')?.addEventListener('change',e=>{laneRounded=e.target.checked;laneOpen=true;renderAll()});
   target.querySelector('[data-ratio-project-save]')?.addEventListener('click',()=>root.NauvisProjects?.createFromRatio(result));
   const button=target.querySelector('[data-ratio-send]');
   button.addEventListener('click',()=>{

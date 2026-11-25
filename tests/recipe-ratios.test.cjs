@@ -120,3 +120,17 @@ test('send is an explicit hypothetical Build Next update, never a machine invent
  assert.doesNotMatch(source,/(?:setup\.machines|setup\.feeds)\s*=/);
  assert.doesNotMatch(source,/saveSetup\(\)/);
 });
+
+test('per-array lane pairing saves physical belts without mixing unrelated arrays',()=>{
+ const {planIngredientLanes,planArrayLanes}=require('../recipe-ratios.js');
+ const ingredients=[{id:'electronic-circuit',needed:360},{id:'plastic-bar',needed:360},{id:'copper-cable',needed:720},{id:'water',needed:100,fluid:true}];
+ const result=planIngredientLanes(ingredients,900);assert.equal(result.physical,2);assert.equal(result.dedicated,3);assert.equal(result.saved,1);assert.equal(result.fluids.length,1);
+ assert.ok(result.groups.some(x=>x.a==='electronic-circuit'&&x.b==='plastic-bar'));
+ const rounded=planArrayLanes({ingredients,needed:180,count:25,perMachine:7.5},900,true);assert.equal(rounded.requirements.find(x=>x.id==='electronic-circuit').needed,375);
+ const overflow=planIngredientLanes([{id:'iron',needed:1200},{id:'copper',needed:600}],1800);assert.equal(overflow.physical,2);
+ for(const tier of [900,1800,2700])for(let i=1;i<100;i++){
+  const p=planIngredientLanes([{id:'a',needed:i*37},{id:'b',needed:i*21},{id:'c',needed:i*19}],tier);
+  assert.equal(p.physical,Math.ceil(p.requirements.reduce((s,x)=>s+x.lanes,0)/2));
+  for(const r of p.requirements){const lanes=p.groups.reduce((s,g)=>s+g.count*((g.a===r.id?1:0)+(g.b===r.id?1:0)),0);assert.equal(lanes,r.lanes);assert.ok(lanes*p.lane>=r.needed)}
+ }
+});
