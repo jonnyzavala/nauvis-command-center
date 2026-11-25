@@ -21,6 +21,21 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   const initial=JSON.stringify(snap(w));
   w.activateWorkspace('flow',true);
   assert(w.document.querySelector('#focusBlueprintBelts [data-ratio-lane-panel]').open&&w.document.querySelector('#focusBlueprintBelts [data-ratio-flow-root]'),'Flow opens current blueprint lane diagram and production chain automatically');
+  const beltRoot='#focusBlueprintBelts [data-ratio-flow-root]';
+  const beltToggle=w.document.querySelector(beltRoot+' [data-flow-belt-toggle]');
+  if(!beltToggle.checked)beltToggle.click();
+  const beltCard=()=>w.document.querySelector(beltRoot+' .flow-belt-resource');
+  assert(beltCard()&&beltCard().textContent.includes('required'),'Blueprint belt view shows physical requirements and capacity');
+  const assigned=()=>beltCard().querySelector('.flow-capacity-assign span b').textContent;
+  const initialBelts=assigned();
+  set(w,beltRoot+' [data-flow-belt-tier]','0','input');
+  assert(assigned()===initialBelts,'Tier slider preserves assigned belt count');
+  let remove=beltCard().querySelector('[data-flow-belt-change="-1"]');
+  while(!remove.disabled){remove.click();remove=beltCard().querySelector('[data-flow-belt-change="-1"]')}
+  assert(beltCard().dataset.capacityStatus==='starving'&&assigned()==='0','Zero belts starve positive demand');
+  click(w,beltRoot+' [data-flow-belt-reset]');
+  assert(beltCard().dataset.capacityStatus!=='starving','Sizing to demand removes capacity shortage');
+  assert(JSON.stringify(snap(w))===initial,'Belt capacity tests do not mutate factory data');
   click(w,'[data-flow-view="quick"]');
   assert(w.document.querySelector('#focusBlueprintBelts').hidden&&!w.document.querySelector('#focusQuickSplit').hidden,'Quick split is an independent visual mode');
   w.document.querySelector('#focusFlowEditor').open=true;

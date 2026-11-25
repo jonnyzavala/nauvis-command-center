@@ -418,7 +418,6 @@ function mount(target,result,cardKey){
  const allocationKey=cardKey+'|'+result.id;
  const allocation=root.NauvisRatioFlow.beltAllocationByCard.get(allocationKey)||new Map();
  root.NauvisRatioFlow.beltAllocationByCard.set(allocationKey,allocation);
- for(const [key,rate] of totals)if(!allocation.has(key))allocation.set(key,beltRequirement(rate,beltTier).count);
  const compact=graph.nodes.filter(n=>n.type==='machine');
  const buildList=compact.map(n=>
   '<span class="ratio-flow-build-chip" style="--node-color:'+nodeColor(n)+'">'+itemGlyph(n.recipe,35)+'<strong>'+
@@ -465,7 +464,9 @@ function mount(target,result,cardKey){
  const beltToggle=holder.querySelector('[data-flow-belt-toggle]'),slider=holder.querySelector('[data-flow-belt-tier]'),beltControls=holder.querySelector('[data-flow-belt-controls]');
  function updateBeltControls(){
   beltControls.hidden=!state.beltMode||root.NauvisRatioFlow.modeByCard.get(cardKey)==='table';
+  if(beltControls.hidden)return;
   const tier=state.beltTier,cap=BELT_CAPACITY[tier];
+  for(const [key,rate] of totals)if(!allocation.has(key))allocation.set(key,beltRequirement(rate,tier).count);
   holder.querySelector('[data-flow-belt-tier-label]').textContent=tier.toUpperCase()+' · '+formatted(cap)+'/min per belt';
   const summary=holder.querySelector('[data-flow-belt-summary]');
   const opened=summary.querySelector('details')?.open||false;
@@ -603,7 +604,7 @@ function drawLayout(state){
      const isRoot=path.points[0].x===bundle.source.x&&path.points[0].y===bundle.source.y;
      const markup=Array.from({length:n},(_,i)=>'<path data-blueprint-belt="'+(i+1)+'" d="'+roundedPath(parallelPoints(path.points,(i-(n-1)/2)*4),10,obstacles)+'" fill="none" stroke="'+tierColor+'" stroke-width="2" stroke-linecap="round" opacity="'+(state.selected&&!active?.35:1)+'"/>').join('');
      const seg=path.points.slice(1).map((p,i)=>({a:path.points[i],b:p,len:Math.hypot(p.x-path.points[i].x,p.y-path.points[i].y)})).sort((a,b)=>b.len-a.len)[0];
-     const annotation=seg?'<text x="'+(seg.a.x+seg.b.x)/2+'" y="'+((seg.a.y+seg.b.y)/2-8-n*2)+'" text-anchor="middle" font-size="9" font-weight="700" fill="'+(isRoot?statusColor:tierColor)+'" stroke="#152b3b" stroke-width="2.5" paint-order="stroke" opacity="'+(state.selected&&!active?.35:1)+'">'+(r.count>12?r.count+' belts · ':'')+r.count+' '+state.beltTier+(isRoot?' · '+capacityLabel(check.status):'')+'</text>':'';
+     const annotation=seg?'<text x="'+(seg.a.x+seg.b.x)/2+'" y="'+((seg.a.y+seg.b.y)/2-8-n*2)+'" text-anchor="middle" font-size="9" font-weight="700" fill="'+(isRoot?statusColor:tierColor)+'" stroke="#152b3b" stroke-width="2.5" paint-order="stroke" opacity="'+(state.selected&&!active?.35:1)+'">'+r.count+' '+state.beltTier+(isRoot?' · '+capacityLabel(check.status):'')+'</text>':'';
      paths.push({active,markup:markup+annotation});continue;
     }
     const line='<path class="ratio-link-underlay" d="'+d+'"/>'+
