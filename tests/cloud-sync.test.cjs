@@ -93,6 +93,7 @@ function makeDevice(name, blocks, cloud) {
       }
     },
     change(n) { data.plan.redBlocks = n; window.NauvisCloud.changed(); },
+    changeSnapshot(snapshot) { data = clone(snapshot); window.NauvisCloud.changed(); },
     offline() { online = false; windowEvents.offline?.(); },
     async online() { online = true; windowEvents.online?.(); await flush(); },
     async refresh() { listeners.cloudRetry.click(); await flush(); },
@@ -146,4 +147,20 @@ test('first pairing, cross-device updates, offline queue and both conflict choic
   await phone.localWins(); await phone.pump();
   assert.equal(cloud.snapshot.plan.redBlocks, 12);
   assert.equal(phone.status, 'saved');
+});
+
+// Entire application snapshots, with newer optional fields, traverse the same
+// offline outbox and revision-aware conflict protocol.
+test('draft routes and actual profiles sync and data-only reset preserves guide', async () => {
+ const E=require('../production-effects.js'),{resetSnapshotData}=require('../factory-reset.js');
+ const cloud={revision:0,snapshot:initial(0)},mac=makeDevice('MacBook',4,cloud),phone=makeDevice('iPhone',0,cloud);
+ await mac.start();await mac.pair();await mac.pump();await phone.start();await phone.pair();
+ const data={version:7,plan:{redBlocks:0,projects:[],journal:[]},guide:{goal:'advanced-circuit',rate:90},setup:{smelt:{furnaceSpeed:2,beltTier:1800},oil:{},machines:[{recipe:'electronic-circuit',count:2,tier:1.25,entityKey:'machine:electronic-circuit|id:green',destination:'Available for new build',moduleType:'speed1',moduleCount:2}],feeds:[],assets:[],logistics:{nodes:[],edges:[]}},balancePrefs:{includeGoal:false}};
+ data.setup.logisticsDrafts=E.saveLogisticsDraft([],{id:'draft',name:'Red',goal:{id:'advanced-circuit',rate:90,machine:.75,belt:1800,source:'bus'},reuseKeys:['machine:electronic-circuit|id:green'],routes:[{id:'r',from:'actual:machine:electronic-circuit|id:green',to:'advanced-circuit',item:'electronic-circuit',tier:'red',belts:1,lanes:1,rate:180}]});
+ assert.equal(E.validateOwnershipSnapshot(data),true);
+ mac.offline();mac.changeSnapshot(data);assert.equal(mac.status,'offline');assert.ok(mac.pending);
+ await mac.online();await mac.pump();await phone.refresh();
+ assert.deepEqual(phone.state,data);assert.deepEqual(cloud.snapshot,data);
+ const empty=resetSnapshotData(data);phone.changeSnapshot(empty);await phone.pump();await mac.refresh();
+ assert.deepEqual(mac.state,empty);assert.equal(mac.state.setup.logisticsDrafts,undefined);assert.equal(mac.state.setup.machines.length,0);assert.deepEqual(mac.state.guide,data.guide);
 });
