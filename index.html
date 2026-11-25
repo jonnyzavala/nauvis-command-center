@@ -603,7 +603,7 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.53 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.54 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory &amp; Balance</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Plan &amp; Build</button></div></nav>
  </div>
@@ -659,10 +659,24 @@ body[data-workspace="build"]{
       <div class="setup-input"><label for="setupCopperBelts">Copper output belts</label><input type="number" inputmode="numeric" min="0" step="1" id="setupCopperBelts" data-smelt="copperBelts"/></div>
       <div class="setup-input"><label for="setupBrickFurnaces">Brick furnaces</label><input type="number" inputmode="numeric" min="0" step="1" id="setupBrickFurnaces" data-smelt="brickFurnaces"/></div>
       <div class="setup-input"><label for="setupBrickBelts">Brick output belts</label><input type="number" inputmode="numeric" min="0" step="1" id="setupBrickBelts" data-smelt="brickBelts"/></div>
-      <div class="setup-input"><label for="setupFurnaceType">Furnace type</label><select data-smelt="furnaceSpeed" id="setupFurnaceType"><option value="2">Steel / electric · 2×</option><option value="1">Stone · 1×</option></select></div>
+      <div class="setup-input"><label for="setupFurnaceType">Baseline furnace type</label><select data-smelt="furnaceSpeed" id="setupFurnaceType"><option value="2">Steel / electric · 2×</option><option value="1">Stone · 1×</option></select></div>
       <div class="setup-input"><label for="setupMainBeltTier">Output belt tier</label><select data-smelt="beltTier" id="setupMainBeltTier"><option value="900">Yellow (900/min)</option><option value="1800">Red (1,800/min)</option><option value="2700">Blue (2,700/min)</option></select></div>
     </div>
-    <div id="setupSmeltingSummary" style="margin-top:18px"></div>
+    <details class="advanced" style="margin-top:14px"><summary>Mixed furnace types &amp; electric furnace upgrades</summary>
+ <p class="small">First record the actual total above. Assign subsets of those furnaces to explicit profiles; unassigned furnaces use the baseline type. Profiles never increase totals or claim Construction-owned furnaces. Remove a profile to return its subset to the baseline.</p>
+ <div id="setupFurnaceProfilesList"></div>
+ <form id="setupFurnaceProfilesForm"><div class="setup-grid">
+ <div class="setup-input"><label for="profileRecipe">Smelting recipe</label><select id="profileRecipe"><option value="iron-plate">Iron plates</option><option value="copper-plate">Copper plates</option><option value="steel-plate">Steel</option><option value="stone-brick">Stone bricks</option></select></div>
+ <div class="setup-input"><label for="profileType">Furnace type</label><select id="profileType"><option value="electric">Electric · 2×</option><option value="steel">Steel · 2×</option><option value="stone">Stone · 1×</option></select></div>
+ <div class="setup-input"><label for="profileCount">Existing furnaces in group</label><input id="profileCount" type="number" min="1" step="1" required value="1"></div>
+ <div class="setup-input"><label for="profileModule1">Electric module 1</label><select id="profileModule1"></select></div>
+ <div class="setup-input"><label for="profileModuleCount1">Slots used</label><input id="profileModuleCount1" type="number" min="0" max="2" step="1" required value="0"></div>
+ <div class="setup-input"><label for="profileModule2">Electric module 2</label><select id="profileModule2"></select></div>
+ <div class="setup-input"><label for="profileModuleCount2">Slots used</label><input id="profileModuleCount2" type="number" min="0" max="2" step="1" required value="0"></div>
+ <div class="setup-input"><label for="profileQuality">Electric machine quality</label><select id="profileQuality"><option value="normal">Normal</option><option value="uncommon">Uncommon</option><option value="rare">Rare</option><option value="epic">Epic</option><option value="legendary">Legendary</option></select></div>
+ <div class="setup-input"><label for="profileBeacon">Effective beacon speed (%)</label><input id="profileBeacon" type="number" min="0" max="300" step="any" required value="0"></div>
+ </div><p class="small">Normal-quality burner furnaces only; electric has two module slots. Actual input deliveries, fuel and power are not verified. Raw blueprints and Construction still use unboosted 2× furnaces.</p><button class="btn" type="submit">Record furnace profile</button></form></details>
+ <div id="setupSmeltingSummary" style="margin-top:18px"></div>
   </section>
   <section class="section panel" id="setupOilPanel"><div class="section-head"><h2><span class="step">2</span> Oil and refineries</h2><span class="small">Gross capacity before consumption by other factories</span></div>
     <div class="setup-grid" id="setupOilInputs">
@@ -839,7 +853,7 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v0.53 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.54 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, fuel/power delivery, beacon geometry and inserter constraints remain unmodeled.</footer>
 </div>
 <script src="./item-icons.js"></script>
 <script src="./production-effects.js"></script>
@@ -1138,16 +1152,29 @@ const feedMaterials=[['plastic-bar','Plastic bars'],['coal','Coal'],['stone','St
 const safeNum=x=>Number.isFinite(Number(x))?Math.max(0,Number(x)):0;
 const xselect=(arr,value)=>arr.map(([k,label])=>`<option value="${k}" ${value===k?'selected':''}>${escapeHTML(label)}</option>`).join('');
 const beltSpeed=tier=>({yellow:900,red:1800,blue:2700})[tier]||1800;
-function computeSetup(){
- const s=setup.smelt, speed=safeNum(s.furnaceSpeed), perPlate=60*speed/3.2, perSteel=60*speed/16, belt=safeNum(s.beltTier);
- const ironM=safeNum(s.ironFurnaces)*perPlate,ironTransport=safeNum(s.ironBelts)*belt;
- const iron=Math.min(ironM,ironTransport), steelFeedBelts=Math.min(safeNum(s.ironToSteel),safeNum(s.ironBelts));
- const steelInput=Math.min(iron,steelFeedBelts*belt), busIron=Math.max(0,iron-steelInput),
- steelCapMachines=safeNum(s.steelFurnaces)*perSteel,steelCapBelt=safeNum(s.steelBelts)*belt,
- steel=Math.min(steelInput/5,steelCapMachines,steelCapBelt);
- const copper=Math.min(safeNum(s.copperFurnaces)*perPlate,safeNum(s.copperBelts)*belt);
- const bricks=Math.min(safeNum(s.brickFurnaces)*perPlate,safeNum(s.brickBelts)*belt);
- return {iron,steelInput,busIron,steel,copper,bricks,steelCapMachines,steelCapBelt,ironM,ironTransport,belt,usedIronForSteel:5*steel,unusedSteelFeed:Math.max(0,steelInput-5*steel),perPlate,perSteel};
+function computeSetup(){return window.NauvisEffects.smeltingCapacity(setup.smelt,R)}
+function renderFurnaceProfiles(){
+ const host=el('setupFurnaceProfilesList');if(!host)return;
+ const effects=window.NauvisEffects,profiles=setup.smelt.profiles||[],rates=effects.smeltingRates(setup.smelt,R),owned=effects.smeltOwnership(setup.smelt,factory.projects||[]);
+ host.innerHTML=Object.entries(rates).map(([id,r])=>'<p class="small"><b>'+escapeHTML(R[id][0])+'</b> · '+fmt(r.count)+' total · '+fmt(r.unprofiled)+' baseline (including '+fmt(owned[effects.SMELT_FIELDS[id]]||0)+' Construction-owned) · '+fmt(r.output)+' rated output/min · '+fmt(r.inputRated)+' '+escapeHTML(R[r.input]?.[0]||r.input)+'/min input</p>').join('')+
+ profiles.map((p,i)=>{const rate=effects.recipeRates(p.recipe,R[p.recipe],p,p.count);return '<div class="setup-row"><div><b>'+fmt(p.count)+' × '+escapeHTML(p.furnaceType)+' · '+escapeHTML(R[p.recipe][0])+'</b><p class="small">'+escapeHTML(rate.profile.moduleGroups.filter(g=>g.applied).map(g=>g.applied+' × '+g.type).join(' + ')||'No modules')+' · '+escapeHTML(rate.profile.quality)+' · +'+fmt(rate.profile.beaconSpeed)+'% beacon speed · '+fmt(rate.output)+'/min</p></div><button type="button" class="btn ghost" data-furnace-remove="'+i+'">Remove profile</button></div>'}).join('');
+}
+function initFurnaceProfiles(){
+ const form=el('setupFurnaceProfilesForm'),host=el('setupFurnaceProfilesList'),effects=window.NauvisEffects;if(!form||!host)return;
+ for(const id of ['profileModule1','profileModule2'])el(id).innerHTML=xselect(effects.MODULE_OPTIONS,'none');
+ form.addEventListener('submit',event=>{
+  event.preventDefault();
+  try{
+   const profile={recipe:el('profileRecipe').value,count:Number(el('profileCount').value),furnaceType:el('profileType').value,moduleType:el('profileModule1').value,moduleCount:Number(el('profileModuleCount1').value),moduleType2:el('profileModule2').value,moduleCount2:Number(el('profileModuleCount2').value),machineQuality:el('profileQuality').value,beaconSpeed:Number(el('profileBeacon').value)};
+   Object.assign(setup.smelt,effects.editSmelting(setup.smelt,{profiles:[...(setup.smelt.profiles||[]),profile]},factory.projects||[]));saveSetup();renderSetupSummaryOnly();form.reset();
+  }catch(err){alert(err.message)}
+ });
+ host.addEventListener('click',event=>{
+  const button=event.target.closest('[data-furnace-remove]');if(!button)return;
+  const index=Number(button.dataset.furnaceRemove);
+  if(!confirm('Return this group to the baseline furnace type? Actual total counts will not change.'))return;
+  try{Object.assign(setup.smelt,effects.editSmelting(setup.smelt,{profiles:(setup.smelt.profiles||[]).filter((_,i)=>i!==index)},factory.projects||[]));saveSetup();renderSetupSummaryOnly()}catch(err){alert(err.message)}
+ });
 }
 function renderSetupInputs(){
  document.querySelectorAll('#setup [data-smelt]').forEach(e=>{e.value=setup.smelt[e.dataset.smelt]});
@@ -1155,6 +1182,7 @@ function renderSetupInputs(){
 }
 function setupStat(label,value,color,sub=''){return `<div class="setup-stat" style="--accent:${color}"><b>${fmt(value)}</b><small>${label}${sub?'<br>'+sub:''}</small></div>`}
 function renderSetupSmelting(){const x=computeSetup(),s=setup.smelt;
+ renderFurnaceProfiles();
  const ironOutBelts=safeNum(s.ironBelts),steelBelts=safeNum(s.ironToSteel),busBelts=Math.max(0,ironOutBelts-steelBelts);
  const note=[];
  let owned={};try{owned=window.NauvisEffects.smeltOwnership(s,factory.projects||[])}catch(err){note.push(err.message)}
@@ -1244,6 +1272,7 @@ function renderSetupSummaryOnly(){renderSetupSmelting();renderSetupOil();renderS
 function saveSetup(){window.NauvisJournal?.captureSetup?.();try{localStorage.setItem(setupKey,JSON.stringify(setup))}catch(e){};if(!window.NauvisCloudApplying)window.NauvisCloud?.changed()}
 function renderSetup(){renderSetupInputs();renderSetupMachines();renderSetupFeeds();renderSetupSummaryOnly();window.NauvisAssets?.render?.()}
 function initSetup(){
+ initFurnaceProfiles();
  document.querySelectorAll('#setup [data-smelt], #setup [data-oil]').forEach(inp=>inp.addEventListener('change',e=>{
   const which=inp.dataset.smelt?'smelt':'oil',field=inp.dataset.smelt||inp.dataset.oil;
   try{
@@ -1254,8 +1283,8 @@ function initSetup(){
  }));
  el('setupAddMachine').addEventListener('click',()=>window.NauvisQuick?.openInventory('machine'));
  el('setupAddFeed').addEventListener('click',()=>window.NauvisQuick?.openInventory('belt'));
- el('setupExample').addEventListener('click',()=>{if(!confirm('Overwrite actual smelting Inventory with hypothetical sample counts? This is not a planning action.'))return;if(setup.smelt.projectBuilt?.length){alert('Sample replacement is blocked while Construction owns furnaces.');return}Object.assign(setup.smelt,{ironFurnaces:288,ironBelts:6,ironToSteel:2,steelFurnaces:96,steelBelts:1,furnaceSpeed:2,beltTier:1800});saveSetup();renderSetup()});
- el('setupRestore').addEventListener('click',()=>{if(!confirm('Overwrite actual smelting Inventory with hypothetical sample counts? This is not a planning action.'))return;if(setup.smelt.projectBuilt?.length){alert('Sample replacement is blocked while Construction owns furnaces.');return}Object.assign(setup.smelt,setupSeed.smelt);saveSetup();renderSetup()});
+ el('setupExample').addEventListener('click',()=>{if(!confirm('Overwrite actual smelting Inventory with hypothetical sample counts? This is not a planning action.'))return;if(setup.smelt.projectBuilt?.length){alert('Sample replacement is blocked while Construction owns furnaces.');return}delete setup.smelt.profiles;Object.assign(setup.smelt,{ironFurnaces:288,ironBelts:6,ironToSteel:2,steelFurnaces:96,steelBelts:1,furnaceSpeed:2,beltTier:1800});saveSetup();renderSetup()});
+ el('setupRestore').addEventListener('click',()=>{if(!confirm('Overwrite actual smelting Inventory with hypothetical sample counts? This is not a planning action.'))return;if(setup.smelt.projectBuilt?.length){alert('Sample replacement is blocked while Construction owns furnaces.');return}delete setup.smelt.profiles;Object.assign(setup.smelt,setupSeed.smelt);saveSetup();renderSetup()});
  renderSetup();
 }
 
@@ -1266,7 +1295,9 @@ function resourceAuditEngine(ctx){
  const support=(record,key)=>window.NauvisEffects.supportedRate(record,factors.get(key)??1);
  const add=(obj,k,v)=>{if(Number.isFinite(v)&&v>1e-8)obj[k]=(obj[k]||0)+v};
  const base=ctx.base, oil=ctx.oil, model=ctx.recipes;
- for(const [k,v] of Object.entries({'iron-plate':base.busIron,'copper-plate':base.copper,'steel-plate':base.steel,'stone-brick':base.bricks})){known.add(k);add(supply,k,v);const key={'iron-plate':'iron','copper-plate':'copper','steel-plate':'steel','stone-brick':'brick'}[k],raw={'iron-plate':base.ironM,'steel-plate':base.steelCapMachines,'copper-plate':ctx.smelt?Number(ctx.smelt.copperFurnaces)*base.perPlate:undefined,'stone-brick':ctx.smelt?Number(ctx.smelt.brickFurnaces)*base.perPlate:undefined}[k];add(supported,k,support({rate:v,inputRated:raw,reserved:k==='iron-plate'?base.steelInput:0},'smelt:'+key));}
+ for(const [k,v] of Object.entries({'iron-plate':base.busIron,'copper-plate':base.copper,'steel-plate':base.steel,'stone-brick':base.bricks})){known.add(k);add(supply,k,v);const key={'iron-plate':'iron','copper-plate':'copper','steel-plate':'steel','stone-brick':'brick'}[k],raw={'iron-plate':base.ironM,'steel-plate':base.steelCapMachines,'copper-plate':base.copperM??(ctx.smelt?Number(ctx.smelt.copperFurnaces)*base.perPlate:undefined),'stone-brick':base.brickM??(ctx.smelt?Number(ctx.smelt.brickFurnaces)*base.perPlate:undefined)}[k];add(supported,k,support({rate:v,inputRated:raw,reserved:k==='iron-plate'?base.steelInput:0},'smelt:'+key));}
+ // Stone is rated ingredient demand; steel feed is already removed from bus supply.
+ add(existing,'stone',base.rates?.['stone-brick']?.inputRated||0);
  const ref=Math.max(0,Number(oil.refineries)||0), heavyPlants=Math.max(0,Number(oil.heavyCrackers)||0), lightPlants=Math.max(0,Number(oil.lightCrackers)||0);
  const heavy=ref*300, light=ref*540, gas=ref*660, heavyCracked=Math.min(heavy,heavyPlants*1200), lightPool=light+heavyCracked*.75, lightCracked=Math.min(lightPool,lightPlants*900);
  for(const k of ['petroleum-gas','light-oil','heavy-oil'])known.add(k);

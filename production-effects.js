@@ -33,9 +33,12 @@ function settings(input={}){
 function forRecipe(id,kind,input={}){
  const cfg=settings(input);
  const tier=Number(input.machine??input.tier??.75);
- const slots=kind==='asm'?(tier===1.25?4:tier===.75?2:0):kind==='chem'?3:0;
- const qualityFactor=kind==='asm'||kind==='chem'?QUALITIES[cfg.machineQuality]:1;
- const speedBase=kind==='asm'?(tier||.75):kind==='chem'?1:2;
+ const furnaceType=kind==='furnace'?input.furnaceType:undefined;
+ if(furnaceType!==undefined&&!['stone','steel','electric'].includes(furnaceType))throw Error('Unsupported furnace type.');
+ const electric=furnaceType==='electric';
+ const slots=electric?2:kind==='asm'?(tier===1.25?4:tier===.75?2:0):kind==='chem'?3:0;
+ const qualityFactor=kind==='asm'||kind==='chem'||electric?QUALITIES[cfg.machineQuality]:1;
+ const speedBase=kind==='asm'?(tier||.75):kind==='chem'?1:furnaceType==='stone'?1:2;
  if(kind==='asm'&&![.5,.75,1.25].includes(tier))throw Error('Unsupported assembler crafting speed.');
  const groups=[[cfg.moduleType,cfg.moduleCount],[cfg.moduleType2,cfg.moduleCount2]];
  let remaining=slots,applied=0,eligible=true,speedBonus=slots?cfg.beaconSpeed/100:0,productivityBonus=0,energyBonus=0;
@@ -85,6 +88,48 @@ function supportedRate(record,factor=1){
 // Project ownership is a subset of the existing aggregate smelting totals.
 // Never add the ownership ledger to those totals again.
 const SMELT_FIELDS={'iron-plate':'ironFurnaces','copper-plate':'copperFurnaces','steel-plate':'steelFurnaces','stone-brick':'brickFurnaces'};
+// Explicit furnace groups are subsets, not extra production. Construction-owned
+// units remain in the baseline population.
+function validateSmeltProfiles(smelt,owned={}){
+ const profiles=smelt?.profiles??[];
+ if(!Array.isArray(profiles)||profiles.length>100)throw Error('Invalid furnace profile list (maximum 100 groups).');
+ const totals={};
+ for(const row of profiles){
+  if(!row||!Object.hasOwn(SMELT_FIELDS,row.recipe)||!['stone','steel','electric'].includes(row.furnaceType)||!Number.isSafeInteger(row.count)||row.count<1)throw Error('Invalid furnace profile.');
+  const cfg=settings(row),modules=(cfg.moduleType==='none'?0:cfg.moduleCount)+(cfg.moduleType2==='none'?0:cfg.moduleCount2);
+  if(modules>2)throw Error('Electric furnaces have only two module slots.');
+  if(row.furnaceType!=='electric'&&(modules||cfg.beaconSpeed||cfg.machineQuality!=='normal'))throw Error('Burner furnace profiles use normal quality, no modules or beacons.');
+  const field=SMELT_FIELDS[row.recipe];totals[field]=(totals[field]||0)+row.count;
+ }
+ for(const [field,n] of Object.entries(totals)){
+  const count=Number(smelt[field]);
+  if(!Number.isSafeInteger(count)||count<n+(owned[field]||0))throw Error('Actual '+field+' must cover '+n+' profiled and '+(owned[field]||0)+' project-owned furnaces. Remove a profile before reducing the total.');
+ }
+ return totals;
+}
+function smeltingRates(smelt,recipes){
+ const owned={};for(const row of smelt.projectBuilt||[]){const f=SMELT_FIELDS[row.recipe];owned[f]=(owned[f]||0)+row.count}
+ const profiled=validateSmeltProfiles(smelt,owned),result={};
+ for(const [id,field] of Object.entries(SMELT_FIELDS)){
+  const recipe=recipes[id],total=Math.max(0,Number(smelt[field])||0),remainder=total-(profiled[field]||0);
+  const groups=[{count:remainder,furnaceType:Number(smelt.furnaceSpeed)===1?'stone':'steel'},...(smelt.profiles||[]).filter(x=>x.recipe===id)];
+  const input=Object.keys(recipe[4])[0];let output=0,inputRated=0;
+  for(const row of groups){const rates=recipeRates(id,recipe,row,row.count);output+=rates.output;inputRated+=rates.inputs[input]}
+  result[id]={output,inputRated,input,unprofiled:remainder,count:total};
+ }
+ return result;
+}
+function smeltingCapacity(smelt,recipes){
+ const rates=smeltingRates(smelt,recipes),num=x=>Math.max(0,Number(x)||0),belt=num(smelt.beltTier);
+ const ironM=rates['iron-plate'].output,ironTransport=num(smelt.ironBelts)*belt;
+ const iron=Math.min(ironM,ironTransport),steelInput=Math.min(iron,Math.min(num(smelt.ironToSteel),num(smelt.ironBelts))*belt),busIron=iron-steelInput;
+ const steelCapMachines=rates['steel-plate'].output,steelRatedInput=rates['steel-plate'].inputRated,steelCapBelt=num(smelt.steelBelts)*belt;
+ // Proportional utilization of mixed steel profiles under input/output limits.
+ const steel=Math.min(steelCapMachines,steelCapBelt,steelRatedInput?steelInput*steelCapMachines/steelRatedInput:0);
+ const usedIronForSteel=steelCapMachines?steel*steelRatedInput/steelCapMachines:0;
+ const copperM=rates['copper-plate'].output,brickM=rates['stone-brick'].output;
+ return {rates,iron,steelInput,busIron,steel,copper:Math.min(copperM,num(smelt.copperBelts)*belt),bricks:Math.min(brickM,num(smelt.brickBelts)*belt),ironM,ironTransport,steelCapMachines,steelCapBelt,steelRatedInput,copperM,brickM,belt,usedIronForSteel,unusedSteelFeed:Math.max(0,steelInput-usedIronForSteel),perPlate:60*num(smelt.furnaceSpeed)/3.2,perSteel:60*num(smelt.furnaceSpeed)/16};
+}
 function smeltOwnership(smelt,projects){
  const ledger=smelt?.projectBuilt??[];
  if(!Array.isArray(ledger))throw Error('Smelting project ledger is invalid.');
@@ -101,6 +146,7 @@ function smeltOwnership(smelt,projects){
  if(keys.size!==expected.size)throw Error('A built smelting project is missing its ownership record.');
  for(const [field,count] of Object.entries(totals))if(!Number.isSafeInteger(Number(smelt[field]))||Number(smelt[field])<count)throw Error('Actual '+field+' cannot be lower than '+count+' project-owned furnaces.');
  if(keys.size&&Number(smelt.furnaceSpeed)!==2)throw Error('Project-owned furnaces require the modeled 2× steel/electric speed.');
+ validateSmeltProfiles(smelt,totals);
  return totals;
 }
 function editSmelting(smelt,patch,projects){
@@ -155,6 +201,6 @@ function validateOwnershipSnapshot(data){
  return true;
 }
 if(typeof module==='object'&&module.exports)
- module.exports={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,SMELT_FIELDS,smeltOwnership,editSmelting,applySmeltBuildDelta,prepareBackupImport,validateOwnershipSnapshot,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
-root.NauvisEffects={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,SMELT_FIELDS,smeltOwnership,editSmelting,applySmeltBuildDelta,prepareBackupImport,validateOwnershipSnapshot,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
+ module.exports={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,SMELT_FIELDS,validateSmeltProfiles,smeltingRates,smeltingCapacity,smeltOwnership,editSmelting,applySmeltBuildDelta,prepareBackupImport,validateOwnershipSnapshot,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
+root.NauvisEffects={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,SMELT_FIELDS,validateSmeltProfiles,smeltingRates,smeltingCapacity,smeltOwnership,editSmelting,applySmeltBuildDelta,prepareBackupImport,validateOwnershipSnapshot,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
 })(typeof window==='undefined'?globalThis:window);
