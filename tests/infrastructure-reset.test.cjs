@@ -134,11 +134,24 @@ test('empty defaults do not repopulate historical counts after reload or sync',(
  assert.match(html,/Object\.assign\(setup\.smelt,blankSmelt,data\.setup\.smelt/);
  assert.match(html,/tasks\.length\?complete\/tasks\.length\*100:0/);
  assert.match(html,/window\.NauvisCloudApplying=true/);
- assert.match(sw,/nauvis-shell-v052/);assert.match(html,/Nauvis Command Center v0\.52/);
+ assert.match(sw,/nauvis-shell-v053/);assert.match(html,/Nauvis Command Center v0\.53/);
 });
 
 test('Fresh Start removes smelting ownership alongside construction records',()=>{
  const {resetSnapshotData}=require('../factory-reset.js');
  const s={setup:{smelt:{ironFurnaces:5,furnaceSpeed:2,projectBuilt:[{projectId:'p',recipe:'iron-plate',count:1}]}},plan:{projects:[{id:'p',tasks:[{recipe:'iron-plate',kind:'furnace',built:1,planned:2}]}]},guide:{}};
  const next=resetSnapshotData(s);assert.equal(next.setup.smelt.projectBuilt,undefined);assert.equal(next.setup.smelt.ironFurnaces,0);assert.equal(next.plan.projects.length,0);
+});
+
+test('backup import replaces old furnace ledger, and legacy district import preserves ownership',()=>{
+ const {prepareBackupImport,validateOwnershipSnapshot}=require('../production-effects.js');
+ const p={id:'p',tasks:[{recipe:'iron-plate',kind:'furnace',built:1,planned:2}]};
+ const current={version:7,plan:{redBlocks:2,projects:[p],journal:[{id:'j'}]},guide:{goal:'iron-plate'},setup:{smelt:{ironFurnaces:4,furnaceSpeed:2,projectBuilt:[{projectId:'p',recipe:'iron-plate',count:1}]}},balancePrefs:{includeGoal:false}};
+ const defaults={redBlocks:0,checked:{},projects:[],journal:[]},before=JSON.stringify(current);
+ const legacy=prepareBackupImport({redBlocks:5},current,defaults);
+ assert.equal(legacy.plan.redBlocks,5);assert.deepEqual(legacy.plan.projects,current.plan.projects);assert.deepEqual(legacy.plan.journal,current.plan.journal);assert.deepEqual(legacy.setup,current.setup);
+ const full=prepareBackupImport({plan:{redBlocks:0},guide:{goal:'iron-plate'},setup:{smelt:{ironFurnaces:0,furnaceSpeed:2}}},current,defaults);
+ assert.equal(full.setup.smelt.projectBuilt,undefined);assert.deepEqual(full.plan.projects,[]);
+ assert.throws(()=>validateOwnershipSnapshot({...current,setup:{smelt:{ironFurnaces:0,furnaceSpeed:2}}}),/missing/);
+ assert.equal(JSON.stringify(current),before);
 });

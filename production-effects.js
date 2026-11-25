@@ -123,7 +123,38 @@ function applySmeltBuildDelta(project,recipe,delta,smelt,projects){
  smeltOwnership(next,projects.map(p=>p.id===project.id?updated:p));
  return {project:updated,smelt:next};
 }
+// Prepare a complete replacement before touching local or synced state.
+// Legacy district-only backups may update district fields, never actual
+// inventory ownership, project history or journal.
+function prepareBackupImport(input,current,districtDefaults){
+ if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Not a dashboard backup.');
+ const plan=input.plan&&typeof input.plan==='object'?input.plan:input;
+ if(typeof plan.redBlocks!=='number')throw Error('Not a dashboard backup.');
+ if(input.setup!==undefined){
+  if(!input.setup||typeof input.setup!=='object'||Array.isArray(input.setup)||!input.plan)throw Error('Invalid factory inventory in backup.');
+  const candidate={...current,...input,plan:{...districtDefaults,...plan},guide:input.guide||current.guide,setup:input.setup,balancePrefs:input.balancePrefs||{includeGoal:false}};
+  validateOwnershipSnapshot(candidate);
+  return candidate;
+ }
+ const next=JSON.parse(JSON.stringify(current));
+ for(const [key,value] of Object.entries(districtDefaults)){
+  if(typeof value!=='number')continue;
+  const n=Number(plan[key]??value);if(!Number.isFinite(n)||n<0)throw Error('Invalid legacy district quantity.');
+  next.plan[key]=n;
+ }
+ next.plan.checked={...(plan.checked||{})};
+ if(input.guide&&typeof input.guide==='object')next.guide={...next.guide,...input.guide};
+ validateOwnershipSnapshot(next);
+ return next;
+}
+function validateOwnershipSnapshot(data){
+ if(!data||typeof data!=='object'||!data.plan||!data.guide||!data.setup)throw Error('Invalid shared factory snapshot.');
+ const projects=data.plan.projects??[];
+ if(!Array.isArray(projects))throw Error('Invalid construction project list.');
+ smeltOwnership(data.setup.smelt||{},projects);
+ return true;
+}
 if(typeof module==='object'&&module.exports)
- module.exports={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,SMELT_FIELDS,smeltOwnership,editSmelting,applySmeltBuildDelta,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
-root.NauvisEffects={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,SMELT_FIELDS,smeltOwnership,editSmelting,applySmeltBuildDelta,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
+ module.exports={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,SMELT_FIELDS,smeltOwnership,editSmelting,applySmeltBuildDelta,prepareBackupImport,validateOwnershipSnapshot,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
+root.NauvisEffects={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,SMELT_FIELDS,smeltOwnership,editSmelting,applySmeltBuildDelta,prepareBackupImport,validateOwnershipSnapshot,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
 })(typeof window==='undefined'?globalThis:window);
