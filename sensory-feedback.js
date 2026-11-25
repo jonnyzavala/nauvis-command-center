@@ -3,14 +3,14 @@
 'use strict';
 const KEY='nauvis-sensory-v1';
 const CATEGORIES=['controls','inputs','construction','achievements','sync'];
-const DEFAULTS={enabled:false,volume:35,motion:'full',haptics:false,categories:Object.fromEntries(CATEGORIES.map(k=>[k,true]))};
+const DEFAULTS={enabled:false,volume:35,palette:'industrial',motion:'full',haptics:false,categories:Object.fromEntries(CATEGORIES.map(k=>[k,true]))};
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 function normalize(v){
  const x=v&&typeof v==='object'?v:{};
- return {enabled:x.enabled===true,volume:Number.isFinite(x.volume)?clamp(Math.round(x.volume),0,100):35,motion:['full','subtle','off'].includes(x.motion)?x.motion:'full',haptics:x.haptics===true,categories:Object.fromEntries(CATEGORIES.map(k=>[k,x.categories?.[k]!==false]))};
+ return {enabled:x.enabled===true,volume:Number.isFinite(x.volume)?clamp(Math.round(x.volume),0,100):35,palette:x.palette==='electronic'?'electronic':'industrial',motion:['full','subtle','off'].includes(x.motion)?x.motion:'full',haptics:x.haptics===true,categories:Object.fromEntries(CATEGORIES.map(k=>[k,x.categories?.[k]!==false]))};
 }
 // [frequency, end frequency, duration sec, offset sec, oscillator, relative gain]
-const SOUNDS={
+const ELECTRONIC={
  click:['controls',[[850,370,.045,0,'triangle',.28],[160,90,.045,0,'sine',.23]]],
  nav:['controls',[[220,490,.095,0,'sine',.25],[490,690,.07,.035,'triangle',.12]]],
  open:['controls',[[420,680,.065,0,'triangle',.24]]],
@@ -29,11 +29,68 @@ const SOUNDS={
  sync:['sync',[[620,620,.07,0,'sine',.19],[880,880,.11,.07,'sine',.22]]],
  warning:['sync',[[230,170,.11,0,'triangle',.3],[170,130,.14,.12,'sine',.24]]]
 };
+// Industrial transients combine tonal resonances with shaped, filtered noise.
+// The classic electronic palette is retained as an alternative.
+const SOUNDS={
+ click:['controls',[[160,85,.035,0,'triangle',.26]]],
+ nav:['controls',[[120,72,.11,0,'sine',.21],[310,210,.045,.075,'triangle',.12]]],
+ open:['controls',[[120,95,.09,0,'sine',.17]]],
+ close:['controls',[[145,70,.065,.025,'triangle',.27]]],
+ on:['controls',[[185,105,.055,0,'triangle',.32],[920,740,.019,.013,'sine',.12]]],
+ off:['controls',[[125,62,.065,0,'triangle',.31]]],
+ tick:['inputs',[[1170,930,.024,0,'sine',.12]]],
+ edit:['inputs',[[145,90,.045,0,'triangle',.16]]],
+ select:['inputs',[[190,95,.045,0,'triangle',.18]]],
+ key:['inputs',[[290,150,.021,0,'triangle',.08]]],
+ ratchet:['inputs',[[280,145,.025,0,'triangle',.12]]],
+ countUp:['inputs',[[410,235,.032,0,'triangle',.17],[810,640,.019,0,'sine',.10]]],
+ countDown:['inputs',[[260,130,.033,0,'triangle',.19]]],
+ check:['controls',[[240,125,.055,0,'triangle',.24],[630,710,.065,.04,'sine',.14]]],
+ uncheck:['controls',[[170,85,.045,0,'triangle',.24]]],
+ build:['construction',[[88,42,.14,0,'sine',.48],[225,148,.08,0,'triangle',.24],[1370,1080,.14,.016,'sine',.12]]],
+ queue:['construction',[[95,52,.15,.05,'triangle',.31],[235,150,.09,.14,'triangle',.23],[440,660,.14,.22,'sine',.21]]],
+ reverse:['construction',[[150,70,.115,0,'triangle',.25]]],
+ saved:['construction',[[380,380,.12,.045,'sine',.21],[570,570,.16,.11,'triangle',.16]]],
+ route:['construction',[[140,82,.06,0,'triangle',.25],[620,820,.10,.065,'sine',.18]]],
+ complete:['construction',[[110,62,.15,0,'triangle',.26],[392,392,.24,.11,'triangle',.23],[523,523,.25,.19,'sine',.26],[659,659,.31,.28,'sine',.24],[784,784,.35,.38,'triangle',.16]]],
+ achievement:['achievements',[[523,523,.23,0,'sine',.23],[659,659,.27,.10,'triangle',.21],[784,784,.30,.20,'sine',.23],[1047,1047,.40,.31,'sine',.22],[1568,1568,.27,.36,'sine',.08]]],
+ sync:['sync',[[500,500,.065,0,'sine',.14],[750,750,.10,.06,'sine',.17]]],
+ warning:['sync',[[115,103,.14,0,'sawtooth',.13],[165,132,.18,.13,'triangle',.25]]]
+};
+// [duration, offset, center Hz, Q, gain, texture, envelope]
+const NOISE={
+ click:[[.026,0,1900,.9,.35,'white','impact'],[.018,.017,900,1.5,.18,'white','impact']],
+ nav:[[.13,0,1100,.65,.20,'white','swell'],[.033,.095,2200,1.1,.20,'white','impact']],
+ open:[[.11,0,1600,.65,.24,'white','swell']],
+ close:[[.09,0,700,.8,.22,'white','swell'],[.038,.05,1200,1,.32,'white','impact']],
+ on:[[.032,0,2600,.9,.40,'white','impact'],[.024,.022,1250,1.4,.19,'white','impact']],
+ off:[[.040,0,1100,.85,.38,'white','impact']],
+ tick:[[.018,0,3600,1.4,.25,'white','impact']],
+ edit:[[.035,0,1500,1,.23,'white','impact']],
+ select:[[.045,0,1900,.8,.27,'white','impact'],[.025,.035,850,1,.12,'white','impact']],
+ key:[[.021,0,2600,1.1,.24,'white','impact']],
+ ratchet:[[.017,0,2000,1.3,.28,'white','impact'],[.014,.018,3150,1,.13,'white','impact']],
+ countUp:[[.025,0,3200,1.6,.33,'white','impact']],
+ countDown:[[.030,0,1600,1.3,.33,'white','impact']],
+ check:[[.024,0,3000,1,.35,'white','impact'],[.025,.036,1300,1.3,.16,'white','impact']],
+ uncheck:[[.04,0,1000,1.3,.34,'white','impact']],
+ build:[[.11,0,700,.75,.40,'white','impact'],[.095,.012,2400,2.5,.25,'white','impact'],[.05,.085,1100,.9,.13,'white','impact']],
+ queue:[[.15,0,1000,.75,.24,'white','swell'],[.065,.12,1500,1.5,.35,'white','impact']],
+ reverse:[[.12,0,1350,.85,.28,'white','swell'],[.03,.095,800,1.2,.19,'white','impact']],
+ saved:[[.032,0,2200,.9,.17,'white','impact']],
+ route:[[.04,0,1450,1.4,.33,'white','impact'],[.04,.045,2600,1.4,.17,'white','impact']],
+ complete:[[.13,0,850,1,.28,'white','impact'],[.14,.35,3900,.9,.10,'white','swell']],
+ achievement:[[.27,.12,4600,1.1,.09,'white','swell']],
+ sync:[[.028,0,1600,.8,.08,'white','impact']],
+ warning:[[.07,0,480,1.2,.13,'white','impact']]
+};
+const ALIASES={key:'tick',ratchet:'tick',countUp:'tick',countDown:'edit',check:'on',uncheck:'off',route:'saved'};
+function soundDefinition(p,event){return p.palette==='electronic'?(ELECTRONIC[event]||ELECTRONIC[ALIASES[event]]||SOUNDS[event]):SOUNDS[event]}
 function canPlay(p,event){const def=SOUNDS[event];return !!def&&p.enabled&&p.volume>0&&p.categories[def[0]]===true}
 function cloudCue(before,after){if(before===after)return null;if(after==='saved'&&before==='syncing')return 'sync';if(['error','conflict','offline'].includes(after)&&!['error','conflict','offline'].includes(before))return 'warning';return null}
 function gained(before,after){const old=new Set(before||[]);return [...new Set(after||[])].filter(x=>!old.has(x))}
 function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now()){
- let context=null,last=-Infinity,voices=[],pending=null;
+ let context=null,last=-Infinity,voices=[],pending=null,noiseBuffer=null;
  function unlock(){
   if(!AudioContext||!getPrefs().enabled)return Promise.resolve(false);
   try{if(!context)context=new AudioContext();if(context.state==='running')return Promise.resolve(true);
@@ -42,28 +99,48 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
   }catch{return Promise.resolve(false)}
  }
  function stop(){for(const v of voices){try{v.stop()}catch{}}voices=[]}
- function play(event){
+ function buffer(){
+  if(noiseBuffer)return noiseBuffer;
+  if(!context.createBuffer||!context.createBufferSource||!context.createBiquadFilter)return null;
+  const sr=context.sampleRate||44100,b=context.createBuffer(1,Math.ceil(sr*.8),sr),samples=b.getChannelData(0);let seed=0x12345678;
+  for(let i=0;i<samples.length;i++){seed=(Math.imul(seed,1664525)+1013904223)>>>0;samples[i]=(seed/4294967296)*2-1}
+  noiseBuffer=b;return b;
+ }
+ function noise(layer,start,p){
+  const b=buffer();if(!b)return;
+  const [length,offset,hz,q,level,_texture,shape]=layer,t=start+offset,end=t+length;
+  const src=context.createBufferSource(),f=context.createBiquadFilter(),g=context.createGain();
+  src.buffer=b;f.type='bandpass';f.frequency.setValueAtTime(hz,t);f.Q.setValueAtTime(q,t);
+  const amp=Math.max(.00011,p.volume/100*.26*level),attack=shape==='swell'?length*.38:Math.min(.002,length*.2);
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(amp,t+attack);g.gain.exponentialRampToValueAtTime(.0001,end);
+  src.connect(f);f.connect(g);g.connect(context.destination);voices.push(src);
+  src.onended=()=>{voices=voices.filter(v=>v!==src);try{src.disconnect();f.disconnect();g.disconnect()}catch{}};
+  const position=(Math.floor(clock())%400)/1000;src.start(t,position,length);src.stop(end+.004);
+ }
+ function play(event,preview=false){
   const p=getPrefs();if(!canPlay(p,event)||!visible()||context?.state!=='running')return false;
-  const now=clock(),special=['complete','achievement','saved','queue','warning','build','reverse'].includes(event);
-  if(!special&&now-last<55)return false;
-  if(special)stop();
+  const now=clock(),special=['complete','achievement','saved','queue','warning','build','reverse','route'].includes(event);
+  if(!preview&&!special&&now-last<55)return false;
+  if(special||preview)stop();
   if(voices.length>24)stop();
   last=now;
   try{const start=context.currentTime+.008;
-   for(const [from,to,length,offset,wave,level] of SOUNDS[event][1]){
+   for(const [from,to,length,offset,wave,level] of soundDefinition(p,event)[1]){
     const o=context.createOscillator(),g=context.createGain(),t=start+offset,end=t+length;
     o.type=wave;o.frequency.setValueAtTime(from,t);o.frequency.exponentialRampToValueAtTime(to,end);
-    const amp=Math.max(.00011,p.volume/100*.20*level);
+    const amp=Math.max(.00011,p.volume/100*(p.palette==='electronic'?.20:.22)*level);
     g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(amp,t+Math.min(.008,length/4));g.gain.exponentialRampToValueAtTime(.0001,end);
     o.connect(g);g.connect(context.destination);voices.push(o);
     o.onended=()=>{voices=voices.filter(v=>v!==o);try{o.disconnect();g.disconnect()}catch{}};
     o.start(t);o.stop(end+.01);
-   }return true;
+   }
+   if(p.palette==='industrial')for(const layer of NOISE[event]||[])noise(layer,start,p);
+   return true;
   }catch{stop();return false}
  }
  return {unlock,play,stop,state:()=>context?.state||'locked'};
 }
-if(typeof module==='object'&&module.exports)module.exports={normalize,DEFAULTS,CATEGORIES,SOUNDS,canPlay,cloudCue,gained,makeEngine};
+if(typeof module==='object'&&module.exports)module.exports={normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine};
 if(typeof document==='undefined')return;
 let prefs=normalize(null);try{prefs=normalize(JSON.parse(localStorage.getItem(KEY)||'null'))}catch{}
 const $=id=>document.getElementById(id),dialog=$('sensoryDialog'),launcher=$('sensoryLaunch');
@@ -76,6 +153,7 @@ function paint(){
  document.body.dataset.sensoryMotion=reduce?.matches?'off':prefs.motion;
  if(launcher){launcher.dataset.enabled=String(prefs.enabled);launcher.setAttribute('aria-label','Sensory settings · sound '+(prefs.enabled?'on':'off'))}
  if($('sensoryEnabled'))$('sensoryEnabled').checked=prefs.enabled;
+ if($('sensoryPalette'))$('sensoryPalette').value=prefs.palette;
  if($('sensoryVolume')){$('sensoryVolume').value=prefs.volume;$('sensoryVolumeValue').textContent=prefs.volume+'%'}
  if($('sensoryMotion'))$('sensoryMotion').value=prefs.motion;
  if($('sensoryHaptics')){$('sensoryHaptics').checked=prefs.haptics;$('sensoryHaptics').disabled=typeof navigator.vibrate!=='function'}
@@ -92,10 +170,10 @@ function pulse(el,cls='sensory-pulse'){
 }
 function vibrate(event){if(!prefs.haptics||document.hidden||!prefs.categories[SOUNDS[event]?.[0]]||typeof navigator.vibrate!=='function')return;
  try{navigator.vibrate(['complete','achievement'].includes(event)?[16,35,20]:event==='build'?12:7)}catch{}}
-function cue(event,el,{semantic=false,haptic=true}={}){
+function cue(event,el,{semantic=false,haptic=true,preview=false}={}){
  if(!SOUNDS[event])return false;
  if(semantic)lastSemantic=performance.now();
- const played=engine.play(event);if(haptic)vibrate(event);if(el)pulse(el);
+ const played=engine.play(event,preview);if(haptic)vibrate(event);if(el)pulse(el);
  return played;
 }
 function semantic(event,el){if(performance.now()-lastGesture>1500||root.NauvisCloudApplying)return false;return cue(event,el,{semantic:true})}
@@ -120,7 +198,7 @@ document.addEventListener('keydown',e=>{if(!e.repeat)gesture(e)},true);
 document.addEventListener('click',e=>{
  const el=interactive(e);if(!e.isTrusted||!el||isUiSetting(el)||el.disabled||el.getAttribute('aria-disabled')==='true')return;
  if(el.matches('input,select,textarea'))return;
- const kind=el.matches('[data-view],[data-plan-target],[data-factory-target],[data-milestone-action]')?'nav':el.matches('summary')?(el.parentElement.open?'open':'close'):el.matches('[data-project-plus],[data-project-minus]')?null:'click';
+ const kind=el.matches('[data-view],[data-plan-target],[data-factory-target],[data-milestone-action]')?'nav':el.matches('summary')?(el.parentElement.open?'close':'open'):el.matches('[data-project-plus],[data-project-minus]')?null:el.matches('#quickCountPlus,[data-quick-plus]')?'countUp':el.matches('#quickCountMinus,[data-quick-minus]')?'countDown':el.matches('[aria-pressed]')?(el.getAttribute('aria-pressed')==='true'?'on':'off'):'click';
  if(!kind)return;
  // Semantic success hooks run first (after actual writes). Generic feedback never claims success.
  if(performance.now()-lastSemantic<100)return;
@@ -129,13 +207,13 @@ document.addEventListener('click',e=>{
 document.addEventListener('change',e=>{
  const el=e.target;if(!e.isTrusted||!el?.matches?.('input,select,textarea')||isUiSetting(el)||el.disabled)return;
  if(performance.now()-lastSemantic<100)return;
- const kind=el.matches('[type="checkbox"],[type="radio"]')?(el.checked?'on':'off'):el.matches('select')?'select':el.matches('[type="range"]')?null:'edit';
+ const kind=el.matches('[type="checkbox"],[type="radio"]')?(el.checked?'check':'uncheck'):el.matches('select')?'select':el.matches('[type="range"]')?null:'edit';
  if(kind)cue(kind,el);
 },false);
 document.addEventListener('input',e=>{
- const el=e.target;if(!e.isTrusted||!el?.matches?.('input[type="range"],input[type="number"],input[type="text"],input:not([type]),textarea')||isUiSetting(el)||el.disabled)return;
+ const el=e.target;if(!e.isTrusted||!el?.matches?.('input[type="range"],input[type="number"],input[type="text"],input[type="search"],input:not([type]),textarea')||isUiSetting(el)||el.disabled)return;
  const now=performance.now(),prev=lastRange.get(el);
- if(prev&&now-prev.time<85)return;lastRange.set(el,{time:now});cue('tick',null,{haptic:false});
+ if(prev&&now-prev.time<85)return;lastRange.set(el,{time:now});cue(el.matches('[type="range"]')?'ratchet':el.matches('[type="number"]')?'tick':'key',null,{haptic:false});
 },false);
 document.addEventListener('invalid',e=>{if(e.isTrusted&&!isUiSetting(e.target))semantic('warning',e.target)},true);
 document.addEventListener('visibilitychange',()=>{if(document.hidden)engine.stop()});
@@ -144,11 +222,12 @@ launcher?.addEventListener('click',()=>{paint();status(prefs.enabled?(engine.sta
 $('sensoryClose')?.addEventListener('click',()=>dialog.close());
 $('sensoryEnabled')?.addEventListener('change',async e=>{setPrefs({enabled:e.target.checked});if(prefs.enabled){await unlock();cue('on',null,{haptic:false})}else status('Sound muted.')});
 $('sensoryVolume')?.addEventListener('input',e=>setPrefs({volume:Number(e.target.value)}));
+$('sensoryPalette')?.addEventListener('change',e=>{setPrefs({palette:e.target.value});if(prefs.enabled)unlock().then(ok=>{if(ok)cue('click',null,{haptic:false})})});
 $('sensoryMotion')?.addEventListener('change',e=>setPrefs({motion:e.target.value}));
 $('sensoryHaptics')?.addEventListener('change',e=>{setPrefs({haptics:e.target.checked});vibrate('click')});
 for(const k of CATEGORIES)$('sensoryCat-'+k)?.addEventListener('change',e=>setPrefs({categories:{...prefs.categories,[k]:e.target.checked}}));
 $('sensoryReset')?.addEventListener('click',()=>{setPrefs(DEFAULTS);status('Default sensory preferences restored.')});
-dialog?.addEventListener('click',async e=>{const event=e.target.closest('[data-sensory-test]')?.dataset.sensoryTest;if(!event)return;if(!prefs.enabled||!prefs.volume){status('Enable sound and set volume above zero first.');return}if(!prefs.categories[SOUNDS[event]?.[0]]){status('Enable this sound category first.');return}if(await unlock()){cue(event,e.target,{haptic:false});status('Played '+event+' preview.')}});
+dialog?.addEventListener('click',async e=>{const event=e.target.closest('[data-sensory-test]')?.dataset.sensoryTest;if(!event)return;if(!prefs.enabled||!prefs.volume){status('Enable sound and set volume above zero first.');return}if(!prefs.categories[SOUNDS[event]?.[0]]){status('Enable this sound category first.');return}if(await unlock()){const played=cue(event,e.target,{haptic:false,preview:true});status(played?'Played '+event+' preview.':'Sound could not play. Try again.')}});
 let cloudBefore=$('cloudStatus')?.dataset.state;
 if($('cloudStatus')&&typeof MutationObserver!=='undefined')new MutationObserver(()=>{const after=$('cloudStatus').dataset.state,event=cloudCue(cloudBefore,after);cloudBefore=after;if(event)cue(event,null,{haptic:false})}).observe($('cloudStatus'),{attributes:true,attributeFilter:['data-state']});
 root.NauvisSensory={getPrefs:()=>normalize(prefs),setPrefs,unlock,semantic,markLocalChange,resetBaseline,updateAwards,state:engine.state};

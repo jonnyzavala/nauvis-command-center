@@ -71,3 +71,5 @@ test('corner buttons have no decorative LED, while the cloud sync indicator rema
  assert.doesNotMatch(css,/\.(?:context-help|quick-add)-led/);
  assert.match(html,/class="cloud-led"/);
 });
+
+test('one bottom-left help surface includes tips and hands-on walkthroughs',()=>{assert.match(html,/id="helpTipsTab"/);assert.match(html,/id="helpWalkthroughTab"/);assert.match(html,/id="helpCurrentLesson"/);assert.doesNotMatch(html,/id="coachLaunch"/);assert.match(html,/NauvisCoach\?\.mountMenu/)});

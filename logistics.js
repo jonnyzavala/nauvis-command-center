@@ -385,7 +385,7 @@ const linkKey=k=>k==='smelt:iron-gross'?'smelt:iron-plate':k;
 function used(g,kind,link,except){return g.nodes.some(n=>n.id!==except&&n.item===item&&n.kind===kind&&n.link&&linkKey(n.link)===linkKey(link))}
 const nodeLabel=n=>n?.autoLabel&&n.link?lookup(n)?.label||n.label:n?.label||'';
 function commit(next,msg){
- undo=clone(data());next=sanitizeBundles(next);setup.logistics=normalize(next);saveSetup();if(typeof renderBalance==='function')renderBalance();notice=msg||'Saved to factory.';root.NauvisWorkspace?.refresh?.('logistics');render();
+ undo=clone(data());next=sanitizeBundles(next);setup.logistics=normalize(next);saveSetup();if(typeof renderBalance==='function')renderBalance();notice=msg||'Saved to factory.';if(msg==='Belt route connected.'||msg?.includes('linked and connected'))root.NauvisSensory?.semantic?.('route');root.NauvisWorkspace?.refresh?.('logistics');render();
 }
 function editNode(key,patch){const g=data();g.nodes=g.nodes.map(n=>n.id===key?{...n,...patch}:n);commit(g,'Node updated.')}
 function add(kind,link=''){
