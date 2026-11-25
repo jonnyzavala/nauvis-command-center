@@ -1281,7 +1281,7 @@ function renderSetupCompare(){
  }catch(err){host.innerHTML='<p class="small">'+escapeHTML(err.message)+'</p>'}
 }
 function renderSetupSummaryOnly(){renderSetupSmelting();renderSetupOil();renderSetupMachineSummary();renderSetupFeedSummary();renderSetupCompare();renderBalance();window.NauvisLogistics?.render?.();window.NauvisMilestones?.refresh?.()}
-function saveSetup(){window.NauvisSensory?.markLocalChange?.();window.NauvisJournal?.captureSetup?.();try{localStorage.setItem(setupKey,JSON.stringify(setup))}catch(e){};if(!window.NauvisCloudApplying)window.NauvisCloud?.changed()}
+function saveSetup(){window.NauvisJournal?.captureSetup?.();window.NauvisSensory?.markLocalChange?.();try{localStorage.setItem(setupKey,JSON.stringify(setup))}catch(e){};if(!window.NauvisCloudApplying)window.NauvisCloud?.changed()}
 function renderSetup(){renderSetupInputs();renderSetupMachines();renderSetupFeeds();renderSetupSummaryOnly();window.NauvisAssets?.render?.()}
 function initSetup(){
  initFurnaceProfiles();
