@@ -1458,7 +1458,7 @@ const HELP_MAP={
  factory:['> .section','p0','p1','f0','f1','f2','f3','f4','f5'],
  learn:['> .section','g0','g1','g2']
 };
-const HELP_DEFAULT={logistics:'b0',balance:'b0',setup:'s0',build:'n4',factory:'p0',learn:'g0',log:'focusLog',flow:'focusFlow'};
+const HELP_DEFAULT={logistics:'b0',balance:'b0',setup:'s0',build:'n4',factory:'p0',learn:'g0',log:'focusLog'};
  HELP_DATA.focusLog=['Engineer’s log','Pick up where you left off','Save short notes about your next objective. Construction changes are recorded automatically.',['The log shares the same saved records in both modes.','Notes do not add actual machines.'],'Save a field note before ending a session.'];
  HELP_DATA.focusFlow=['Supply & split checker','Supply or distribution?','Show belts in the blueprint for required transport. This optional checker compares assumed supply with demand; tap the diagram to edit supply or destinations.',['A production gap means the entered supply is below demand.','A trunk gap means the incoming belts limit available supply.','A branch gap means the outgoing belts or fixed shares restrict delivery.'],'These are independent what-if estimates, not actual Inventory.'];
 let guideOpen=false, guideTopic='',guideFocus=null,guideScroll=0;
@@ -1552,7 +1552,7 @@ function activateWorkspace(view,scrollPage=false){
  if(!allowed.has(view))view='balance';
  window.NauvisFocus?.beforeActivate?.(view);
  document.body.dataset.workspace=view;
- const workspaceNames={learn:'Quick Guide',setup:'Factory & Balance · Inventory',balance:'Factory & Balance · Analysis',logistics:'Factory & Balance · Logistics',factory:'Plan & Build · Construction',build:'Plan & Build · Designer',log:'Engineer’s log',flow:'Flow & Belts'};
+ const workspaceNames={learn:'Quick Guide',setup:'Factory & Balance · Inventory',balance:'Factory & Balance · Analysis',logistics:'Factory & Balance · Logistics',factory:'Plan & Build · Construction',build:'Plan & Build · Designer',log:'Engineer’s log'};
  const workspaceLabel=document.getElementById('welcomeWorkspace');
  if(workspaceLabel)workspaceLabel.textContent=workspaceNames[view]||'Factory balance';
  document.querySelectorAll('.nav button[data-view]').forEach(b=>{

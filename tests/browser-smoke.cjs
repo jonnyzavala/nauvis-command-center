@@ -113,6 +113,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(saved.plan.projects.length===0&&count(w)===6&&saved.setup.logistics.edges.length===1,'Draft does not mutate actual Inventory or routes');
   w=prep(await load());
   assert(snap(w).setup.logisticsDrafts.length===1,'Draft survives browser reload');
+  w.NauvisFocus.setMode('focus');
   w.activateWorkspace('logistics');
   assert(w.document.body.dataset.workspace==='build'&&w.document.querySelector('#plannerNetwork').open&&w.document.querySelector('#plannerNetworkHost #logisticsEditor'),'Focus network opens within Planner');
   click(w,'[data-log-mode="drafts"]');
