@@ -352,6 +352,13 @@ function focusBundle(bundle,edges){
 /* One colored stroke represents one physical belt, independent of lane allocation. */
 const BELT_CAPACITY={yellow:900,red:1800,blue:2700,green:3600};
 function beltRequirement(rate,tier){const cap=BELT_CAPACITY[tier]||1800,equivalent=Math.max(0,Number(rate)||0)/cap;return {capacity:cap,equivalent,count:Math.ceil(equivalent-1e-10)}}
+function beltCapacityStatus(rate,tier,count){
+ const demand=Math.max(0,Number(rate)||0),required=beltRequirement(demand,tier),assigned=Math.max(0,Math.floor(Number(count)||0)),capacity=assigned*required.capacity,delta=capacity-demand,tolerance=1e-8*Math.max(1,demand,capacity);
+ const status=delta < -tolerance?'starving':delta > tolerance?'excess':'meeting';
+ return {demand,required:required.count,assigned,capacity,delta,utilization:capacity?demand/capacity*100:null,status};
+}
+function capacityLabel(status){return {starving:'Starving',meeting:'Meeting demand',excess:'Excess capacity'}[status]}
+function solidTotals(graph){const totals=new Map();for(const e of graph.edges){if(!e.fluid)totals.set(e.from,(totals.get(e.from)||0)+e.rate)}return totals}
 function downstreamRate(bundle,path){
  const same=(a,b)=>a.x===b.x&&a.y===b.y;
  function visit(p,seen){if(seen.has(p))return 0;seen.add(p);return p.edge?p.edge.rate:bundle.paths.filter(x=>same(x.points[0],p.points.at(-1))).reduce((n,x)=>n+visit(x,seen),0)}
@@ -374,7 +381,7 @@ function feederLines(count,tier,a,b,capacity){
  return '<div class="physical-feeder"><div class="physical-feeder-label"><b>'+count+' × '+escapeHTML(tier)+' belt'+(count===1?'':'s')+'</b><span>'+desc+'</span></div>'+beltLines(count,tier)+'<small>'+formatted(count*capacity)+'/min physical capacity · '+(mixed?'shared ingredients':half?'one lane used':'both lanes')+'</small></div>';
 }
 
-if(typeof module==='object'&&module.exports)module.exports={beltRequirement,downstreamRate,parallelPoints,beltLines,feederLines,buildFlowGraph,routeLayout,baseRouteLayout,routingScore,fitLayout,mergeRoutes,roundedPath,focusGraph,focusBundle,toggleSelection,focusTone};
+if(typeof module==='object'&&module.exports)module.exports={beltCapacityStatus,solidTotals,beltRequirement,downstreamRate,parallelPoints,beltLines,feederLines,buildFlowGraph,routeLayout,baseRouteLayout,routingScore,fitLayout,mergeRoutes,roundedPath,focusGraph,focusBundle,toggleSelection,focusTone};
 if(typeof document==='undefined')return;
 const browserViews=new Map();
 function nodeColor(node){
@@ -407,6 +414,10 @@ function mount(target,result,cardKey){
  const upstream=root.NauvisRatioFlow?.upstreamByCard?.get(cardKey)??false;
  const beltMode=root.NauvisRatioFlow.beltModeByCard.get(cardKey)??false;
  const tierList=Object.keys(BELT_CAPACITY),beltTier=root.NauvisRatioFlow.beltTierByCard.get(cardKey)||tierList.find(k=>BELT_CAPACITY[k]===result.belt)||'red';
+ const totals=solidTotals(graph);
+ const allocationKey=cardKey+'|'+result.id;
+ const allocation=root.NauvisRatioFlow.beltAllocationByCard.get(allocationKey)||new Map();
+ root.NauvisRatioFlow.beltAllocationByCard.set(allocationKey,allocation);
  const compact=graph.nodes.filter(n=>n.type==='machine');
  const buildList=compact.map(n=>
   '<span class="ratio-flow-build-chip" style="--node-color:'+nodeColor(n)+'">'+itemGlyph(n.recipe,35)+'<strong>'+
@@ -423,14 +434,14 @@ function mount(target,result,cardKey){
   '<div class="ratio-flow-options" data-flow-options>'+
   '<label class="ratio-flow-input-toggle"><input data-flow-input-toggle type="checkbox"'+(inputVisible?' checked':'')+'><span>Show inputs</span></label>'+
   '<label class="ratio-flow-input-toggle"><input data-flow-upstream-toggle type="checkbox"'+(upstream?' checked':'')+'><span>Upstream tree</span></label><label class="ratio-flow-input-toggle"><input data-flow-belt-toggle type="checkbox"'+(beltMode?' checked':'')+'><span>Show belts</span></label></div></div>'+
-  '<div class="flow-belt-controls" data-flow-belt-controls><label>Belts required <strong data-flow-belt-tier-label></strong><input type="range" min="0" max="3" step="1" value="'+tierList.indexOf(beltTier)+'" data-flow-belt-tier aria-label="Belt tier"></label><div class="flow-belt-tier-labels"><span>Yellow</span><span>Red</span><span>Blue</span><span>Green</span></div><div data-flow-belt-summary></div></div><div data-flow-display></div>';
+  '<div class="flow-belt-controls" data-flow-belt-controls><label>Belt tier <strong data-flow-belt-tier-label></strong><input type="range" min="0" max="3" step="1" value="'+tierList.indexOf(beltTier)+'" data-flow-belt-tier aria-label="Belt tier"></label><div class="flow-belt-tier-labels"><span>Yellow</span><span>Red</span><span>Blue</span><span>Green</span></div><p class="flow-capacity-help">Assigned belt counts stay fixed as you change tiers. Compare demand with transport capacity. Graph lines show required belts.</p><button type="button" class="flow-capacity-reset" data-flow-belt-reset>Size all belts to demand</button><div data-flow-belt-summary></div></div><div data-flow-display></div>';
  const display=holder.querySelector('[data-flow-display]');
  const controls=[...holder.querySelectorAll('[data-flow-mode]')];
  const checkbox=holder.querySelector('[data-flow-input-toggle]');
  const panel=target.querySelector('[data-ratio-legacy-table]');
  const flowOptions=holder.querySelector('[data-flow-options]');
  const upstreamToggle=holder.querySelector('[data-flow-upstream-toggle]');
- const state={graph,display,holder,result,cardKey,inputVisible,upstream,beltMode,beltTier,selected:older?.result?.id===result.id?(older.selected||null):null,observer:null,
+ const state={graph,display,holder,result,cardKey,inputVisible,upstream,beltMode,beltTier,totals,allocation,selected:older?.result?.id===result.id?(older.selected||null):null,observer:null,
   cancel:null,redraw:null};
  browserViews.set(cardKey,state);
  function update(){
@@ -453,12 +464,32 @@ function mount(target,result,cardKey){
  const beltToggle=holder.querySelector('[data-flow-belt-toggle]'),slider=holder.querySelector('[data-flow-belt-tier]'),beltControls=holder.querySelector('[data-flow-belt-controls]');
  function updateBeltControls(){
   beltControls.hidden=!state.beltMode||root.NauvisRatioFlow.modeByCard.get(cardKey)==='table';
+  if(beltControls.hidden)return;
   const tier=state.beltTier,cap=BELT_CAPACITY[tier];
+  for(const [key,rate] of totals)if(!allocation.has(key))allocation.set(key,beltRequirement(rate,tier).count);
   holder.querySelector('[data-flow-belt-tier-label]').textContent=tier.toUpperCase()+' · '+formatted(cap)+'/min per belt';
-  const totals=new Map();for(const e of graph.edges){if(e.fluid||!e.from.startsWith('s:'))continue;totals.set(e.from,(totals.get(e.from)||0)+e.rate)}
-  const rows=[...totals].map(([key,rate])=>{const node=graph.nodes.find(n=>n.key===key),r=beltRequirement(rate,tier);return '<div class="flow-belt-resource"><b>'+r.count+' '+tier+' belt'+(r.count===1?'':'s')+' of '+escapeHTML(node.label)+'</b><small>'+formatted(rate)+'/min · '+Number(r.equivalent.toFixed(2))+' belt equivalents</small>'+beltLines(r.count,tier)+'</div>'});
-  holder.querySelector('[data-flow-belt-summary]').innerHTML=rows.join('')||'<p class="ratio-muted">No external solid inputs.</p>';
+  const summary=holder.querySelector('[data-flow-belt-summary]');
+  const opened=summary.querySelector('details')?.open||false;
+  const row=([key,rate])=>{
+   const node=graph.nodes.find(n=>n.key===key),r=beltCapacityStatus(rate,tier,allocation.get(key)),pct=r.utilization===null?(rate?'No transport capacity':'0% used'):formatted(r.utilization)+'% utilized';
+   const delta=r.status==='starving'?formatted(-r.delta)+'/min short':r.status==='excess'?formatted(r.delta)+'/min spare':'Demand matched';
+   return '<div class="flow-belt-resource" data-capacity-status="'+r.status+'"><b>'+escapeHTML(node.label)+'</b><div class="flow-capacity-status">'+capacityLabel(r.status)+'</div><strong>'+r.required+' '+tier+' belt'+(r.required===1?'':'s')+' required</strong><small>'+formatted(rate)+'/min demand · '+formatted(r.capacity)+'/min capacity</small><small>'+pct+' · '+delta+'</small><div class="flow-capacity-meter" aria-hidden="true"><span style="width:'+Math.min(100,r.utilization??(rate?100:0))+'%"></span></div><div class="flow-capacity-assign"><button type="button" data-flow-belt-change="-1" data-flow-material="'+escapeHTML(key)+'" aria-label="Remove one belt for '+escapeHTML(node.label)+'"'+(r.assigned===0?' disabled':'')+'>−</button><span><b>'+r.assigned+'</b> assigned</span><button type="button" data-flow-belt-change="1" data-flow-material="'+escapeHTML(key)+'" aria-label="Add one belt for '+escapeHTML(node.label)+'">+</button></div>'+beltLines(r.assigned,tier)+'</div>';
+  };
+  const entries=[...totals],external=entries.filter(([key])=>key.startsWith('s:')),internal=entries.filter(([key])=>!key.startsWith('s:'));
+  summary.innerHTML='<div class="flow-capacity-grid">'+external.map(row).join('')+'</div>'+(internal.length?'<details class="flow-capacity-internal"'+(opened?' open':'')+'><summary>Intermediate belts ('+internal.length+')</summary><div class="flow-capacity-grid">'+internal.map(row).join('')+'</div></details>':'')+(!entries.length?'<p class="ratio-muted">No solid material connections.</p>':'');
+  const statuses=entries.map(([key,rate])=>beltCapacityStatus(rate,tier,allocation.get(key)).status);
+  const shortages=statuses.filter(x=>x==='starving').length;
+  summary.insertAdjacentHTML('afterbegin','<p class="flow-capacity-overall" data-capacity-status="'+(shortages?'starving':'meeting')+'">'+(shortages?shortages+' material route'+(shortages===1?'':'s')+' short of transport capacity':'All solid material routes meet demand')+'</p>');
  }
+ function refreshCapacity(){updateBeltControls();state.refreshDetails?.();state.redraw?.()}
+ holder.querySelector('[data-flow-belt-reset]').addEventListener('click',()=>{for(const [key,rate] of totals)allocation.set(key,beltRequirement(rate,state.beltTier).count);refreshCapacity()});
+ holder.querySelector('[data-flow-belt-summary]').addEventListener('click',event=>{
+  const button=event.target.closest('[data-flow-belt-change]');if(!button)return;
+  const key=button.dataset.flowMaterial,change=Number(button.dataset.flowBeltChange);
+  if(!totals.has(key))return;
+  allocation.set(key,Math.max(0,(allocation.get(key)||0)+change));refreshCapacity();
+  [...holder.querySelectorAll('[data-flow-belt-change]')].find(b=>b.dataset.flowMaterial===key&&Number(b.dataset.flowBeltChange)===change)?.focus({preventScroll:true});
+ });
  beltToggle.addEventListener('change',()=>{state.beltMode=beltToggle.checked;root.NauvisRatioFlow.beltModeByCard.set(cardKey,state.beltMode);update()});
  slider.addEventListener('input',()=>{state.beltTier=tierList[Number(slider.value)];root.NauvisRatioFlow.beltTierByCard.set(cardKey,state.beltTier);updateBeltControls();state.refreshDetails?.();state.redraw?.()});
  controls.forEach(button=>button.addEventListener('click',()=>{
@@ -525,7 +556,7 @@ function drawLayout(state){
    const other=nodeByKey.get(direction==='in'?edge.from:edge.to);
    const from=direction==='in'?(other?.label||edge.item):node.label;
    const to=direction==='in'?node.label:(other?.label||edge.to);
-   return '<span class="ratio-flow-connection"><b>'+formatted(edge.rate)+'/min'+(state.beltMode&&!edge.fluid?' · '+beltRequirement(edge.rate,state.beltTier).count+' '+state.beltTier+' belt(s)':'')+'</b> '+escapeHTML(from)+
+   return '<span class="ratio-flow-connection"><b>'+formatted(edge.rate)+'/min'+(state.beltMode&&!edge.fluid?' · '+beltRequirement(edge.rate,state.beltTier).count+' '+state.beltTier+' belt(s) required':'')+'</b> '+escapeHTML(from)+
      '<span class="ratio-flow-connection-arrow">→ '+escapeHTML(to)+'</span></span>';
   };
   summary.innerHTML='<div class="ratio-flow-detail-top"><span class="ratio-flow-selected-title">'+itemGlyph(node.recipe,27)+escapeHTML(node.label)+'</span>'+
@@ -569,9 +600,11 @@ function drawLayout(state){
     const active=highlight.active.has(path),tone=focusTone(state.selected,active),d=roundedPath(path.points,16,obstacles);
     if(state.beltMode&&!bundle.routes[0].edge.fluid){
      const rate=downstreamRate(bundle,path),r=beltRequirement(rate,state.beltTier),n=Math.min(r.count,12),tierColor=({yellow:'#e5c35f',red:'#e87572',blue:'#79b5f6',green:'#91d79a'})[state.beltTier];
+     const check=beltCapacityStatus(state.totals.get(bundle.key)||rate,state.beltTier,state.allocation.get(bundle.key)),statusColor=({starving:'#ff8c83',meeting:'#91d79a',excess:'#83caff'})[check.status];
+     const isRoot=path.points[0].x===bundle.source.x&&path.points[0].y===bundle.source.y;
      const markup=Array.from({length:n},(_,i)=>'<path data-blueprint-belt="'+(i+1)+'" d="'+roundedPath(parallelPoints(path.points,(i-(n-1)/2)*4),10,obstacles)+'" fill="none" stroke="'+tierColor+'" stroke-width="2" stroke-linecap="round" opacity="'+(state.selected&&!active?.35:1)+'"/>').join('');
      const seg=path.points.slice(1).map((p,i)=>({a:path.points[i],b:p,len:Math.hypot(p.x-path.points[i].x,p.y-path.points[i].y)})).sort((a,b)=>b.len-a.len)[0];
-     const annotation=seg?'<text x="'+(seg.a.x+seg.b.x)/2+'" y="'+((seg.a.y+seg.b.y)/2-8-n*2)+'" text-anchor="middle" font-size="9" font-weight="700" fill="'+tierColor+'" stroke="#152b3b" stroke-width="2.5" paint-order="stroke" opacity="'+(state.selected&&!active?.35:1)+'">'+(r.count>12?r.count+' belts · ':'')+Number(r.equivalent.toFixed(2))+' '+state.beltTier+'</text>':'';
+     const annotation=seg?'<text x="'+(seg.a.x+seg.b.x)/2+'" y="'+((seg.a.y+seg.b.y)/2-8-n*2)+'" text-anchor="middle" font-size="9" font-weight="700" fill="'+(isRoot?statusColor:tierColor)+'" stroke="#152b3b" stroke-width="2.5" paint-order="stroke" opacity="'+(state.selected&&!active?.35:1)+'">'+r.count+' '+state.beltTier+(isRoot?' · '+capacityLabel(check.status):'')+'</text>':'';
      paths.push({active,markup:markup+annotation});continue;
     }
     const line='<path class="ratio-link-underlay" d="'+d+'"/>'+
@@ -612,5 +645,5 @@ function drawLayout(state){
   const chrome=document.querySelector('.command-chrome');if(chrome)state.observer.observe(chrome);
  }
 }
-root.NauvisRatioFlow={beltRequirement,beltLines,feederLines,beltModeByCard:new Map(),beltTierByCard:new Map(),mount,buildFlowGraph,routeLayout,roundedPath,focusGraph,focusBundle,modeByCard:new Map(),inputByCard:new Map(),upstreamByCard:new Map()};
+root.NauvisRatioFlow={beltCapacityStatus,beltAllocationByCard:new Map(),beltRequirement,beltLines,feederLines,beltModeByCard:new Map(),beltTierByCard:new Map(),mount,buildFlowGraph,routeLayout,roundedPath,focusGraph,focusBundle,modeByCard:new Map(),inputByCard:new Map(),upstreamByCard:new Map()};
 })(typeof window==='undefined'?globalThis:window);

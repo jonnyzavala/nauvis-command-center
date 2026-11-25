@@ -99,10 +99,10 @@ test('layout stays inside explorer and switches to vertical diagram on iPhone',(
  assert.match(style,/\.ratio-flow-node-label strong\{font-size:11px\}/);
 });
 test('version and offline caching include the visual graph without editing cloud sync',()=>{
- assert.match(html,/Nauvis Command Center v1\.1\.4/);
+ assert.match(html,/Nauvis Command Center v1\.1\.5/);
  assert.match(html,/href="\.\/ratio-flow\.css"/);
  assert.match(html,/src="\.\/ratio-flow\.js" defer/);
- assert.match(worker,/nauvis-shell-v1014/);
+ assert.match(worker,/nauvis-shell-v1015/);
  assert.match(worker,/ratio-flow\.css/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(html,/sync\/cloud-sync\.js/);
@@ -262,3 +262,5 @@ test('belt requirements distinguish fractional throughput and whole physical bel
  assert.equal(beltRequirement(2700,'blue').count,1);
  assert.deepEqual(parallelPoints([{x:0,y:0},{x:10,y:0},{x:10,y:10}],2),[{x:0,y:2},{x:8,y:2},{x:8,y:10}]);
 });
+
+test('fixed belt allocations distinguish shortage, exact match and spare capacity as tier changes',()=>{const {beltCapacityStatus}=require('../ratio-flow.js');assert.deepEqual(beltCapacityStatus(1800,'yellow',1),{demand:1800,required:2,assigned:1,capacity:900,delta:-900,utilization:200,status:'starving'});assert.equal(beltCapacityStatus(1800,'red',1).status,'meeting');assert.equal(beltCapacityStatus(1800,'blue',1).status,'excess');assert.equal(beltCapacityStatus(324,'red',1).utilization,18);assert.equal(beltCapacityStatus(100,'red',0).status,'starving');assert.equal(beltCapacityStatus(100,'red',0).utilization,null);assert.equal(beltCapacityStatus(0,'red',0).status,'meeting');});
