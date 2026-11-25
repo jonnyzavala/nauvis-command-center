@@ -286,13 +286,67 @@ function reuseCandidates(rows,recipes,graph,factors,rates,claims=new Map()){
   return nodes.length<=1&&!g.edges.some(e=>nodes.some(n=>n.id===e.from));
  }).map(r=>({...r,rate:Math.max(0,r.rate*Math.max(0,Math.min(1,factors?.get(r.key)??1))-(claims.get(r.key)||0))})).filter(r=>r.rate>1e-9);
 }
-if(typeof module==='object'&&module.exports)module.exports={normalize,connect,analyze,order,TIERS,layoutBelts,groupKey,networkResults,diagnostics,scenarioGraph,entityProjection,ensureEntityPort,laneCount,cap,compatiblePair,sanitizeBundles,pairLanes,unpairLanes,updateRoute,physicalFeeders,reuseCandidates};
+// Proposed connections are a separate graph of conditional target-rate allocations.
+function proposalPorts(result){
+ const sources=[],inputs=[],fluids=[];
+ for(const e of result.entries||[]){
+  sources.push({key:'stage:'+e.key,item:e.key,rate:e.needed,name:e.name,kind:'stage'});
+  for(const x of e.ingredients||[]){
+   const port={to:e.key,item:x.id,rate:x.needed,name:e.name,itemName:x.name};
+   (x.fluid?fluids:inputs).push(port);
+  }
+ }
+ for(const x of result.external||[])if(!x.isFluid)sources.push({key:'external:'+x.key,item:x.key,rate:x.needed,name:x.name,kind:'external'});
+ for(const x of result.reuseClaims||[])sources.push({key:'actual:'+x.key,item:x.item,rate:x.rate,name:x.item,kind:'actual'});
+ const solid=new Set(inputs.map(x=>x.item));
+ return {sources:sources.filter(x=>solid.has(x.item)&&x.rate>1e-9),inputs,fluids};
+}
+function proposeRoutes(result,tier,idFactory){
+ const {sources,inputs}=proposalPorts(result),remaining=new Map(sources.map(s=>[s.key,s.rate])),routes=[];
+ for(const p of inputs){
+  let need=p.rate;
+  for(const s of sources){
+   if(s.item!==p.item||s.key==='stage:'+p.to)continue;
+   const rate=Math.min(need,remaining.get(s.key)||0);if(rate<=1e-9)continue;
+   const lanes=rate<=TIERS[tier]/2+1e-9?1:2,belts=Math.max(1,Math.ceil(rate/(TIERS[tier]*lanes/2)-1e-10));
+   routes.push({id:idFactory(),from:s.key,to:p.to,item:p.item,rate,tier,belts,lanes});
+   remaining.set(s.key,remaining.get(s.key)-rate);need-=rate;
+  }
+ }
+ return routes;
+}
+function evaluateProposalRoutes(result,routes){
+ const effects=root.NauvisEffects||(typeof require==='function'?require('./production-effects.js'):null);
+ routes=effects.normalizeProposalRoutes(routes);
+ const ports=proposalPorts(result),sources=new Map(ports.sources.map(s=>[s.key,s])),inputKey=(to,item)=>JSON.stringify([to,item]),inputs=new Map(ports.inputs.map(x=>[inputKey(x.to,x.item),x]));
+ const remaining=new Map(ports.sources.map(s=>[s.key,s.kind==='stage'?0:s.rate])),received=new Map(),flow=[],factors=new Map(),stale=[];
+ const valid=[];
+ for(const r of routes){
+  const s=sources.get(r.from),p=inputs.get(inputKey(r.to,r.item));
+  if(!s||!p||s.item!==r.item||r.from==='stage:'+r.to){stale.push(r.id);flow.push({...r,delivered:0,stale:true});continue}
+  valid.push(r);
+ }
+ for(const e of [...result.entries].sort((a,b)=>a.depth-b.depth||a.key.localeCompare(b.key))){
+  for(const r of valid.filter(x=>x.to===e.key)){
+   const key=inputKey(r.to,r.item),p=inputs.get(key),capacity=TIERS[r.tier]*r.belts*r.lanes/2;
+   const delivered=Math.max(0,Math.min(r.rate,capacity,remaining.get(r.from)||0,p.rate-(received.get(key)||0)));
+   received.set(key,(received.get(key)||0)+delivered);remaining.set(r.from,(remaining.get(r.from)||0)-delivered);
+   flow.push({...r,capacity,delivered,stale:false});
+  }
+  const demands=ports.inputs.filter(x=>x.to===e.key);
+  const factor=demands.reduce((n,p)=>Math.min(n,p.rate>1e-9?(received.get(inputKey(p.to,p.item))||0)/p.rate:1),1);
+  factors.set(e.key,factor);if(sources.has('stage:'+e.key))remaining.set('stage:'+e.key,e.needed*factor);
+ }
+ const coverage=ports.inputs.map(p=>({...p,delivered:received.get(inputKey(p.to,p.item))||0,short:Math.max(0,p.rate-(received.get(inputKey(p.to,p.item))||0))}));
+ return {ports,flow,coverage,stale,short:coverage.filter(x=>x.short>1e-6),supportedTarget:result.rate*(factors.get(result.id)??0)};
+}
+if(typeof module==='object'&&module.exports)module.exports={normalize,connect,analyze,order,TIERS,layoutBelts,groupKey,networkResults,diagnostics,scenarioGraph,entityProjection,ensureEntityPort,laneCount,cap,compatiblePair,sanitizeBundles,pairLanes,unpairLanes,updateRoute,physicalFeeders,reuseCandidates,proposalPorts,proposeRoutes,evaluateProposalRoutes};
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 const fmt=n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:1}),opts=(arr,v)=>arr.map(([a,b])=>'<option value="'+esc(a)+'"'+(a===v?' selected':'')+'>'+esc(b)+'</option>').join('');
 const materialName=k=>R[k]?.[0]||names[k]||k.replaceAll('-',' ');
 const itemColor=k=>root.NauvisIcons?.color?.(k)||'#86c2f1';
-let blueprintDraft=null,savedDesignId=null,savedDraftId=null,previewMode=false,reuseSelection=new Set(),previewArray=null,draftLibrary=false;
+let blueprintDraft=null,savedDesignId=null,savedDraftId=null,previewMode=false,reuseSelection=new Set(),previewArray=null,draftLibrary=false,proposedRoutes=[];
 let includeScenario=false,entityMode=true,entityPicker=false,entityPending=null,entityFilter='all',entityView=null;
 let item='iron-plate',selected=null,connecting=null,undo=null,notice='',brushTier='red',brushCount=1,brushLanes=2,drag=null,picker=false,ignoreClickUntil=0;
 const materials=[...new Set([...Object.keys(R),...Object.keys(names),'uranium-ore'])].filter(k=>!FLUID.has(k)&&!['crude-oil','sulfuric-acid'].includes(k)).sort((a,b)=>materialName(a).localeCompare(materialName(b)));
@@ -538,13 +592,13 @@ function renderEntities(host){
 }
 function previewBlueprint(result){
  if(!result?.entries?.length||!(result.rate>0))return;
- blueprintDraft=clone(result);savedDesignId=null;savedDraftId=null;draftLibrary=false;reuseSelection=new Set();previewArray=result.id;previewMode=true;notice='';
+ blueprintDraft=clone(result);savedDesignId=null;savedDraftId=null;draftLibrary=false;reuseSelection=new Set();previewArray=result.id;previewMode=true;proposedRoutes=[];notice='';
  selected=null;entityPending=null;connecting=null;activateWorkspace('logistics',true);render();
 }
 function drafts(){return root.NauvisEffects.normalizeLogisticsDrafts(setup.logisticsDrafts)}
 function draftRecord(){
  if(!blueprintDraft||savedDesignId)throw Error('Open a proposed build before saving a draft.');
- return {goal:blueprintDraft,reuseKeys:[...reuseSelection],focus:previewArray||blueprintDraft.id,updatedAt:new Date().toISOString()};
+ return {goal:blueprintDraft,reuseKeys:[...reuseSelection],focus:previewArray||blueprintDraft.id,routes:proposedRoutes,updatedAt:new Date().toISOString()};
 }
 function persistDraft(copy=false){
  try{
@@ -562,7 +616,7 @@ function openDraft(key){
   const record=drafts().find(x=>x.id===key);if(!record)throw Error('Saved draft no longer exists.');
   if(!Object.hasOwn(R,record.goal.id))throw Error('The recipe in this draft is no longer supported.');
   const result=root.NauvisRecipeMath(R,record.goal,{stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names});
-  blueprintDraft=clone(result);savedDesignId=null;savedDraftId=record.id;reuseSelection=new Set(record.reuseKeys);previewArray=record.focus;
+  blueprintDraft=clone(result);savedDesignId=null;savedDraftId=record.id;reuseSelection=new Set(record.reuseKeys);previewArray=record.focus;proposedRoutes=clone(record.routes||[]);
   draftLibrary=false;previewMode=true;notice='Draft reopened. Supply and machine requirements recalculated using the current factory.';render();
  }catch(err){root.alert(err.message)}
 }
@@ -616,23 +670,25 @@ function previewCalculation(){
   const rate=Math.min(remaining.get(c.item)||0,c.rate);if(rate>1e-9){result.reuseClaims.push({key:c.key,item:c.item,rate});remaining.set(c.item,Math.max(0,(remaining.get(c.item)||0)-rate))}
  }
  result.feederPlans=result.entries.map(e=>({key:e.key,...root.NauvisEngineering.planArrayLanes(e,result.belt,false)}));
+ if(proposedRoutes.length)result.proposedRoutes=root.NauvisEffects.normalizeProposalRoutes(proposedRoutes);
  return {result,candidates};
 }
 function queuePreview(){
  try{
   const {result}=previewCalculation();
+  if(result.proposedRoutes?.length){const report=evaluateProposalRoutes(result,result.proposedRoutes);if((report.stale.length||report.short.length)&&!root.confirm('The proposed routing has unresolved solid inputs or outdated connections. Queue the machine design anyway, with this incomplete routing plan?'))return}
   root.NauvisProjects?.createFromRatio?.(result,{
    validate(pending){
     const latest=previewCalculation().result;
     if(JSON.stringify(latest)!==JSON.stringify(pending))throw Error('The available supply or calculated plan changed. Close this dialog and review the preview again.');
    },
-   onSaved(){blueprintDraft=null;savedDesignId=null;savedDraftId=null;previewMode=false;draftLibrary=false;reuseSelection.clear();render()}
+   onSaved(){blueprintDraft=null;savedDesignId=null;savedDraftId=null;previewMode=false;draftLibrary=false;proposedRoutes=[];reuseSelection.clear();render()}
   });
  }catch(err){root.alert(err.message)}
 }
 function viewSavedDesign(project){
  if(!project?.design?.analysis)return;
- blueprintDraft=clone(project.design.analysis);savedDesignId=project.id;savedDraftId=null;draftLibrary=false;previewArray=blueprintDraft.id;reuseSelection.clear();previewMode=true;notice='';
+ blueprintDraft=clone(project.design.analysis);savedDesignId=project.id;savedDraftId=null;draftLibrary=false;previewArray=blueprintDraft.id;proposedRoutes=[];reuseSelection.clear();previewMode=true;notice='';
  selected=null;entityPending=null;connecting=null;activateWorkspace('logistics',true);render();
 }
 function renderPreview(host){
@@ -682,7 +738,7 @@ function init(){
  host.addEventListener('click',ev=>{
   if(Date.now()<ignoreClickUntil){ev.preventDefault();return}
   const open=ev.target.closest('[data-log-draft-open]');if(open){openDraft(open.dataset.logDraftOpen);return}const del=ev.target.closest('[data-log-draft-delete]');if(del){deleteDraft(del.dataset.logDraftDelete);return}
-  const previewAction=ev.target.closest('[data-log-preview-action]')?.dataset.logPreviewAction;if(previewAction){if(previewAction==='save-draft'||previewAction==='copy-draft'){persistDraft(previewAction==='copy-draft');return}if(previewAction==='clear-missing'){const eligible=new Set(eligibleReuse(blueprintDraft).map(x=>x.key));reuseSelection=new Set([...reuseSelection].filter(k=>eligible.has(k)));render();return}if(previewAction==='queue'){queuePreview();return}if(previewAction==='construction'){activateWorkspace('factory',true);return}if(previewAction==='back'&&blueprintDraft){root.NauvisRatioExplorer?.setGoal(blueprintDraft);activateWorkspace('build',true);root.NauvisRatioExplorer?.openAt('build')}else if(previewAction==='clear'){blueprintDraft=null;savedDesignId=null;savedDraftId=null;previewMode=false;draftLibrary=false;reuseSelection.clear();entityMode=true;notice='';render()}return}
+  const previewAction=ev.target.closest('[data-log-preview-action]')?.dataset.logPreviewAction;if(previewAction){if(previewAction==='save-draft'||previewAction==='copy-draft'){persistDraft(previewAction==='copy-draft');return}if(previewAction==='clear-missing'){const eligible=new Set(eligibleReuse(blueprintDraft).map(x=>x.key));reuseSelection=new Set([...reuseSelection].filter(k=>eligible.has(k)));render();return}if(previewAction==='queue'){queuePreview();return}if(previewAction==='construction'){activateWorkspace('factory',true);return}if(previewAction==='back'&&blueprintDraft){root.NauvisRatioExplorer?.setGoal(blueprintDraft);activateWorkspace('build',true);root.NauvisRatioExplorer?.openAt('build')}else if(previewAction==='clear'){blueprintDraft=null;savedDesignId=null;savedDraftId=null;previewMode=false;draftLibrary=false;proposedRoutes=[];reuseSelection.clear();entityMode=true;notice='';render()}return}
   const pa=ev.target.closest('[data-log-preview-array]');if(pa){previewArray=pa.dataset.logPreviewArray;render();return}
   const mode=ev.target.closest('[data-log-mode]');if(mode){draftLibrary=mode.dataset.logMode==='drafts';previewMode=mode.dataset.logMode==='preview';if(!previewMode&&!draftLibrary)entityMode=mode.dataset.logMode==='entities';selected=null;connecting=null;entityPending=null;picker=false;render();return}
   const ef=ev.target.closest('[data-log-entity-filter]');if(ef){entityFilter=ef.dataset.logEntityFilter;render();return}
@@ -743,7 +799,7 @@ function init(){
  });
  host.addEventListener('pointercancel',()=>{drag=null;render()});
  let lastWidth=root.innerWidth;root.addEventListener('resize',()=>{if(root.innerWidth!==lastWidth){lastWidth=root.innerWidth;if($('logistics')?.classList.contains('active'))render()}},{passive:true});
- root.NauvisLogistics={render,actualNetwork,previewBlueprint,viewSavedDesign,eligibleReuse,availableProduction,auditReuse,openResource(resource){inspectResource(resource);},invalidate(){blueprintDraft=null;savedDesignId=null;savedDraftId=null;draftLibrary=false;previewMode=false;reuseSelection.clear();undo=null;selected=null;connecting=null;picker=false;drag=null;includeScenario=false;entityPending=null;entityPicker=false;notice='';render()}};
+ root.NauvisLogistics={render,actualNetwork,previewBlueprint,viewSavedDesign,eligibleReuse,availableProduction,auditReuse,openResource(resource){inspectResource(resource);},invalidate(){blueprintDraft=null;savedDesignId=null;savedDraftId=null;draftLibrary=false;previewMode=false;proposedRoutes=[];reuseSelection.clear();undo=null;selected=null;connecting=null;picker=false;drag=null;includeScenario=false;entityPending=null;entityPicker=false;notice='';render()}};
  render();
  if(typeof renderSetupCompare==='function')renderSetupCompare();
  if(typeof renderBalance==='function')renderBalance();
