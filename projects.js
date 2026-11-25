@@ -70,7 +70,7 @@ function constructionMaterials(project,recipes){
  const machineItems={asm:project.goal.machine===1.25?'assembling-machine-3':'assembling-machine-2',chem:'chemical-plant',furnace:project.furnaceItem};
  const counts=new Map(),ingredients=new Map(),unknown=[];
  for(const t of project.tasks||[]){
-  const key=machineItems[t.kind];if(!key)continue;
+  const key=machineItems[t.kind];if(!key){if(['asm','chem','furnace'].includes(t.kind)&&t.planned>t.built)unknown.push('unspecified '+t.kind+' machine');continue;}
   const old=counts.get(key)||{key,planned:0,built:0};old.planned+=t.planned;old.built+=t.built;counts.set(key,old);
  }
  for(const row of counts.values()){
@@ -80,6 +80,46 @@ function constructionMaterials(project,recipes){
   for(const [key,quantity] of Object.entries(recipe[4]||{}))ingredients.set(key,(ingredients.get(key)||0)+Math.ceil(remaining/recipe[2])*quantity);
  }
  return {machines:[...counts.values()],ingredients:[...ingredients].map(([key,quantity])=>({key,quantity})),unknown};
+}
+// Expand aggregate demand in dependency order, then round each recipe once.
+// The leaves are alternative procurement requirements, never added to components.
+const MATERIAL_BOUNDARY=new Set(['iron-ore','copper-ore','stone','coal','water','petroleum-gas','heavy-oil','light-oil','crude-oil','wood','uranium-ore']);
+function expandConstructionMaterials(machines,recipes,boundary=MATERIAL_BOUNDARY){
+ const needs=new Map(),state=new Map(),order=[],stages=[],external=[];
+ const add=(key,n)=>{if(!Number.isFinite(n)||n<0||n>Number.MAX_SAFE_INTEGER)throw Error('Invalid construction material quantity.');const sum=(needs.get(key)||0)+n;if(!Number.isSafeInteger(sum))throw Error('Construction quantity must be a safe whole number.');if(sum)needs.set(key,sum)};
+ const recipeFor=key=>Object.hasOwn(recipes,key)?recipes[key]:undefined;
+ function visit(key){
+  if(state.get(key)===1)throw Error('Cyclic construction recipe: '+key);
+  if(state.get(key)===2)return;
+  state.set(key,1);
+  const r=recipeFor(key);
+  if(r&&!boundary.has(key)){
+   if(!Number.isSafeInteger(r[2])||r[2]<=0||!r[4]||typeof r[4]!=='object')throw Error('Invalid recipe: '+key);
+   for(const [id,q] of Object.entries(r[4])){if(!Number.isSafeInteger(q)||q<=0)throw Error('Invalid ingredient: '+id);visit(id)}
+  }
+  state.set(key,2);order.push(key);
+ }
+ for(const row of machines){add(row.key,row.remaining);if(row.remaining>0)visit(row.key)}
+ for(const key of order.reverse()){
+  const quantity=needs.get(key)||0;if(!quantity)continue;
+  const r=recipeFor(key);
+  if(boundary.has(key)||!r){external.push({key,quantity,reason:boundary.has(key)?'boundary':'missing-recipe'});continue}
+  const crafts=Math.ceil(quantity/r[2]),produced=crafts*r[2];
+  if(!Number.isSafeInteger(produced))throw Error('Construction quantity exceeds safe range.');
+  stages.push({key,quantity,crafts,produced,surplus:produced-quantity});
+  for(const [id,q] of Object.entries(r[4]))add(id,crafts*q);
+ }
+ return {stages,external};
+}
+// Independent acquisition estimates for direct requested items, not a schedule.
+// Capacity is a conditional rate, not stored items; never deduct from gross bill.
+function constructionSupply(rows,candidates){
+ const rates=new Map();
+ for(const c of candidates||[])if(typeof c.item==='string'&&Number.isFinite(c.rate)&&c.rate>0)rates.set(c.item,(rates.get(c.item)||0)+c.rate);
+ return rows.filter(r=>(r.quantity??r.remaining)>0).map(r=>{
+  const quantity=r.quantity??r.remaining,rate=rates.get(r.key)||0;
+  return {key:r.key,quantity,rate,minutes:rate>0?quantity/rate:null};
+ });
 }
 function projectProgress(project){
  const tasks=Array.isArray(project?.tasks)?project.tasks:[];
@@ -140,7 +180,7 @@ function normalizeProjects(value){
  });
 }
 if(typeof module==='object'&&module.exports)
- module.exports={buildProject,projectProgress,recordedForTask,applyBuildDelta,validateProjectName,normalizeProjects,reuseClaims,validateReuseClaims,freezeDesign,constructionMaterials};
+ module.exports={buildProject,projectProgress,recordedForTask,applyBuildDelta,validateProjectName,normalizeProjects,reuseClaims,validateReuseClaims,freezeDesign,constructionMaterials,expandConstructionMaterials,constructionSupply};
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id);
 const escape=s=>String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
@@ -198,13 +238,33 @@ function designDetails(p){
 }
 function materialDetails(p){
  const materials=constructionMaterials(p,R);
- if(!materials.machines.length)return '';
- const row=(k,v)=>'<div class="project-design-row"><span>'+itemGlyph(k,24)+' '+escape(R[k]?.[0]||k)+'</span><b>'+v+'</b></div>';
+ if(!materials.machines.length&&!materials.unknown.length)return '';
+ const row=(k,v)=>'<div class="project-design-row"><span>'+itemGlyph(k,24)+' '+escape(R[k]?.[0]||k.replaceAll('-',' '))+'</span><b>'+v+'</b></div>';
+ let rawHTML='';
+ try{
+  const expanded=expandConstructionMaterials(materials.machines,R);
+  rawHTML='<details class="project-design"><summary>Expanded raw &amp; external inputs</summary><p class="small">Alternative bill if crafting every remaining machine from scratch using standard recipes and whole crafting batches. Do not add this bill to the immediate components.</p>'+
+   (expanded.external.map(x=>row(x.key,fmt(x.quantity)+(x.reason==='missing-recipe'?' · external recipe unavailable':''))).join('')||'<p class="small">None remaining.</p>')+
+   '<details class="project-design"><summary>Intermediate crafting batches &amp; surplus</summary>'+
+   (expanded.stages.map(x=>row(x.key,fmt(x.quantity)+' needed · '+fmt(x.crafts)+' crafts'+(x.surplus?' · '+fmt(x.surplus)+' extra':''))).join('')||'<p class="small">None remaining.</p>')+'</details>'+
+   '<p class="small">Oil products are external supply boundaries; refinery coproducts, fuel, power, modules, quality and alternative recipes are not modeled. Shared ingredients are aggregated before rounding each recipe once.</p></details>';
+ }catch(err){rawHTML='<p class="small">Expanded bill unavailable: '+escape(err.message)+'</p>'}
  return '<details class="project-design"><summary>Machine construction materials</summary>'+materials.machines.map(x=>row(x.key,fmt(x.remaining)+' remaining / '+fmt(x.planned))).join('')+
  '<strong>Immediate crafting ingredients for remaining machines</strong>'+
  (materials.ingredients.map(x=>row(x.key,fmt(x.quantity))).join('')||'<p class="small">None remaining or recipe unavailable.</p>')+
- (materials.unknown.length?'<p class="small">Missing machine recipes: '+escape(materials.unknown.join(', '))+'</p>':'')+
- '<p class="small">Gross requirements if crafting from components; subtract items you already own yourself. Not expanded to raw ores. No belt lengths, fuel, inserters, poles or installed module inventory inferred.</p></details>';
+ (materials.unknown.length?'<p class="small">Incomplete bill: missing machine recipes or choices: '+escape(materials.unknown.join(', '))+'</p>':'')+rawHTML+
+ '<details class="project-design"><summary>Existing production reference</summary><p class="small">Check explicitly available, uncommitted production lines for direct components and finished machines. Rates are conditional, not stock or reserved delivery. Estimates are independent and must not be summed into a completion time.</p><button type="button" data-project-material-supply="'+escape(p.id)+'">Check current available production</button><div data-material-supply-result aria-live="polite"></div></details>'+
+ '<p class="small">Gross requirements for remaining machines only. Subtract items you already own yourself. No belt lengths, fuel, inserters, poles or installed module inventory inferred.</p></details>';
+}
+function checkMaterialSupply(project,button){
+ const host=button.parentElement.querySelector('[data-material-supply-result]');
+ try{
+  const available=root.NauvisLogistics?.availableProduction?.();
+  if(!available||!available.valid){host.textContent='Available production cannot be verified from the current network model.';return}
+  const bill=constructionMaterials(project,R);
+  const section=(label,rows)=>'<strong>'+label+'</strong>'+ (constructionSupply(rows,available.candidates).map(x=>'<div class="project-design-row"><span>'+itemGlyph(x.key,24)+' '+escape(R[x.key]?.[0]||x.key)+' · '+fmt(x.quantity)+'</span><b>'+(x.rate>0?fmt(x.rate)+'/min · '+(x.minutes<1?fmt(x.minutes*60)+' s':fmt(x.minutes)+' min'):'No eligible recorded supply')+'</b></div>').join('')||'<p class="small">None remaining.</p>');
+  host.innerHTML=section('Finished machines',bill.machines)+section('Immediate ingredients',bill.ingredients)+'<p class="small">Snapshot at check time. Missing input routes remain unverified. These are separate acquisition options, not additive requirements. No inventory, project or route changes.</p>';
+ }catch(err){host.textContent=err.message}
 }
 function furnaceRecorded(p,t){
  const field=root.NauvisEffects.SMELT_FIELDS[t.recipe];
@@ -418,10 +478,11 @@ function attachEvents(){
  $('factory')?.addEventListener('click',event=>{
   const b=event.target.closest('button');if(!b)return;
   if(b.matches('[data-project-go-planner]')){activateWorkspace('build',true);return}
-  const id=b.dataset.projectPlus||b.dataset.projectMinus||b.dataset.projectVisit||b.dataset.projectRename||b.dataset.projectArchive||b.dataset.projectRelease;
+  const id=b.dataset.projectPlus||b.dataset.projectMinus||b.dataset.projectVisit||b.dataset.projectRename||b.dataset.projectArchive||b.dataset.projectRelease||b.dataset.projectMaterialSupply;
   if(!id)return;
   const project=selectedProject(id);
   if(!project)return;
+  if(b.hasAttribute('data-project-material-supply')){checkMaterialSupply(project,b);return}
   if(b.hasAttribute('data-project-release')){
    if(project.status!=='archived'||projectProgress(project).built!==0||project.reuseReleased||!project.design?.reuseClaims?.length)return;
    if(!root.confirm('Release this cancelled, unbuilt project’s planned supply commitments? Its saved design remains historical and cannot be restored.'))return;
