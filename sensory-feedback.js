@@ -117,11 +117,11 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
   src.onended=()=>{voices=voices.filter(v=>v!==src);try{src.disconnect();f.disconnect();g.disconnect()}catch{}};
   const position=(Math.floor(clock())%400)/1000;src.start(t,position,length);src.stop(end+.004);
  }
- function play(event){
+ function play(event,preview=false){
   const p=getPrefs();if(!canPlay(p,event)||!visible()||context?.state!=='running')return false;
   const now=clock(),special=['complete','achievement','saved','queue','warning','build','reverse','route'].includes(event);
-  if(!special&&now-last<55)return false;
-  if(special)stop();
+  if(!preview&&!special&&now-last<55)return false;
+  if(special||preview)stop();
   if(voices.length>24)stop();
   last=now;
   try{const start=context.currentTime+.008;
@@ -170,10 +170,10 @@ function pulse(el,cls='sensory-pulse'){
 }
 function vibrate(event){if(!prefs.haptics||document.hidden||!prefs.categories[SOUNDS[event]?.[0]]||typeof navigator.vibrate!=='function')return;
  try{navigator.vibrate(['complete','achievement'].includes(event)?[16,35,20]:event==='build'?12:7)}catch{}}
-function cue(event,el,{semantic=false,haptic=true}={}){
+function cue(event,el,{semantic=false,haptic=true,preview=false}={}){
  if(!SOUNDS[event])return false;
  if(semantic)lastSemantic=performance.now();
- const played=engine.play(event);if(haptic)vibrate(event);if(el)pulse(el);
+ const played=engine.play(event,preview);if(haptic)vibrate(event);if(el)pulse(el);
  return played;
 }
 function semantic(event,el){if(performance.now()-lastGesture>1500||root.NauvisCloudApplying)return false;return cue(event,el,{semantic:true})}
@@ -227,7 +227,7 @@ $('sensoryMotion')?.addEventListener('change',e=>setPrefs({motion:e.target.value
 $('sensoryHaptics')?.addEventListener('change',e=>{setPrefs({haptics:e.target.checked});vibrate('click')});
 for(const k of CATEGORIES)$('sensoryCat-'+k)?.addEventListener('change',e=>setPrefs({categories:{...prefs.categories,[k]:e.target.checked}}));
 $('sensoryReset')?.addEventListener('click',()=>{setPrefs(DEFAULTS);status('Default sensory preferences restored.')});
-dialog?.addEventListener('click',async e=>{const event=e.target.closest('[data-sensory-test]')?.dataset.sensoryTest;if(!event)return;if(!prefs.enabled||!prefs.volume){status('Enable sound and set volume above zero first.');return}if(!prefs.categories[SOUNDS[event]?.[0]]){status('Enable this sound category first.');return}if(await unlock()){cue(event,e.target,{haptic:false});status('Played '+event+' preview.')}});
+dialog?.addEventListener('click',async e=>{const event=e.target.closest('[data-sensory-test]')?.dataset.sensoryTest;if(!event)return;if(!prefs.enabled||!prefs.volume){status('Enable sound and set volume above zero first.');return}if(!prefs.categories[SOUNDS[event]?.[0]]){status('Enable this sound category first.');return}if(await unlock()){const played=cue(event,e.target,{haptic:false,preview:true});status(played?'Played '+event+' preview.':'Sound could not play. Try again.')}});
 let cloudBefore=$('cloudStatus')?.dataset.state;
 if($('cloudStatus')&&typeof MutationObserver!=='undefined')new MutationObserver(()=>{const after=$('cloudStatus').dataset.state,event=cloudCue(cloudBefore,after);cloudBefore=after;if(event)cue(event,null,{haptic:false})}).observe($('cloudStatus'),{attributes:true,attributeFilter:['data-state']});
 root.NauvisSensory={getPrefs:()=>normalize(prefs),setPrefs,unlock,semantic,markLocalChange,resetBaseline,updateAwards,state:engine.state};
