@@ -38,6 +38,8 @@ const lessons={
  {view:'factory',target:'#projectsList',title:'Inspect a queued project',body:'A queue entry is a plan, not production. If there are no projects, use the Blueprint Designer walkthrough to create a real one when ready.',next:'Next'},
  {view:'factory',target:'#projectsList [data-project-plus]:not(:disabled)',fallback:'#projectsList',title:'Record real construction',body:'Expand a project’s tasks. A plus button records one physically placed machine or structure and updates Inventory exactly once. Never click it just to practice.',next:'Finish walkthrough'}
  ]},
+ flow:{name:'Check a belt split',intro:'Check a resource without creating factory records.',steps:[{view:'flow',target:'#focusFlowInputs',title:'Enter a supply and destinations',body:'Calculate supply from a recipe and machine count, enter a known rate, or load the example. Then add destination demands. All values are local what-if assumptions.',next:'Next'},{view:'flow',target:'#focusFlowResults',title:'Read the coverage and gaps',body:'Compare the production gap, supply belt gap and branch allocation gap. Automatic splitting redistributes unused shares; fixed shares do not.',next:'Finish walkthrough'}]},
+ log:{name:'Keep an engineer’s log',intro:'Save a note for your next session.',steps:[{view:'log',target:'#journalNoteInput',title:'Record your next objective',body:'Write what you want to remember for the next session. Save only if you want the note added to your actual journal.',next:'Next'},{view:'log',target:'#journalList',title:'Review your history',body:'Construction actions and notes use the same journal in both modes. No duplicate records are created.',next:'Finish walkthrough'}]},
  learn:{name:'Explore the Quick Guide',intro:'Find explanations and replay any walkthrough whenever you need help.',steps:[{view:'learn',target:'#learn .hero',title:'Your reference desk',body:'Use this guide for explanations, then tap the bottom-left question button to select a hands-on walkthrough.',next:'Finish walkthrough'}]}
 };
 function lessonKeys(){return Object.keys(lessons)}
@@ -56,8 +58,8 @@ function clear(){clearHighlight();if(wait!==null){clearTimeout(wait);wait=null}c
 function close(){clear()}
 function header(kicker,title,body){return '<div class="coach-head"><div><small>'+esc(kicker)+'</small><strong>'+esc(title)+'</strong></div><button type="button" data-coach-action="close" aria-label="Close walkthrough">×</button></div><p>'+esc(body)+'</p>'}
 function menuHTML(){
- const here=document.body.dataset.workspace,order=[here,...lessonKeys().filter(k=>k!==here)].filter(k=>lessons[k]);
- return '<div class="help-training-intro"><strong>Hands-on walkthroughs</strong><p>Follow real controls at your own pace. No sample inventory is added.</p></div><div class="coach-menu">'+order.map(k=>'<button type="button" data-coach-lesson="'+k+'" '+(k===here?'class="coach-current"':'')+'><strong>'+esc(lessons[k].name)+'</strong><small>'+esc(k===here?'Current workspace':seen[k]?'Replay walkthrough':'Guided example')+'</small></button>').join('')+'</div>';
+ const here=document.body.dataset.workspace,keys=root.NauvisFocus?.getMode?.()==='focus'?['build','factory','log','flow','logistics','setup','balance','learn']:lessonKeys(),order=[here,...keys.filter(k=>k!==here)].filter(k=>lessons[k]);
+ return '<div class="help-training-intro"><strong>Hands-on walkthroughs</strong><p>Follow real controls at your own pace. No sample inventory is added.</p></div><div class="coach-menu">'+order.map(k=>'<button type="button" data-coach-lesson="'+k+'" '+(k===here?'class="coach-current"':'')+'><strong>'+esc(lessons[k].name)+'</strong><small>'+esc(k===here?'Current workspace':root.NauvisFocus?.getMode?.()==='focus'&&['setup','balance','learn'].includes(k)?'Full mode · advanced':seen[k]?'Replay walkthrough':'Guided example')+'</small></button>').join('')+'</div>';
 }
 function mountMenu(host){
  if(!host)return;
