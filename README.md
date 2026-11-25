@@ -293,3 +293,6 @@ Visible Test sound and Restart audio controls, diagnostic audio state and a cate
 
 ### v1.0.4 · Compact header
 Keep NAUVIS · FACTORY OPERATIONS together on one line with a dedicated mobile header row, preserving the existing cloud and audio controls. Responsive browser checks cover desktop, 390px and 320px widths. No factory data changes.
+
+### v1.0.5 · Independent media playback
+Auto uses a reusable HTMLAudioElement with original locally rendered PCM WAV on iPhone/iPad; other browsers use Web Audio when available. Choose Media audio or Web Audio manually. The media path renders volume into PCM and calls play() synchronously for explicit test/preview actions. The engine reports playback promise outcomes; these do not prove audible device output. Some asynchronous cues may be blocked by mobile autoplay policy. No cloud or factory data changes.

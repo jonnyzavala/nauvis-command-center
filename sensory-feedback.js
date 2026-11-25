@@ -3,11 +3,11 @@
 'use strict';
 const KEY='nauvis-sensory-v1';
 const CATEGORIES=['controls','inputs','construction','achievements','sync'];
-const DEFAULTS={enabled:false,volume:35,palette:'industrial',motion:'full',haptics:false,categories:Object.fromEntries(CATEGORIES.map(k=>[k,true]))};
+const DEFAULTS={enabled:false,volume:35,palette:'industrial',backend:'auto',motion:'full',haptics:false,categories:Object.fromEntries(CATEGORIES.map(k=>[k,true]))};
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 function normalize(v){
  const x=v&&typeof v==='object'?v:{};
- return {enabled:x.enabled===true,volume:Number.isFinite(x.volume)?clamp(Math.round(x.volume),0,100):35,palette:x.palette==='electronic'?'electronic':'industrial',motion:['full','subtle','off'].includes(x.motion)?x.motion:'full',haptics:x.haptics===true,categories:Object.fromEntries(CATEGORIES.map(k=>[k,x.categories?.[k]!==false]))};
+ return {enabled:x.enabled===true,volume:Number.isFinite(x.volume)?clamp(Math.round(x.volume),0,100):35,palette:x.palette==='electronic'?'electronic':'industrial',backend:['auto','web','media'].includes(x.backend)?x.backend:'auto',motion:['full','subtle','off'].includes(x.motion)?x.motion:'full',haptics:x.haptics===true,categories:Object.fromEntries(CATEGORIES.map(k=>[k,x.categories?.[k]!==false]))};
 }
 // [frequency, end frequency, duration sec, offset sec, oscillator, relative gain]
 const ELECTRONIC={
@@ -89,6 +89,61 @@ function soundDefinition(p,event){return p.palette==='electronic'?(ELECTRONIC[ev
 function canPlay(p,event){const def=SOUNDS[event];return !!def&&p.enabled&&p.volume>0&&p.categories[def[0]]===true}
 function cloudCue(before,after){if(before===after)return null;if(after==='saved'&&before==='syncing')return 'sync';if(['error','conflict','offline'].includes(after)&&!['error','conflict','offline'].includes(before))return 'warning';return null}
 function gained(before,after){const old=new Set(before||[]);return [...new Set(after||[])].filter(x=>!old.has(x))}
+// Render original sounds to standard mono 16-bit PCM WAV, without Web Audio.
+// The media element is reused, and play() is invoked synchronously during user gestures.
+function renderWav(p,event,sr=24000){
+ const diagnostic=event==='test';
+ const notes=diagnostic?[[660,660,.16,0,'sine',.65],[880,880,.24,.18,'sine',.65]]:soundDefinition(p,event)[1];
+ const layers=!diagnostic&&p.palette==='industrial'?NOISE[event]||[]:[];
+ const length=Math.ceil((Math.max(...notes.map(n=>n[2]+n[3]),...layers.map(n=>n[0]+n[1]))+.025)*sr),samples=new Float32Array(length);
+ const envelope=(t,d,a)=>Math.min(1,t/a)*Math.pow(Math.max(0,1-t/d),2);
+ for(const [from,to,d,offset,wave,gain] of notes){
+  let phase=0;const start=Math.round(offset*sr);
+  for(let i=0;i<Math.ceil(d*sr)&&start+i<length;i++){
+   const t=i/sr;phase+=2*Math.PI*from*Math.pow(to/from,t/d)/sr;
+   const v=wave==='triangle'?2/Math.PI*Math.asin(Math.sin(phase)):wave==='sawtooth'?2*(phase/(2*Math.PI)-Math.floor(phase/(2*Math.PI)+.5)):Math.sin(phase);
+   samples[start+i]+=v*gain*envelope(t,d,Math.min(.008,d/4));
+  }
+ }
+ let seed=0x6e617576;
+ for(const [d,offset,hz,q,gain,,shape] of layers){
+  const start=Math.round(offset*sr),w=2*Math.PI*Math.min(hz,sr*.45)/sr,alpha=Math.sin(w)/(2*q),a0=1+alpha,b0=alpha/a0,b2=-b0,a1=-2*Math.cos(w)/a0,a2=(1-alpha)/a0;
+  let x1=0,x2=0,y1=0,y2=0;
+  for(let i=0;i<Math.ceil(d*sr)&&start+i<length;i++){
+   seed=(Math.imul(seed,1664525)+1013904223)>>>0;const x=seed/2147483648-1,y=b0*x+b2*x2-a1*y1-a2*y2;
+   x2=x1;x1=x;y2=y1;y1=y;
+   const t=i/sr;samples[start+i]+=y*gain*envelope(t,d,shape==='swell'?d*.38:Math.min(.002,d*.2));
+  }
+ }
+ const buf=new ArrayBuffer(44+length*2),v=new DataView(buf);
+ const str=(offset,s)=>{for(let i=0;i<s.length;i++)v.setUint8(offset+i,s.charCodeAt(i))};
+ str(0,'RIFF');v.setUint32(4,36+length*2,true);str(8,'WAVE');str(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);str(36,'data');v.setUint32(40,length*2,true);
+ // iOS may ignore HTMLMediaElement.volume, so encode the master volume in PCM.
+ const amp=clamp(p.volume,0,100)/100*(diagnostic?.65:.48);
+ for(let i=0;i<length;i++)v.setInt16(44+i*2,Math.round(clamp(samples[i]*amp,-1,1)*32767),true);
+ return new Uint8Array(buf);
+}
+function makeMediaEngine(audio,getPrefs,visible=()=>true,clock=()=>Date.now(),encode=bytes=>{
+ let s='';for(let i=0;i<bytes.length;i+=4096)s+=String.fromCharCode(...bytes.subarray(i,i+4096));return 'data:audio/wav;base64,'+btoa(s)
+}){
+ let state='ready',error='',last=-Infinity,serial=0,cache=new Map(),lastResult=Promise.resolve(false);
+ function stop(){serial++;try{audio.pause()}catch{}state='ready';last=-Infinity}
+ function play(event,preview=false){
+  const p=getPrefs();if(!audio||!visible()||!p.enabled||p.volume<=0||event!=='test'&&!canPlay(p,event))return false;
+  const now=clock();if(!preview&&event!=='test'&&now-last<65)return false;
+  const id=++serial;last=now;error='';
+  try{
+   const key=[p.palette,p.volume,event].join(':');let src=cache.get(key);
+   if(!src){src=encode(renderWav(p,event));if(cache.size>=64)cache.clear();cache.set(key,src)}
+   audio.pause();if(audio.getAttribute('src')!==src)audio.src=src;try{audio.currentTime=0}catch{}
+   state='starting';
+   lastResult=Promise.resolve(audio.play()).then(()=>{if(id!==serial)return false;state='playing';return true},err=>{if(id===serial){state='blocked';error=err?.name+': '+(err?.message||'Media playback rejected')}return false});
+   return true;
+  }catch(err){state='error';error=err?.message||'Media audio error';lastResult=Promise.resolve(false);return false}
+ }
+ audio.addEventListener?.('ended',()=>{if(state==='playing')state='ready'});
+ return {play,testTone:()=>play('test',true),stop,reset:()=>{stop();error=''},state:()=>state,error:()=>error,result:()=>lastResult};
+}
 function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now()){
  let context=null,last=-Infinity,voices=[],pending=null,noiseBuffer=null,lastError='';
  function unlock(retry=false){
@@ -162,11 +217,14 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
  }
  return {unlock,play,stop,reset,testTone,error:()=>lastError,state:()=>context?.state||'locked'};
 }
-if(typeof module==='object'&&module.exports)module.exports={normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine};
+if(typeof module==='object'&&module.exports)module.exports={normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine,renderWav,makeMediaEngine};
 if(typeof document==='undefined')return;
 let prefs=normalize(null);try{prefs=normalize(JSON.parse(localStorage.getItem(KEY)||'null'))}catch{}
 const $=id=>document.getElementById(id),dialog=$('sensoryDialog'),launcher=$('sensoryLaunch');
 const engine=makeEngine(root.AudioContext||root.webkitAudioContext,()=>prefs,()=>!document.hidden);
+const media=makeMediaEngine($('sensoryMediaAudio'),()=>prefs,()=>!document.hidden);
+const appleMobile=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const useMedia=()=>prefs.backend==='media'||prefs.backend==='auto'&&(appleMobile||!root.AudioContext&&!root.webkitAudioContext);
 const reduce=root.matchMedia?.('(prefers-reduced-motion: reduce)');
 let lastGesture=-Infinity,lastSemantic=-Infinity,localChange=false,priorAwards=null,lastAward=-Infinity,lastRange=new WeakMap();
 let pendingReward=null;
@@ -176,6 +234,7 @@ function paint(){
  if(launcher){launcher.dataset.enabled=String(prefs.enabled);launcher.setAttribute('aria-label','Sensory settings · sound '+(prefs.enabled?'on':'off'))}
  if($('sensoryEnabled'))$('sensoryEnabled').checked=prefs.enabled;
  if($('sensoryPalette'))$('sensoryPalette').value=prefs.palette;
+ if($('sensoryBackend'))$('sensoryBackend').value=prefs.backend;
  audioState();
  if($('sensoryVolume')){$('sensoryVolume').value=prefs.volume;$('sensoryVolumeValue').textContent=prefs.volume+'%'}
  if($('sensoryMotion'))$('sensoryMotion').value=prefs.motion;
@@ -184,12 +243,13 @@ function paint(){
  if($('sensoryMotionNote'))$('sensoryMotionNote').textContent=reduce?.matches?'System reduced motion is active. Animations are disabled.':'Visual feedback is independent of sound.';
  if($('sensoryHapticNote'))$('sensoryHapticNote').textContent=typeof navigator.vibrate==='function'?'Short vibration pulses on supported devices.':'Haptics are unavailable in this browser (including iPhone Safari).';
 }
-function setPrefs(patch){prefs=normalize({...prefs,...patch});try{localStorage.setItem(KEY,JSON.stringify(prefs))}catch{}if(!prefs.enabled||!prefs.volume)engine.stop();paint();return {...prefs,categories:{...prefs.categories}}}
-function audioState(){const node=$('sensoryAudioState');if(node)node.textContent=!prefs.enabled?'Sound off':!root.AudioContext&&!root.webkitAudioContext?'Web Audio unavailable':'Audio engine: '+engine.state()}
-function unlock(retry=false){return engine.unlock(retry).then(ok=>{audioState();return ok})}
+function setPrefs(patch){const previousBackend=useMedia();prefs=normalize({...prefs,...patch});if(previousBackend!==useMedia()){engine.stop();media.stop()}try{localStorage.setItem(KEY,JSON.stringify(prefs))}catch{}if(!prefs.enabled||!prefs.volume){engine.stop();media.stop()}paint();return {...prefs,categories:{...prefs.categories}}}
+function audioState(){const node=$('sensoryAudioState');if(node)node.textContent=!prefs.enabled?'Sound off':useMedia()?'Media audio: '+media.state():!root.AudioContext&&!root.webkitAudioContext?'Web Audio unavailable':'Audio engine: '+engine.state()}
+function unlock(retry=false){if(useMedia()){audioState();return Promise.resolve(true)}return engine.unlock(retry).then(ok=>{audioState();return ok})}
 async function testAudio(restart=false){
  if(!prefs.enabled){status('Turn on Enable sound first.');return}
  if(!prefs.volume){status('Raise the volume above zero.');return}
+ if(useMedia()){if(restart)media.reset();const sent=media.testTone();audioState();status('Testing media audio…');const played=sent&&await media.result();audioState();status(played?'Media test tone sent. Did you hear it?':'Media playback failed: '+media.error());return}
  if(restart)engine.reset();
  status(restart?'Restarting audio engine…':'Testing audio…');audioState();
  const ok=await unlock(true);
@@ -207,7 +267,7 @@ function vibrate(event){if(!prefs.haptics||document.hidden||!prefs.categories[SO
 function cue(event,el,{semantic=false,haptic=true,preview=false}={}){
  if(!SOUNDS[event])return false;
  if(semantic)lastSemantic=performance.now();
- const played=engine.play(event,preview);if(haptic)vibrate(event);if(el)pulse(el);
+ const played=useMedia()?media.play(event,preview):engine.play(event,preview);if(haptic)vibrate(event);if(el)pulse(el);
  return played;
 }
 function semantic(event,el){if(performance.now()-lastGesture>1500||root.NauvisCloudApplying)return false;return cue(event,el,{semantic:true})}
@@ -226,7 +286,7 @@ function updateAwards(keys){
 }
 function isUiSetting(el){return !!el.closest('#sensoryDialog,#sensoryLaunch')}
 function interactive(e){return e.target?.closest?.('button,summary,a[href],input,select,textarea,[role="button"]')}
-function gesture(e){if(!e.isTrusted)return;lastGesture=performance.now();if(prefs.enabled&&engine.state()!=='running'&&!e.target?.closest?.('#sensoryDialog,#sensoryLaunch'))unlock(true)}
+function gesture(e){if(!e.isTrusted)return;lastGesture=performance.now();if(prefs.enabled&&!useMedia()&&engine.state()!=='running'&&!e.target?.closest?.('#sensoryDialog,#sensoryLaunch'))unlock(true)}
 document.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')gesture(e)},true);
 document.addEventListener('pointerup',e=>{if(e.pointerType!=='mouse')gesture(e)},true);
 document.addEventListener('touchend',gesture,{capture:true,passive:true});
@@ -253,7 +313,7 @@ document.addEventListener('input',e=>{
  if(prev&&now-prev.time<85)return;lastRange.set(el,{time:now});cue(el.matches('[type="range"]')?'ratchet':el.matches('[type="number"]')?'tick':'key',null,{haptic:false});
 },false);
 document.addEventListener('invalid',e=>{if(e.isTrusted&&!isUiSetting(e.target))semantic('warning',e.target)},true);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)engine.stop();audioState()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){engine.stop();media.stop()}audioState()});
 window.addEventListener('pageshow',audioState);
 reduce?.addEventListener?.('change',paint);
 launcher?.addEventListener('click',()=>{paint();status(prefs.enabled?'Tap Test sound to check audio output.':'Sound is off. Enable it when you want tactile feedback.');dialog?.showModal();if(prefs.enabled)unlock(true)});
@@ -262,14 +322,15 @@ $('sensoryRestartAudio')?.addEventListener('click',()=>testAudio(true));
 $('sensoryClose')?.addEventListener('click',()=>dialog.close());
 $('sensoryEnabled')?.addEventListener('change',async e=>{setPrefs({enabled:e.target.checked});if(prefs.enabled){const ok=await unlock(true);if(ok){cue('on',null,{haptic:false});status('Sound enabled. Tap Test sound to check output.')}else status('Tap Test sound to activate audio.')}else status('Sound muted.')});
 $('sensoryVolume')?.addEventListener('input',e=>setPrefs({volume:Number(e.target.value)}));
+$('sensoryBackend')?.addEventListener('change',e=>{setPrefs({backend:e.target.value});status('Playback method changed. Tap Test sound.');if(!useMedia()&&prefs.enabled)unlock(true)});
 $('sensoryPalette')?.addEventListener('change',e=>{setPrefs({palette:e.target.value});if(prefs.enabled)unlock().then(ok=>{if(ok)cue('click',null,{haptic:false})})});
 $('sensoryMotion')?.addEventListener('change',e=>setPrefs({motion:e.target.value}));
 $('sensoryHaptics')?.addEventListener('change',e=>{setPrefs({haptics:e.target.checked});vibrate('click')});
 for(const k of CATEGORIES)$('sensoryCat-'+k)?.addEventListener('change',e=>setPrefs({categories:{...prefs.categories,[k]:e.target.checked}}));
 $('sensoryReset')?.addEventListener('click',()=>{setPrefs(DEFAULTS);status('Default sensory preferences restored.')});
-dialog?.addEventListener('click',async e=>{const event=e.target.closest('[data-sensory-test]')?.dataset.sensoryTest;if(!event)return;if(!prefs.enabled||!prefs.volume){status('Enable sound and set volume above zero first.');return}if(!prefs.categories[SOUNDS[event]?.[0]]){status('Enable this sound category first.');return}if(await unlock(true)){const played=cue(event,e.target,{haptic:false,preview:true});status(played?'Played '+event+' preview.':'Sound could not play. '+engine.error())}else status('Audio did not start. Tap Restart audio.')});
+dialog?.addEventListener('click',async e=>{const event=e.target.closest('[data-sensory-test]')?.dataset.sensoryTest;if(!event)return;if(!prefs.enabled||!prefs.volume){status('Enable sound and set volume above zero first.');return}if(!prefs.categories[SOUNDS[event]?.[0]]){status('Enable this sound category first.');return}if(useMedia()){const sent=cue(event,e.target,{haptic:false,preview:true});const ok=sent&&await media.result();audioState();status(ok?'Played '+event+' preview.':'Media playback failed: '+media.error());return}if(await unlock(true)){const played=cue(event,e.target,{haptic:false,preview:true});status(played?'Played '+event+' preview.':'Sound could not play. '+engine.error())}else status('Audio did not start. Tap Restart audio.')});
 let cloudBefore=$('cloudStatus')?.dataset.state;
 if($('cloudStatus')&&typeof MutationObserver!=='undefined')new MutationObserver(()=>{const after=$('cloudStatus').dataset.state,event=cloudCue(cloudBefore,after);cloudBefore=after;if(event)cue(event,null,{haptic:false})}).observe($('cloudStatus'),{attributes:true,attributeFilter:['data-state']});
-root.NauvisSensory={getPrefs:()=>normalize(prefs),setPrefs,unlock,semantic,markLocalChange,resetBaseline,updateAwards,state:engine.state};
+root.NauvisSensory={getPrefs:()=>normalize(prefs),setPrefs,unlock,semantic,markLocalChange,resetBaseline,updateAwards,state:()=>useMedia()?media.state():engine.state()};
 paint();
 })(typeof window==='undefined'?globalThis:window);
