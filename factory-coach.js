@@ -38,7 +38,7 @@ const lessons={
  {view:'factory',target:'#projectsList',title:'Inspect a queued project',body:'A queue entry is a plan, not production. If there are no projects, use the Blueprint Designer walkthrough to create a real one when ready.',next:'Next'},
  {view:'factory',target:'#projectsList [data-project-plus]:not(:disabled)',fallback:'#projectsList',title:'Record real construction',body:'Expand a project’s tasks. A plus button records one physically placed machine or structure and updates Inventory exactly once. Never click it just to practice.',next:'Finish walkthrough'}
  ]},
- learn:{name:'Explore the Quick Guide',intro:'Find explanations and replay any walkthrough whenever you need help.',steps:[{view:'learn',target:'#learn .hero',title:'Your reference desk',body:'Use this guide for explanations, then select a hands-on walkthrough from the Coaching menu.',next:'Finish walkthrough'}]}
+ learn:{name:'Explore the Quick Guide',intro:'Find explanations and replay any walkthrough whenever you need help.',steps:[{view:'learn',target:'#learn .hero',title:'Your reference desk',body:'Use this guide for explanations, then tap the bottom-left question button to select a hands-on walkthrough.',next:'Finish walkthrough'}]}
 };
 function lessonKeys(){return Object.keys(lessons)}
 function matchingEvent(target,selectors){return !!target?.closest&&!!selectors?.some(s=>target.closest(s))}
@@ -55,9 +55,17 @@ function find(step){const el=$(step.target);return visible(el)?el:step.fallback?
 function clear(){clearHighlight();if(wait!==null){clearTimeout(wait);wait=null}card.hidden=true;card.className='nauvis-coach';document.body.append(card);current=null;menu=false;prior=null}
 function close(){clear()}
 function header(kicker,title,body){return '<div class="coach-head"><div><small>'+esc(kicker)+'</small><strong>'+esc(title)+'</strong></div><button type="button" data-coach-action="close" aria-label="Close walkthrough">×</button></div><p>'+esc(body)+'</p>'}
-function openMenu(){
- clear();menu=true;card.hidden=false;card.innerHTML=header('NAUVIS · TRAINING','Choose a hands-on walkthrough','Practice the planner or learn to record your real factory. You control every change.')+'<div class="coach-menu">'+lessonKeys().map(k=>'<button type="button" data-coach-lesson="'+k+'">'+esc(lessons[k].name)+'</button>').join('')+'</div>';
+function menuHTML(){
+ const here=document.body.dataset.workspace,order=[here,...lessonKeys().filter(k=>k!==here)].filter(k=>lessons[k]);
+ return '<div class="help-training-intro"><strong>Hands-on walkthroughs</strong><p>Follow real controls at your own pace. No sample inventory is added.</p></div><div class="coach-menu">'+order.map(k=>'<button type="button" data-coach-lesson="'+k+'" '+(k===here?'class="coach-current"':'')+'><strong>'+esc(lessons[k].name)+'</strong><small>'+esc(k===here?'Current workspace':seen[k]?'Replay walkthrough':'Guided example')+'</small></button>').join('')+'</div>';
 }
+function mountMenu(host){
+ if(!host)return;
+ if(current){host.innerHTML='<p>A walkthrough is already in progress.</p><button type="button" data-coach-action="resume">Resume walkthrough</button><button type="button" data-coach-action="restart-menu">End walkthrough and browse lessons</button>';return}
+ menu=true;host.append(card);card.className='nauvis-coach coach-inline coach-help-menu';card.hidden=false;card.innerHTML=menuHTML();
+}
+function unmountMenu(){if(menu){clear();}}
+function openMenu(){if(root.NauvisGuide){root.NauvisGuide.open('walkthroughs');return}clear();menu=true;card.hidden=false;card.innerHTML=menuHTML()}
 function renderPrompt(view){
  const page=document.getElementById(view),lesson=lessons[view];if(!page||!lesson||seen[view]||current||menu||page.querySelector('.coach-first-use'))return;
  const prompt=document.createElement('div');prompt.className='coach-first-use';prompt.innerHTML='<div><strong>Want a guided example?</strong><span>'+esc(lesson.intro)+'</span></div><div><button type="button" data-coach-lesson="'+view+'">Yes, walk me through it</button><button type="button" data-coach-dismiss="'+view+'">Not now</button></div>';
@@ -67,7 +75,7 @@ function removePrompt(view){document.getElementById(view)?.querySelector('.coach
 function onActivate(view){if(!current&&!menu)renderPrompt(view);else if(current&&lessons[current].steps[index]?.view!==view&&!lessons[current].steps[index]?.expect){/* Keep explicit coaching session available; never hijack ordinary navigation. */}}
 function start(key){
  if(!lessons[key])return;
- clear();current=key;index=0;prior=snap();persist(key);removePrompt(key);
+ root.NauvisGuide?.close?.();clear();current=key;index=0;prior=snap();persist(key);removePrompt(key);
  previousWorkspace=document.body.dataset.workspace;show(true);
 }
 function attach(step){
@@ -125,6 +133,8 @@ document.addEventListener('click',e=>{
  if(dismiss){persist(dismiss);removePrompt(dismiss);return}
  const b=e.target.closest('[data-coach-action]');if(!b)return;
  const a=b.dataset.coachAction;
+ if(a==='resume'){root.NauvisGuide?.close?.();show(true);return}
+ if(a==='restart-menu'){clear();openMenu();return}
  if(a==='close'||a==='finish'){close();return}
  if(a==='locate'){if(current)show(true);return}
  if(a==='next'){advance();return}
@@ -132,7 +142,6 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('click',e=>{if(!current)return;const step=lessons[current].steps[index];if(e.target.closest('#quickAddClose,#quickAddBackdrop,#projectsDialogClose')&&(step.panel||typeof step.modal==='string'))close()});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!card.hidden)close()});
-root.NauvisCoach={openMenu,start,onActivate,close,state:()=>({lesson:current,index,menu}),refresh:()=>{if(current)focusTarget(lessons[current].steps[index],false)}};
-$('#coachLaunch')?.addEventListener('click',openMenu);
+root.NauvisCoach={openMenu,mountMenu,unmountMenu,start,onActivate,close,state:()=>({lesson:current,index,menu}),refresh:()=>{if(current)focusTarget(lessons[current].steps[index],false)}};
 onActivate(document.body.dataset.workspace||'balance');
 })(typeof window==='undefined'?globalThis:window);

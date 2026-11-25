@@ -605,7 +605,7 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button type="button" id="sensoryLaunch" class="sensory-launch" aria-haspopup="dialog" aria-controls="sensoryDialog" title="Sound, motion and tactile feedback"><svg class="sensory-speaker" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4zM15 9a4 4 0 0 1 0 6m3-9a8 8 0 0 1 0 12"/></svg><span class="sensory-label">Feedback</span></button><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v1.0.1 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button type="button" id="sensoryLaunch" class="sensory-launch" aria-haspopup="dialog" aria-controls="sensoryDialog" title="Sound, motion and tactile feedback"><svg class="sensory-speaker" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4zM15 9a4 4 0 0 1 0 6m3-9a8 8 0 0 1 0 12"/></svg><span class="sensory-label">Feedback</span></button><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v1.0.2 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory &amp; Balance</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Plan &amp; Build</button></div></nav>
  </div>
@@ -768,7 +768,7 @@ body[data-workspace="build"]{
    <div id="projectsArchived" class="projects-cards"></div>
   </details>
  </section>
- <section class="view" id="learn"><div class="hero"><button type="button" id="coachLaunch" class="coach-launch">Hands-on walkthroughs</button><div class="eyebrow">THE THREE NUMBERS THAT MATTER</div><h1>How do I use this?</h1><p>You only need the goal. The computer should do the recipe accounting.</p></div>
+ <section class="view" id="learn"><div class="hero"><div class="eyebrow">THE THREE NUMBERS THAT MATTER</div><h1>How do I use this?</h1><p>You only need the goal. The computer should do the recipe accounting.</p></div>
   <div class="rulegrid section"><div class="rule"><b style="color:var(--gold)">30/min</b><strong>Production goal</strong><p class="small">How much finished product the factory makes each minute. For science, 30/min is a reasonable starting baseline, not an obligation.</p></div><div class="rule"><b style="color:var(--purple)">19</b><strong>Machine count</strong><p class="small">How many machines are needed to make the item and its local ingredients. 90 red circuits/min takes 19 Assembler 2s in the self-contained block.</p></div><div class="rule"><b style="color:var(--green)">900/min</b><strong>Yellow belt capacity</strong><p class="small">The most items one full yellow belt carries per minute, both lanes combined. Red is 1,800/min. Faster belts don't increase machine output.</p></div></div>
   <div class="section panel"><h2>Example: 90 red circuits/min</h2><div class="example"><p>Start with <b>90 red circuits/min</b>. The planner works backward and tells you to place:</p><p><strong style="color:var(--green)">2 green-circuit assemblers</strong>, <strong style="color:var(--gold)">5 cable assemblers</strong> and <strong style="color:var(--red)">12 red-circuit assemblers</strong>.</p><p><b>19 total.</b> Inputs: 180 iron plates, 450 copper plates and 180 plastic bars per minute. All fit individually on yellow belts.</p></div><p class="small">That doesn't mean the assemblers will always run. If storage fills or consumers stop, the machines stop. The listed count is maximum sustained capacity with adequate supplies.</p></div>
   <div class="section panel"><h2>Before upgrading a belt</h2><div style="display:grid;gap:12px"><div><div class="inline"><b>Yellow</b><b>900/min</b></div><div class="track"><div style="width:33.333%;background:#e9bd61"></div></div></div><div><div class="inline"><b>Red</b><b>1,800/min</b></div><div class="track"><div style="width:66.666%;background:#e67b78"></div></div></div><div><div class="inline"><b>Blue</b><b>2,700/min</b></div><div class="track"><div style="width:100%;background:#76b3e2"></div></div></div></div><p class="small">If your furnaces produce only 700 plates/min, any of these belts will still carry only 700. Upgrade when the belt is saturated, not just because you've researched the next color.</p></div>
@@ -779,10 +779,10 @@ body[data-workspace="build"]{
  </section>
  </main>
 <dialog id="sensoryDialog" aria-labelledby="sensoryTitle"><div class="sensory-heading"><div><span class="sensory-kicker">NAUVIS · SENSORY INTERFACE</span><h2 id="sensoryTitle">Acoustic & tactile feedback</h2><p>Make the control panel yours. Sound is opt-in; preferences stay on this device, including after Fresh Start.</p></div><button type="button" id="sensoryClose" aria-label="Close sensory settings">Close</button></div>
-<section class="sensory-section"><h3>Acoustic feedback</h3><label class="sensory-row">Enable sound<input type="checkbox" id="sensoryEnabled"></label><label class="sensory-row">Volume<input type="range" id="sensoryVolume" min="0" max="100" step="1" value="35"><output id="sensoryVolumeValue" for="sensoryVolume">35%</output></label>
+<section class="sensory-section"><h3>Acoustic feedback</h3><label class="sensory-row">Enable sound<input type="checkbox" id="sensoryEnabled"></label><label class="sensory-row">Volume<input type="range" id="sensoryVolume" min="0" max="100" step="1" value="35"><output id="sensoryVolumeValue" for="sensoryVolume">35%</output></label><label class="sensory-row">Sound palette<select id="sensoryPalette"><option value="industrial">Industrial · mechanical</option><option value="electronic">Classic · electronic</option></select></label>
 <label class="sensory-row">Navigation, buttons & switches<input type="checkbox" id="sensoryCat-controls" checked></label><label class="sensory-row">Inputs, selectors & adjustments<input type="checkbox" id="sensoryCat-inputs" checked></label><label class="sensory-row">Construction, saves & machinery<input type="checkbox" id="sensoryCat-construction" checked></label><label class="sensory-row">Milestone rewards<input type="checkbox" id="sensoryCat-achievements" checked></label><label class="sensory-row">Sync & warnings<input type="checkbox" id="sensoryCat-sync" checked></label>
 </section><section class="sensory-section"><h3>Tactile interface</h3><label class="sensory-row">Motion intensity<select id="sensoryMotion"><option value="full">Full</option><option value="subtle">Subtle</option><option value="off">Off</option></select></label><p id="sensoryMotionNote"></p><label class="sensory-row">Haptic pulses (if supported)<input type="checkbox" id="sensoryHaptics"></label><p id="sensoryHapticNote"></p></section>
-<section class="sensory-section"><h3>Sound test bench</h3><div class="sensory-test-grid"><button type="button" data-sensory-test="click">Mechanical click</button><button type="button" data-sensory-test="nav">Tab sweep</button><button type="button" data-sensory-test="on">Switch snap</button><button type="button" data-sensory-test="tick">Machine tick</button><button type="button" data-sensory-test="build">Machine placed</button><button type="button" data-sensory-test="queue">Queue lock</button><button type="button" data-sensory-test="saved">Saved</button><button type="button" data-sensory-test="complete">Project complete</button><button type="button" data-sensory-test="sync">Synced</button><button type="button" data-sensory-test="warning">Warning</button><button type="button" data-sensory-test="achievement">Achievement</button></div><p id="sensoryStatus" role="status" aria-live="polite"></p></section><div class="sensory-footer"><button type="button" id="sensoryReset">Restore defaults</button><small>Original synthesized sounds · no audio downloads</small></div></dialog>
+<section class="sensory-section"><h3>Sound test bench</h3><div class="sensory-test-grid"><button type="button" data-sensory-test="click">Mechanical click</button><button type="button" data-sensory-test="nav">Tab sweep</button><button type="button" data-sensory-test="on">Switch on</button><button type="button" data-sensory-test="off">Switch off</button><button type="button" data-sensory-test="select">Selector</button><button type="button" data-sensory-test="edit">Input committed</button><button type="button" data-sensory-test="tick">Metallic tick</button><button type="button" data-sensory-test="key">Key press</button><button type="button" data-sensory-test="ratchet">Ratchet</button><button type="button" data-sensory-test="countUp">Count +</button><button type="button" data-sensory-test="countDown">Count −</button><button type="button" data-sensory-test="check">Checkmark</button><button type="button" data-sensory-test="uncheck">Uncheck</button><button type="button" data-sensory-test="open">Panel open</button><button type="button" data-sensory-test="close">Panel close</button><button type="button" data-sensory-test="route">Belt connection</button><button type="button" data-sensory-test="build">Machine placed</button><button type="button" data-sensory-test="reverse">Reverse placement</button><button type="button" data-sensory-test="queue">Queue lock</button><button type="button" data-sensory-test="saved">Saved</button><button type="button" data-sensory-test="complete">Project complete</button><button type="button" data-sensory-test="sync">Synced</button><button type="button" data-sensory-test="warning">Warning</button><button type="button" data-sensory-test="achievement">Achievement</button></div><p id="sensoryStatus" role="status" aria-live="polite"></p></section><div class="sensory-footer"><button type="button" id="sensoryReset">Restore defaults</button><small>Original synthesized sounds · no audio downloads</small></div></dialog>
 <dialog id="factoryOnboardingDialog" class="factory-deployment-dialog" aria-labelledby="factoryOnboardingTitle">
  <div id="factoryOnboardingContent"></div>
 </dialog>
@@ -813,10 +813,11 @@ body[data-workspace="build"]{
   <span class="context-help-peek"><span class="context-help-kicker">QUICK GUIDE · IN CONTEXT</span><strong id="contextHelpShortTitle">Help with this section</strong><small id="contextHelpShortTip">Tap to see the explanation.</small></span>
   
  </button>
- <div class="context-help-detail" id="contextHelpDetail" hidden role="region" aria-labelledby="contextHelpTitle">
-  <div class="context-help-top"><span class="context-help-kicker">YOUR CURRENT SECTION, EXPLAINED</span><button type="button" class="context-help-close" id="contextHelpClose" aria-label="Close quick guide">×</button></div>
-  <h2 id="contextHelpTitle"></h2><p id="contextHelpIntro"></p><ul id="contextHelpPoints"></ul>
-  <p id="contextHelpTakeaway" class="context-help-takeaway"></p>
+ <div class="context-help-detail" id="contextHelpDetail" hidden role="region" aria-label="Factory help and walkthroughs">
+  <div class="context-help-top"><span class="context-help-kicker">NAUVIS · HELP &amp; TRAINING</span><button type="button" class="context-help-close" id="contextHelpClose" aria-label="Close quick guide">×</button></div>
+  <div class="help-tabs" role="group" aria-label="Help mode"><button type="button" id="helpTipsTab" data-help-mode="tips" aria-pressed="true">Contextual tips</button><button type="button" id="helpWalkthroughTab" data-help-mode="walkthroughs" aria-pressed="false">Walkthroughs</button></div>
+  <div id="helpTipsContent"><h2 id="contextHelpTitle"></h2><p id="contextHelpIntro"></p><ul id="contextHelpPoints"></ul><p id="contextHelpTakeaway" class="context-help-takeaway"></p><button type="button" id="helpCurrentLesson" class="help-current-lesson">Walk me through this workspace →</button></div>
+  <div id="helpWalkthroughContent" hidden></div>
  </div>
 </aside>
 <button type="button" id="quickAddToggle" class="quick-add-toggle" aria-label="Quick change factory inventory" title="Quick change" aria-expanded="false" aria-controls="quickAddPanel">
@@ -864,7 +865,7 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v1.0.1 · Factorio 2.0 / Space Age · Optional cloud sync · Engineer. Build. Optimize. Physical input routing, actual train deliveries, circuit-controlled pumps, fuel/power delivery, beacon geometry and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v1.0.2 · Factorio 2.0 / Space Age · Optional cloud sync · Engineer. Build. Optimize. Physical input routing, actual train deliveries, circuit-controlled pumps, fuel/power delivery, beacon geometry and inserter constraints remain unmodeled.</footer>
 </div>
 <link rel="stylesheet" href="./factory-onboarding.css">
 <link rel="stylesheet" href="./factory-milestones.css">
@@ -1479,17 +1480,28 @@ function updateGuideContext(){
  for(const node of sections){const rect=node.getBoundingClientRect();if(rect.top<=threshold&&rect.bottom>=threshold-10)selected=node.dataset.guideTopic}
  showGuideTopic(selected);
 }
+let helpMode='tips';
+function setHelpMode(mode){
+ helpMode=mode==='walkthroughs'?'walkthroughs':'tips';
+ document.getElementById('helpTipsContent').hidden=helpMode!=='tips';
+ document.getElementById('helpWalkthroughContent').hidden=helpMode!=='walkthroughs';
+ document.querySelectorAll('[data-help-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.helpMode===helpMode)));
+ if(helpMode==='walkthroughs')window.NauvisCoach?.mountMenu?.(document.getElementById('helpWalkthroughContent'));
+ else window.NauvisCoach?.unmountMenu?.();
+}
 function toggleGuide(open){
  if(open)window.NauvisQuick?.close(false);
  guideOpen=!!open;const panel=document.getElementById('contextHelp'),detail=document.getElementById('contextHelpDetail');
  panel.dataset.open=String(guideOpen);detail.hidden=!guideOpen;
  document.getElementById('contextHelpToggle').setAttribute('aria-expanded',String(guideOpen));
- if(guideOpen)detail.scrollTop=0;
+ if(guideOpen){detail.scrollTop=0;setHelpMode(helpMode)}else window.NauvisCoach?.unmountMenu?.();
 }
 function initGuide(){
  mountGuideTargets();
  const btn=document.getElementById('contextHelpToggle');
  btn.addEventListener('click',()=>toggleGuide(!guideOpen));
+ document.querySelectorAll('[data-help-mode]').forEach(b=>b.addEventListener('click',()=>setHelpMode(b.dataset.helpMode)));
+ document.getElementById('helpCurrentLesson').addEventListener('click',()=>window.NauvisCoach?.start?.(document.body.dataset.workspace));
  document.getElementById('contextHelpClose').addEventListener('click',()=>{toggleGuide(false);btn.focus()});
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&guideOpen){toggleGuide(false);btn.focus()}});
  document.addEventListener('pointerdown',e=>{const el=e.target.closest?.('[data-guide-topic]');if(el?.closest('.view.active')){guideFocus=el.dataset.guideTopic;showGuideTopic(guideFocus)}});
@@ -1497,7 +1509,7 @@ function initGuide(){
  let queued=false;
  window.addEventListener('scroll',()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;const y=window.scrollY;if(Math.abs(y-guideScroll)>14)guideFocus=null;guideScroll=y;updateGuideContext()})},{passive:true});
  window.addEventListener('resize',updateGuideContext,{passive:true});
- window.NauvisGuide={close:()=>toggleGuide(false),isOpen:()=>guideOpen};
+ window.NauvisGuide={close:()=>toggleGuide(false),isOpen:()=>guideOpen,open:(mode='tips')=>{helpMode=mode;toggleGuide(true)},refresh:()=>{if(guideOpen&&helpMode==='walkthroughs')setHelpMode(helpMode)}};
  updateGuideContext();
 }
 
@@ -1528,7 +1540,7 @@ function activateWorkspace(view,scrollPage=false){
  const bar=document.querySelector('.nav'),active=document.querySelector('.nav button.active');
  if(bar&&active){const barRect=bar.getBoundingClientRect(),tabRect=active.getBoundingClientRect();const target=bar.scrollLeft+(tabRect.left-barRect.left)-(bar.clientWidth-tabRect.width)/2;bar.scrollLeft=Math.max(0,Math.min(bar.scrollWidth-bar.clientWidth,target))}
  if(scrollPage)window.scrollTo({top:0,behavior:'instant'});
- window.NauvisWorkspace?.onActivate?.(view);window.NauvisMilestones?.refresh?.();window.NauvisCoach?.onActivate?.(view);
+ window.NauvisWorkspace?.onActivate?.(view);window.NauvisMilestones?.refresh?.();window.NauvisCoach?.onActivate?.(view);window.NauvisGuide?.refresh?.();
  if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>{const c=document.querySelector('.command-chrome');if(c)document.documentElement.style.setProperty('--chrome-height',Math.ceil(c.getBoundingClientRect().height)+'px')});
 }
 function init(){el('balanceIncludeGoal').addEventListener('change',e=>{balancePrefs.includeGoal=e.target.checked;try{localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs))}catch(_e){}window.NauvisCloud?.changed();renderBalance()});el('balanceEditSetup').addEventListener('click',()=>activateWorkspace('setup',true));el('allRecipes').innerHTML=[...new Set(allOrder.filter(x=>R[x]))].map(k=>`<option value="${k}">${R[k][0]}</option>`).join('');el('allRecipes').addEventListener('change',e=>setGoal(e.target.value));el('goalNumber').addEventListener('change',e=>{guide.rate=Math.min(25000,Math.max(0,Number(e.target.value)||0));renderGuide()});for(const [id,key] of [['assemblyTier','machine'],['sourceMode','source'],['beltTier','belt']])el(id).addEventListener('change',e=>{guide[key]=key==='source'?e.target.value:Number(e.target.value);renderGuide()});document.querySelectorAll('.nav button').forEach(btn=>btn.addEventListener('click',()=>activateWorkspace(btn.dataset.view==='build'?(window.NauvisWorkspace?.lastPlanMode?.()||'build'):btn.dataset.view==='setup'?(window.NauvisWorkspace?.lastFactoryMode?.()||'setup'):btn.dataset.view,true)));
