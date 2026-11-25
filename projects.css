@@ -210,3 +210,12 @@ body[data-workspace="factory"]{--workspace-accent:var(--nauvis-projects)}
 @media(max-width:480px){
  .command-chrome .nav-track>button::after{bottom:-11px}
 }
+
+/* v0.51: frozen incremental construction designs */
+.project-design{margin:10px 0;border:1px solid #466b73;border-radius:9px;padding:9px;background:#172f3c;font-size:12px}
+.project-design summary{cursor:pointer;font-weight:750;color:#a4eee3}
+.project-design[open] summary{margin-bottom:10px}
+.project-design strong{display:block;margin:10px 0 4px;font-size:11px;color:#bddddf}
+.project-design-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #40586c}
+.project-design-row span{display:flex;align-items:center;gap:6px;min-width:0;overflow-wrap:anywhere}
+.project-design-row b{font-variant-numeric:tabular-nums;flex-shrink:0}

@@ -123,7 +123,7 @@ test('the cloud snapshot continues to include plan without new tables or sync co
  assert.match(html,/snapshot\(\)\{return JSON\.parse\(JSON\.stringify\(\{version:7,plan:factory,guide,setup,balancePrefs\}\)\)\}/);
  assert.match(html,/projects:Array\.isArray\(data\.plan\.projects\)\?data\.plan\.projects:\[\]/);
  assert.match(html,/factory\.projects=Array\.isArray\(factory\.projects\)\?factory\.projects:\[\]/);
- assert.match(worker,/nauvis-shell-v050/);
+ assert.match(worker,/nauvis-shell-v051/);
  assert.match(worker,/projects\.js/);
  assert.match(worker,/projects\.css/);
 });
@@ -135,4 +135,23 @@ test('projects and the visual planner expose working navigation and create contr
  assert.match(projectJs,/saveSetup\(\);save\(\);renderSetup\(\)/);
  assert.match(projectJs,/factory\.projects=allProjects\(\)\.map/);
  assert.doesNotMatch(projectJs,/data-project-record/);
+});
+
+test('incremental project freezes reduced design and records only additional machines',()=>{
+ const {incrementalPlan}=require('../recipe-ratios.js'),{reuseClaims}=require('../projects.js');
+ const full=analyze(90),reduced=incrementalPlan(full,{'electronic-circuit':180});
+ reduced.reuseClaims=[{key:'machine:electronic-circuit|Available for new build',item:'electronic-circuit',rate:180}];
+ const p=buildProject('Incremental',reduced,'incremental','now');
+ assert.equal(projectProgress(p).planned,reduced.roundedTotal);
+ assert.equal(projectProgress(p).built,0);
+ assert.equal(p.tasks.some(t=>t.recipe==='electronic-circuit'),false);
+ assert.equal(p.design.baselineMachines,full.roundedTotal);
+ assert.equal(reuseClaims([p]).get(reduced.reuseClaims[0].key),180);
+ assert.equal(reuseClaims([{...p,status:'archived'}]).get(reduced.reuseClaims[0].key),180);
+ assert.equal(reuseClaims([{...p,status:'archived',reuseReleased:true}]).size,0);
+ const existing=[{recipe:'electronic-circuit',count:2,tier:.75,destination:'Available for new build'}];
+ const next=applyBuildDelta(p,'advanced-circuit',1,existing);
+ assert.deepEqual(next.rows[0],existing[0]);assert.equal(next.rows.length,2);assert.equal(next.rows[1].count,1);
+ reduced.entries[0].count=999;assert.notEqual(p.design.analysis.entries[0].count,999);
+ assert.throws(()=>buildProject('Bad',{...reduced,reuseClaims:[]},'bad','now'),/Reuse commitments differ/);
 });

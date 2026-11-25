@@ -155,6 +155,22 @@ test('blueprint handoff is explicit and isolated from saved network and Inventor
  const js=read('logistics.js'),ratio=read('recipe-ratios.js');
  assert.match(ratio,/data-ratio-logistics-preview/);
  assert.match(js,/blueprintDraft=clone\(result\)/);
- assert.match(js,/engine\.incrementalPlan\(full,selectedRates\)/);
+ assert.match(js,/NauvisEngineering\.incrementalPlan\(blueprintDraft,selectedRates\)/);
  assert.match(js,/Session-only preview/);
+});
+
+test('queued reuse claims reduce available rate and do not add machines',()=>{
+ const {reuseCandidates}=require('../logistics.js'),key='machine:a|Available for new build';
+ const rows=[{recipe:'a',count:2,destination:'Available for new build'}],model={a:['A',1,1,'asm',{}]},rate=(_,r,row)=>({output:row.count*45});
+ const graph={nodes:[],edges:[]};
+ assert.equal(reuseCandidates(rows,model,graph,new Map(),rate,new Map([[key,60]]))[0].rate,30);
+ assert.equal(reuseCandidates(rows,model,graph,new Map(),rate,new Map([[key,90]])).length,0);
+ assert.equal(rows[0].count,2);
+});
+test('incremental queue revalidates draft and saved design has distinct navigation',()=>{
+ const js=read('logistics.js'),projects=read('projects.js');
+ assert.match(js,/JSON\.stringify\(latest\)!==JSON\.stringify\(pending\)/);
+ assert.match(js,/viewSavedDesign/);
+ assert.match(projects,/pendingOptions\?\.validate/);
+ assert.match(projects,/design=freezeDesign\(analysis\)/);
 });
