@@ -76,10 +76,10 @@ test('preset scripts and styling precache offline without any data schema change
  const worker=read('service-worker.js');
  assert.match(html,/src="\.\/production-presets\.js"/);
  assert.match(html,/href="\.\/preset-v026\.css"/);
- assert.match(worker,/nauvis-shell-v059/);
+ assert.match(worker,/nauvis-shell-v060/);
  assert.match(worker,/production-presets\.js/);
  assert.match(worker,/preset-v026\.css/);
- assert.match(html,/Nauvis Command Center v0\.59/);
+ assert.match(html,/Nauvis Command Center v0\.60/);
  assert.match(html,/version:7,plan:factory,guide,setup,balancePrefs/);
 });
 
