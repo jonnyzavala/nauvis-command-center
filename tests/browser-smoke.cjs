@@ -14,6 +14,8 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
  const count=w=>snap(w).setup.machines.reduce((n,r)=>n+Number(r.count),0);
  try{
   let w=prep(await load());
+  await new Promise(r=>setTimeout(r,50));
+  if(w.document.querySelector('#factoryOnboardingDialog').open)click(w,'[data-onboard-action="close"]');
   assert(w.NauvisLocal&&w.NauvisLogistics&&w.NauvisRecipeMath,'Application and deferred modules initialized');
   const data=snap(w);
   data.plan.projects=[];data.plan.journal=[];
@@ -82,6 +84,23 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   const empty=snap(w);
   assert(empty.setup.machines.length===0&&empty.plan.projects.length===0&&!empty.setup.logisticsDrafts&&!empty.setup.logistics&&empty.setup.smelt.ironFurnaces===0,'Fresh Start removes all synthetic factory records');
   assert(empty.guide.goal===backup.guide.goal,'Fresh Start preserves planner preferences');
+  assert(w.document.querySelector('#factoryOnboardingDialog').open,'Fresh Start opens guided setup automatically');
+  click(w,'[data-onboard-mode="existing"]');click(w,'[data-onboard-action="next"]');
+  set(w,'[data-onboard-field="belt"]','1800');click(w,'[data-onboard-action="next"]');
+  set(w,'[data-onboard-field="smelt:ironFurnaces"]','24');set(w,'[data-onboard-field="smelt:ironBelts"]','2');
+  click(w,'[data-onboard-action="next"]');click(w,'[data-onboard-action="add"]');
+  set(w,'[data-onboard-field="line:0:count"]','4');
+  assert(count(w)===0,'Wizard does not add machines before Apply');
+  click(w,'[data-onboard-action="next"]');
+  assert(count(w)===4&&snap(w).setup.smelt.ironFurnaces===24,'Guided setup records only entered actual counts');
+  assert(snap(w).plan.projects.length===0&&!snap(w).setup.logistics,'Guided setup does not invent projects or connections');
+  click(w,'[data-onboard-action="tour-close"]');
+  await new Promise(r=>setTimeout(r,30));
+  assert(w.document.querySelector('#setup .factory-milestones').textContent.includes('Factory online'),'Inventory milestone reacts to initial production line');
+  assert(w.document.querySelector('#balance .factory-milestones'),'Balance has contextual progress card');
+  click(w,'#factoryOnboardingLaunch');
+  assert(w.document.querySelector('[data-onboard-action="tour-visit"]')&&!w.document.querySelector('[data-onboard-mode]'),'Existing factory opens read-only tour');
+  click(w,'[data-onboard-action="tour-close"]');
   w.NauvisLocal.apply(backup);
   assert(count(w)===8&&snap(w).setup.logisticsDrafts.length===1,'Complete backup restores actual inventory and draft');
   await fetch('/__result',{method:'POST',body:JSON.stringify({ok:true,checks})});

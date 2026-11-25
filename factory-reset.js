@@ -60,6 +60,7 @@ function execute(){
  root.NauvisCloud?.changed?.();
  modal.close();invalidateBackup();
  status('All factory data cleared locally. The empty snapshot will sync to paired devices through the normal cloud connection. Your downloaded backup contains the old records.');
+ root.NauvisOnboarding?.open?.('reset');
 }
 backup?.addEventListener('click',()=>{try{download()}catch(err){status(err.message)}});
 agree?.addEventListener('change',updateReady);
