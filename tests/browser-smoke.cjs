@@ -20,6 +20,11 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(w.NauvisFocus.getMode()==='focus'&&w.document.querySelector('#build.active'),'Focus is the default and opens Planner');
   const initial=JSON.stringify(snap(w));
   click(w,'[data-focus-view="flow"]');
+  w.document.querySelector('#focusSupplyCalculator').open=true;
+  set(w,'#focusSourceCount','148','input');
+  assert(w.document.querySelector('#focusSupplyPreview').textContent.includes('5,550'),'148 steel furnaces compute rated iron output');
+  click(w,'[data-flow-action="use-machine-supply"]');
+  assert(w.NauvisFocus.analyze().s.supply===5550,'Machine calculation fills supply without recording machines');
   click(w,'[data-flow-action="example"]');
   assert(w.NauvisFocus.analyze().delivered===1800,'Automatic example redistributes spare branch capacity');
   set(w,'[data-flow-field="policy"]','fixed');
