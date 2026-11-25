@@ -147,7 +147,9 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(w.document.querySelector('#focusConstructionSummary .focus-ring')&&w.document.querySelector('.focus-project-ring'),'Construction has aggregate and project progress rings');
   w.activateWorkspace('build');click(w,'#build [data-ratio-focus-flow]');
   assert(w.document.querySelector('#flow.active')&&!w.document.querySelector('#focusBlueprintBelts').hidden&&w.document.querySelector('#focusBlueprintBelts [data-ratio-lane-panel]').open,'Planner opens automatically populated belt layout');
-  click(w,'[data-flow-view="quick"]');
+  assert(!!w.document.querySelector('#focusBlueprintBelts .focus-check-material'),'Ingredient diagram offers direct supply checks');
+  click(w,'#focusBlueprintBelts .focus-check-material');
+  assert(!w.document.querySelector('#focusQuickSplit').hidden&&w.NauvisFocus.analyze().demand>0&&w.NauvisFocus.analyze().s.supply===0,'Ingredient check auto-populates demand and belts without inventing supply');
   assert(!!w.document.querySelector('#focusPlanInput'),'Blueprint input requirements available for quick check');
   click(w,'[data-flow-edit="source"]');
   assert(w.document.querySelector('#focusFlowEditor').open&&w.document.querySelector('#focusSupplyCalculator').open,'Source node opens the machine-count editor');
