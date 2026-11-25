@@ -20,6 +20,10 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(w.NauvisFocus.getMode()==='focus'&&w.document.querySelector('#build.active'),'Focus is the default and opens Planner');
   const initial=JSON.stringify(snap(w));
   click(w,'[data-focus-view="flow"]');
+  assert(w.document.querySelector('#focusBlueprintBelts [data-ratio-lane-panel]').open&&w.document.querySelector('#focusBlueprintBelts [data-ratio-flow-root]'),'Flow opens current blueprint lane diagram and production chain automatically');
+  click(w,'[data-flow-view="quick"]');
+  assert(w.document.querySelector('#focusBlueprintBelts').hidden&&!w.document.querySelector('#focusQuickSplit').hidden,'Quick split is an independent visual mode');
+  w.document.querySelector('#focusFlowEditor').open=true;
   w.document.querySelector('#focusSupplyCalculator').open=true;
   set(w,'#focusSourceCount','148','input');
   assert(w.document.querySelector('#focusSupplyPreview').textContent.includes('5,550'),'148 steel furnaces compute rated iron output');
@@ -142,7 +146,11 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   w.NauvisFocus.setMode('focus');w.activateWorkspace('factory');
   assert(w.document.querySelector('#focusConstructionSummary .focus-ring')&&w.document.querySelector('.focus-project-ring'),'Construction has aggregate and project progress rings');
   w.activateWorkspace('build');click(w,'#build [data-ratio-focus-flow]');
-  assert(w.document.querySelector('#flow.active')&&w.document.querySelector('#focusPlanInput'),'Planner passes input requirements to Flow');
+  assert(w.document.querySelector('#flow.active')&&!w.document.querySelector('#focusBlueprintBelts').hidden&&w.document.querySelector('#focusBlueprintBelts [data-ratio-lane-panel]').open,'Planner opens automatically populated belt layout');
+  click(w,'[data-flow-view="quick"]');
+  assert(!!w.document.querySelector('#focusPlanInput'),'Blueprint input requirements available for quick check');
+  click(w,'[data-flow-edit="source"]');
+  assert(w.document.querySelector('#focusFlowEditor').open&&w.document.querySelector('#focusSupplyCalculator').open,'Source node opens the machine-count editor');
   assert(JSON.stringify(snap(w))===beforeFocus,'Planner to Flow preserves actual inventory and projects');
   // Simulate a nonzero iOS safe-area inset.
   w.NauvisFocus.setMode('focus');w.activateWorkspace('build');
