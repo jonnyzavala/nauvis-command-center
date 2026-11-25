@@ -593,6 +593,7 @@ body[data-workspace="build"]{
 <link rel="stylesheet" href="./inventory-v027.css" />
 <link rel="stylesheet" href="./advanced-v028.css" />
  <link rel="stylesheet" href="./sensory-feedback.css" />
+ <link rel="stylesheet" href="./factory-coach.css" />
 </head>
 <body data-workspace="balance">
 <div class="shell">
@@ -767,7 +768,7 @@ body[data-workspace="build"]{
    <div id="projectsArchived" class="projects-cards"></div>
   </details>
  </section>
- <section class="view" id="learn"><div class="hero"><div class="eyebrow">THE THREE NUMBERS THAT MATTER</div><h1>How do I use this?</h1><p>You only need the goal. The computer should do the recipe accounting.</p></div>
+ <section class="view" id="learn"><div class="hero"><button type="button" id="coachLaunch" class="coach-launch">Hands-on walkthroughs</button><div class="eyebrow">THE THREE NUMBERS THAT MATTER</div><h1>How do I use this?</h1><p>You only need the goal. The computer should do the recipe accounting.</p></div>
   <div class="rulegrid section"><div class="rule"><b style="color:var(--gold)">30/min</b><strong>Production goal</strong><p class="small">How much finished product the factory makes each minute. For science, 30/min is a reasonable starting baseline, not an obligation.</p></div><div class="rule"><b style="color:var(--purple)">19</b><strong>Machine count</strong><p class="small">How many machines are needed to make the item and its local ingredients. 90 red circuits/min takes 19 Assembler 2s in the self-contained block.</p></div><div class="rule"><b style="color:var(--green)">900/min</b><strong>Yellow belt capacity</strong><p class="small">The most items one full yellow belt carries per minute, both lanes combined. Red is 1,800/min. Faster belts don't increase machine output.</p></div></div>
   <div class="section panel"><h2>Example: 90 red circuits/min</h2><div class="example"><p>Start with <b>90 red circuits/min</b>. The planner works backward and tells you to place:</p><p><strong style="color:var(--green)">2 green-circuit assemblers</strong>, <strong style="color:var(--gold)">5 cable assemblers</strong> and <strong style="color:var(--red)">12 red-circuit assemblers</strong>.</p><p><b>19 total.</b> Inputs: 180 iron plates, 450 copper plates and 180 plastic bars per minute. All fit individually on yellow belts.</p></div><p class="small">That doesn't mean the assemblers will always run. If storage fills or consumers stop, the machines stop. The listed count is maximum sustained capacity with adequate supplies.</p></div>
   <div class="section panel"><h2>Before upgrading a belt</h2><div style="display:grid;gap:12px"><div><div class="inline"><b>Yellow</b><b>900/min</b></div><div class="track"><div style="width:33.333%;background:#e9bd61"></div></div></div><div><div class="inline"><b>Red</b><b>1,800/min</b></div><div class="track"><div style="width:66.666%;background:#e67b78"></div></div></div><div><div class="inline"><b>Blue</b><b>2,700/min</b></div><div class="track"><div style="width:100%;background:#76b3e2"></div></div></div></div><p class="small">If your furnaces produce only 700 plates/min, any of these belts will still carry only 700. Upgrade when the belt is saturated, not just because you've researched the next color.</p></div>
@@ -1527,7 +1528,7 @@ function activateWorkspace(view,scrollPage=false){
  const bar=document.querySelector('.nav'),active=document.querySelector('.nav button.active');
  if(bar&&active){const barRect=bar.getBoundingClientRect(),tabRect=active.getBoundingClientRect();const target=bar.scrollLeft+(tabRect.left-barRect.left)-(bar.clientWidth-tabRect.width)/2;bar.scrollLeft=Math.max(0,Math.min(bar.scrollWidth-bar.clientWidth,target))}
  if(scrollPage)window.scrollTo({top:0,behavior:'instant'});
- window.NauvisWorkspace?.onActivate?.(view);window.NauvisMilestones?.refresh?.();
+ window.NauvisWorkspace?.onActivate?.(view);window.NauvisMilestones?.refresh?.();window.NauvisCoach?.onActivate?.(view);
  if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>{const c=document.querySelector('.command-chrome');if(c)document.documentElement.style.setProperty('--chrome-height',Math.ceil(c.getBoundingClientRect().height)+'px')});
 }
 function init(){el('balanceIncludeGoal').addEventListener('change',e=>{balancePrefs.includeGoal=e.target.checked;try{localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs))}catch(_e){}window.NauvisCloud?.changed();renderBalance()});el('balanceEditSetup').addEventListener('click',()=>activateWorkspace('setup',true));el('allRecipes').innerHTML=[...new Set(allOrder.filter(x=>R[x]))].map(k=>`<option value="${k}">${R[k][0]}</option>`).join('');el('allRecipes').addEventListener('change',e=>setGoal(e.target.value));el('goalNumber').addEventListener('change',e=>{guide.rate=Math.min(25000,Math.max(0,Number(e.target.value)||0));renderGuide()});for(const [id,key] of [['assemblyTier','machine'],['sourceMode','source'],['beltTier','belt']])el(id).addEventListener('change',e=>{guide[key]=key==='source'?e.target.value:Number(e.target.value);renderGuide()});document.querySelectorAll('.nav button').forEach(btn=>btn.addEventListener('click',()=>activateWorkspace(btn.dataset.view==='build'?(window.NauvisWorkspace?.lastPlanMode?.()||'build'):btn.dataset.view==='setup'?(window.NauvisWorkspace?.lastFactoryMode?.()||'setup'):btn.dataset.view,true)));
@@ -1586,6 +1587,7 @@ window.NauvisLocal={
 <script src="./factory-onboarding.js" defer></script>
 <script src="./factory-milestones.js" defer></script>
 <script src="./sensory-feedback.js" defer></script>
+<script src="./factory-coach.js" defer></script>
 <script src="./workspace-ui.js" defer></script>
 <script src="./logistics.js" defer></script>
 <script>if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));</script>
