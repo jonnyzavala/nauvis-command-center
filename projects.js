@@ -70,7 +70,7 @@ function constructionMaterials(project,recipes){
  const machineItems={asm:project.goal.machine===1.25?'assembling-machine-3':'assembling-machine-2',chem:'chemical-plant',furnace:project.furnaceItem};
  const counts=new Map(),ingredients=new Map(),unknown=[];
  for(const t of project.tasks||[]){
-  const key=machineItems[t.kind];if(!key){if(['asm','chem','furnace'].includes(t.kind)&&t.planned>t.built)unknown.push('unspecified '+t.kind+' machine');continue;}
+  const key=t.kind==='asm'?(taskProfile(project,t).machine===.5?'assembling-machine-1':taskProfile(project,t).machine===1.25?'assembling-machine-3':'assembling-machine-2'):machineItems[t.kind];if(!key){if(['asm','chem','furnace'].includes(t.kind)&&t.planned>t.built)unknown.push('unspecified '+t.kind+' machine');continue;}
   const old=counts.get(key)||{key,planned:0,built:0};old.planned+=t.planned;old.built+=t.built;counts.set(key,old);
  }
  for(const row of counts.values()){
@@ -128,17 +128,36 @@ function projectProgress(project){
   complete:tasks.filter(t=>clampInt(t.planned)>0&&clampInt(t.built)>=clampInt(t.planned)).length,
   tasks:tasks.length};
 }
+// The saved blueprint remains historical; a task override describes the
+// uniform profile actually installed (and used by subsequent Built actions).
+function taskProfile(project,task){return task.actualProfile||project.goal}
+function reconcileTaskProfile(project,recipe,patch,rows,recipes){
+ const task=project?.tasks?.find(t=>t.recipe===recipe);
+ if(!task||!['asm','chem'].includes(task.kind)||task.built<=0)throw Error('Record built production machines before changing their installed profile.');
+ const r=recipes[recipe];if(!r||r[3]!==task.kind)throw Error('Unsupported machine recipe.');
+ const effects=root.NauvisEffects||(typeof require==='function'?require('./production-effects.js'):null);
+ const matching=rows.filter(x=>x.projectId===project.id&&x.projectTask===recipe),prior=recordedForTask(project,task,rows);
+ if(matching.length!==1||prior.mismatch||prior.count!==task.built)throw Error('Project and Factory records differ. Reconcile counts before changing the installed profile.');
+ const profile={...effects.settings(patch),machine:task.kind==='asm'?Number(patch.machine):1};
+ if(task.kind==='asm'&&![.5,.75,1.25].includes(profile.machine))throw Error('Choose a supported assembler tier.');
+ const effective=effects.forRecipe(recipe,task.kind,profile);
+ if(effective.moduleRequested>effective.moduleSlots||!effective.moduleEligible)throw Error('The selected modules are not supported by this recipe or machine tier.');
+ if(profile.beaconSpeed&&!effective.moduleSlots)throw Error('This machine does not support the selected effective beacon bonus.');
+ const line=matching[0],next={...line,tier:profile.machine,moduleType:profile.moduleType,moduleCount:profile.moduleCount,moduleType2:profile.moduleType2,moduleCount2:profile.moduleCount2,machineQuality:profile.machineQuality,beaconSpeed:profile.beaconSpeed};
+ return {project:{...project,tasks:project.tasks.map(t=>t===task?{...t,actualProfile:profile}:t)},rows:rows.map(x=>x===line?next:x)};
+}
 function recordedForTask(project,task,rows){
+ const profile=taskProfile(project,task);
  const matching=(Array.isArray(rows)?rows:[]).filter(row=>row?.projectId===project.id&&row?.projectTask===task.recipe);
  const count=matching.reduce((sum,row)=>sum+clampInt(row.count),0);
  const mismatch=matching.some(row=>row.recipe!==task.recipe||
-  (task.kind==='asm'&&Math.abs(Number(row.tier)-Number(project.goal.machine))>1e-8)||
+  (task.kind==='asm'&&Math.abs(Number(row.tier)-Number(profile.machine))>1e-8)||
   (task.kind!=='asset'&&(
-   (row.moduleType||'none')!==(project.goal.moduleType||'none')||
-   Number(row.moduleCount||0)!==Number(project.goal.moduleCount||0)||
-   (row.moduleType2||'none')!==(project.goal.moduleType2||'none')||Number(row.moduleCount2||0)!==Number(project.goal.moduleCount2||0)||
-   (row.machineQuality||'normal')!==(project.goal.machineQuality||'normal')||
-   Number(row.beaconSpeed||0)!==Number(project.goal.beaconSpeed||0)
+   (row.moduleType||'none')!==(profile.moduleType||'none')||
+   Number(row.moduleCount||0)!==Number(profile.moduleCount||0)||
+   (row.moduleType2||'none')!==(profile.moduleType2||'none')||Number(row.moduleCount2||0)!==Number(profile.moduleCount2||0)||
+   (row.machineQuality||'normal')!==(profile.machineQuality||'normal')||
+   Number(row.beaconSpeed||0)!==Number(profile.beaconSpeed||0)
   )));
  return {count,mismatch};
 }
@@ -155,7 +174,7 @@ function applyBuildDelta(project,recipe,delta,rows){
  const previous=recordedForTask(project,task,source);
  if(previous.mismatch||previous.count!==count)
   throw Error('Project and Factory counts differ. Review the linked Factory row before changing progress.');
- const tier=task.kind==='asm'?Number(project.goal.machine):1;
+ const profile=taskProfile(project,task),tier=task.kind==='asm'?Number(profile.machine):1;
  const line=related[0];
  const effects=root.NauvisEffects||(typeof require==='function'?require('./production-effects.js'):null);
  const entityKey=line?effects.machineKey(line):task.entityKey||effects.newMachineKey(recipe,'project:'+project.id+':'+recipe);
@@ -168,8 +187,8 @@ function applyBuildDelta(project,recipe,delta,rows){
   else nextRows[index]={...nextRows[index],count:next};
  }else if(next>0){
   nextRows.push({recipe,count:next,tier,destination:'Other',projectId:project.id,projectTask:recipe,entityKey,
-   moduleType:project.goal.moduleType||'none',moduleCount:project.goal.moduleCount||0,moduleType2:project.goal.moduleType2||'none',moduleCount2:project.goal.moduleCount2||0,
-   machineQuality:project.goal.machineQuality||'normal',beaconSpeed:project.goal.beaconSpeed||0});
+   moduleType:profile.moduleType||'none',moduleCount:profile.moduleCount||0,moduleType2:profile.moduleType2||'none',moduleCount2:profile.moduleCount2||0,
+   machineQuality:profile.machineQuality||'normal',beaconSpeed:profile.beaconSpeed||0});
  }
  return {project:{...project,tasks:project.tasks.map(t=>t.recipe===recipe?{...t,built:next,entityKey}:t)},rows:nextRows};
 }
@@ -182,7 +201,7 @@ function normalizeProjects(value){
  });
 }
 if(typeof module==='object'&&module.exports)
- module.exports={buildProject,projectProgress,recordedForTask,applyBuildDelta,validateProjectName,normalizeProjects,reuseClaims,validateReuseClaims,freezeDesign,constructionMaterials,expandConstructionMaterials,constructionSupply};
+ module.exports={buildProject,projectProgress,recordedForTask,applyBuildDelta,validateProjectName,normalizeProjects,reuseClaims,validateReuseClaims,freezeDesign,constructionMaterials,expandConstructionMaterials,constructionSupply,taskProfile,reconcileTaskProfile};
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id);
 const escape=s=>String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
@@ -276,6 +295,31 @@ function furnaceRecorded(p,t){
   return {count,mismatch:!field||count!==t.built};
  }catch(_e){return {count:0,mismatch:true}}
 }
+function taskProfileControls(p,t,mismatch){
+ if(!['asm','chem'].includes(t.kind)||t.built<=0||mismatch)return '';
+ const cfg=taskProfile(p,t),effects=root.NauvisEffects,recipe=R[t.recipe];if(!recipe)return '';
+ const opts=(pairs,value)=>pairs.map(([key,label])=>'<option value="'+escape(key)+'"'+(String(key)===String(value)?' selected':'')+'>'+escape(label)+'</option>').join('');
+ const line=setup.machines.find(x=>x.projectId===p.id&&x.projectTask===t.recipe);if(!line)return '';
+ const output=effects.recordedRates(t.recipe,recipe,line).output;
+ return '<details class="project-task-profile"><summary>Installed machine profile · '+fmt(output)+'/min rated'+(t.actualProfile?' · adjusted':'')+'</summary><p class="small">Applies to every built machine in this task and subsequent Built actions. Original blueprint and planned machine count are unchanged; compare the actual Balance after upgrading.</p><div class="project-profile-fields">'+
+ (t.kind==='asm'?'<label>Assembler tier<select data-task-profile-field="machine">'+opts([[.5,'Assembler 1'],[.75,'Assembler 2'],[1.25,'Assembler 3']],cfg.machine)+'</select></label>':'')+
+ '<label>Primary module<select data-task-profile-field="moduleType">'+opts(effects.MODULE_OPTIONS,cfg.moduleType||'none')+'</select></label><label>Primary slots<input type="number" min="0" max="4" step="1" data-task-profile-field="moduleCount" value="'+Number(cfg.moduleCount||0)+'"></label>'+
+ '<label>Secondary module<select data-task-profile-field="moduleType2">'+opts(effects.MODULE_OPTIONS,cfg.moduleType2||'none')+'</select></label><label>Secondary slots<input type="number" min="0" max="4" step="1" data-task-profile-field="moduleCount2" value="'+Number(cfg.moduleCount2||0)+'"></label>'+
+ '<label>Machine quality<select data-task-profile-field="machineQuality">'+opts(['normal','uncommon','rare','epic','legendary'].map(x=>[x,x]),cfg.machineQuality||'normal')+'</select></label><label>Effective beacon speed (%)<input type="number" min="0" max="300" step="any" data-task-profile-field="beaconSpeed" value="'+Number(cfg.beaconSpeed||0)+'"></label></div>'+
+ '<button type="button" class="project-record-btn" data-project-profile="'+escape(p.id)+'" data-task-recipe="'+escape(t.recipe)+'">Record installed profile</button><p class="small">This records a physical change you have already made in-game. Does not place extra machines or change planned logistics routes.</p></details>';
+}
+function updateTaskProfile(p,recipe,button){
+ try{
+  const fields=button.closest('.project-task-profile').querySelectorAll('[data-task-profile-field]'),patch={};
+  for(const input of fields){const k=input.dataset.taskProfileField;patch[k]=['machine','moduleCount','moduleCount2','beaconSpeed'].includes(k)?Number(input.value):input.value}
+  const change=reconcileTaskProfile(p,recipe,patch,setup.machines,R);
+  if(!root.confirm('Record this installed machine profile for the entire linked array? Actual machine count and the original blueprint remain unchanged.'))return;
+  factory.projects=allProjects().map(x=>x.id===p.id?change.project:x);setup.machines=change.rows;
+  root.NauvisJournal?.record?.({type:'machine-settings',source:'Construction Queue',projectId:p.id,recipe,title:'Updated installed '+(R[recipe]?.[0]||recipe)+' profile',detail:p.name+' · existing linked array; counts and original blueprint unchanged.'});
+  saveSetup();save();renderSetup();notice='Installed profile reconciled. Blueprint retained; actual production rates updated.';render();
+  const card=[...document.querySelectorAll('[data-project-card]')].find(x=>x.dataset.projectCard===p.id);const tasks=card?.querySelector('.project-task-details');if(tasks)tasks.open=true;
+ }catch(err){root.alert(err.message)}
+}
 function projectHTML(p){
  const progress=projectProgress(p),pct=progress.planned?Math.round(100*progress.built/progress.planned):0;
  const archived=p.status==='archived';
@@ -285,9 +329,9 @@ function projectHTML(p){
   const color=colorFor(task.recipe,task.kind);
   const mismatch=saved.mismatch||saved.count!==task.built;
   const cannotRecord=task.kind==='furnace'&&Number(setup.smelt.furnaceSpeed)!==2;
-  const possibleDuplicates=task.kind==='furnace'?Math.max(0,Number(setup.smelt[root.NauvisEffects.SMELT_FIELDS[task.recipe]])-(setup.smelt.projectBuilt||[]).filter(x=>x.recipe===task.recipe).reduce((n,x)=>n+x.count,0)):isAsset?matchingUnlinkedAssets(task.recipe,p.goal.area):matchingUnlinked(task.recipe,p.goal.machine);
+  const possibleDuplicates=task.kind==='furnace'?Math.max(0,Number(setup.smelt[root.NauvisEffects.SMELT_FIELDS[task.recipe]])-(setup.smelt.projectBuilt||[]).filter(x=>x.recipe===task.recipe).reduce((n,x)=>n+x.count,0)):isAsset?matchingUnlinkedAssets(task.recipe,p.goal.area):matchingUnlinked(task.recipe,taskProfile(p,task).machine);
   return '<div class="project-task" style="--project-task-accent:'+color+'">'+
-   '<div class="project-task-identity"><span class="project-task-led" aria-hidden="true"></span>'+itemGlyph(task.recipe,32)+'<div><strong>'+escape(R[task.recipe]?.[0]||task.recipe)+'</strong><small>'+escape(noun(task.kind))+' · '+task.planned+' planned'+(task.kind==='asm'?' · Assembler '+(p.goal.machine===1.25?'3':'2'):task.kind==='furnace'?' · '+escape(R[p.furnaceItem]?.[0]||'2× furnace'):'')+'</small></div></div>'+
+   '<div class="project-task-identity"><span class="project-task-led" aria-hidden="true"></span>'+itemGlyph(task.recipe,32)+'<div><strong>'+escape(R[task.recipe]?.[0]||task.recipe)+'</strong><small>'+escape(noun(task.kind))+' · '+task.planned+' planned'+(task.kind==='asm'?' · Assembler '+(taskProfile(p,task).machine===1.25?'3':taskProfile(p,task).machine===.5?'1':'2'):task.kind==='furnace'?' · '+escape(R[p.furnaceItem]?.[0]||'2× furnace'):'')+'</small></div></div>'+
    '<div class="project-task-controls"><button type="button" data-project-minus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" title="Reverse built count · removes one from actual Inventory" aria-label="Mark one fewer '+escape(task.recipe)+' built" '+(archived||task.built<=0||mismatch?'disabled':'')+'>−</button>'+
    '<span class="project-task-counter"><b>'+task.built+'</b><small>/ '+task.planned+(isAsset?' placed':' built')+'</small></span>'+
    '<button type="button" data-project-plus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" title="Mark one as built · adds one to actual Inventory" aria-label="Mark one more '+escape(task.recipe)+' built" '+(archived||task.built>=task.planned||mismatch||cannotRecord?'disabled':'')+'>+</button></div>'+
@@ -295,7 +339,7 @@ function projectHTML(p){
    (mismatch?'<span class="project-task-warning">Factory and project counts differ. Review the linked line in Factory.</span>':
     cannotRecord?'<span class="project-task-warning">Set actual smelting speed to 2× before recording this furnace.</span>':
     possibleDuplicates?'<span class="project-task-warning">Check for duplicates: '+possibleDuplicates+' matching unlinked machines already in Factory.</span>':'')+
-   '</div></div>';
+   '</div>'+taskProfileControls(p,task,mismatch)+'</div>';
  }).join('');
  return '<article class="project-card" data-project-card="'+escape(p.id)+'" style="--project-card-accent:'+colorFor(p.goal.id,'asm')+'">'+
   '<div class="project-card-top"><span class="project-card-icon" aria-hidden="true">'+itemGlyph(p.goal.id,34)+'</span>'+
@@ -384,7 +428,7 @@ function updateBuilt(id,recipe,delta){
   const isFurnace=task.kind==='furnace';
   const ownership=isFurnace?root.NauvisEffects.smeltOwnership(setup.smelt,allProjects()):{};
   const field=root.NauvisEffects.SMELT_FIELDS[recipe];
-  const overlap=isFurnace?Math.max(0,Number(setup.smelt[field]||0)-(ownership[field]||0)):isAsset?matchingUnlinkedAssets(recipe,project.goal.area):matchingUnlinked(recipe,project.goal.machine);
+  const overlap=isFurnace?Math.max(0,Number(setup.smelt[field]||0)-(ownership[field]||0)):isAsset?matchingUnlinkedAssets(recipe,project.goal.area):matchingUnlinked(recipe,taskProfile(project,task).machine);
   const overlapKey=id+'|'+recipe;
   if(delta>0&&overlap>0&&!reviewedOverlaps.has(overlapKey)){
    const msg=overlap+' matching '+(R[recipe]?.[0]||recipe)+' '+(isAsset?'placed structures':'machines')+
@@ -480,10 +524,11 @@ function attachEvents(){
  $('factory')?.addEventListener('click',event=>{
   const b=event.target.closest('button');if(!b)return;
   if(b.matches('[data-project-go-planner]')){activateWorkspace('build',true);return}
-  const id=b.dataset.projectPlus||b.dataset.projectMinus||b.dataset.projectVisit||b.dataset.projectRename||b.dataset.projectArchive||b.dataset.projectRelease||b.dataset.projectMaterialSupply;
+  const id=b.dataset.projectPlus||b.dataset.projectMinus||b.dataset.projectVisit||b.dataset.projectRename||b.dataset.projectArchive||b.dataset.projectRelease||b.dataset.projectMaterialSupply||b.dataset.projectProfile;
   if(!id)return;
   const project=selectedProject(id);
   if(!project)return;
+  if(b.hasAttribute('data-project-profile')){updateTaskProfile(project,b.dataset.taskRecipe,b);return}
   if(b.hasAttribute('data-project-material-supply')){checkMaterialSupply(project,b);return}
   if(b.hasAttribute('data-project-release')){
    if(project.status!=='archived'||projectProgress(project).built!==0||project.reuseReleased||!project.design?.reuseClaims?.length)return;
