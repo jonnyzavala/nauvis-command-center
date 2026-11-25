@@ -19,7 +19,7 @@ const local=()=>window.NauvisLocal&&window.NauvisLocal.snapshot();
 function showStatus(kind,note){
  const labels={local:'Local only',connecting:'Checking',saved:'Synced',syncing:'Syncing',offline:'Offline',error:'Sync error',conflict:'Sync conflict'};
  const el=$('cloudStatus');if(el){el.dataset.state=kind;el.title=note||labels[kind]||'';el.setAttribute('aria-label','Cloud synchronization: '+(labels[kind]||kind)+'. '+(note||'')+' Open settings.');}
- if($('cloudStatusText'))$('cloudStatusText').textContent=labels[kind]||kind;
+ if($('cloudStatusText'))$('cloudStatusText').textContent=kind==='local'?'Local':labels[kind]||kind;
  if($('cloudStatusDetail'))$('cloudStatusDetail').textContent=note||'';
  if($('cloudConflictActions'))$('cloudConflictActions').hidden=kind!=='conflict';
 }

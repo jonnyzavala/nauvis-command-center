@@ -73,3 +73,5 @@ test('corner buttons have no decorative LED, while the cloud sync indicator rema
 });
 
 test('one bottom-left help surface includes tips and hands-on walkthroughs',()=>{assert.match(html,/id="helpTipsTab"/);assert.match(html,/id="helpWalkthroughTab"/);assert.match(html,/id="helpCurrentLesson"/);assert.doesNotMatch(html,/id="coachLaunch"/);assert.match(html,/NauvisCoach\?\.mountMenu/)});
+
+test('safe area, uniform header and gradient are cached',()=>{const polish=fs.readFileSync(path.join(root,'header-polish.css'),'utf8');assert.match(html,/viewport-fit=cover/);assert.match(polish,/env\(safe-area-inset-top,0px\)/);assert.match(polish,/display-mode:standalone/);assert.match(polish,/linear-gradient\(90deg,#79b5f6 0%,#78e4cf 34%,#efad66 67%,#ed7775 100%\)/);assert.match(worker,/header-polish\.css/);assert.match(html,/id="cloudStatusText">Local</)});
