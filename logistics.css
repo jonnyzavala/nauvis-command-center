@@ -130,3 +130,16 @@
 .log-shared-row{padding:8px 0;border-top:1px solid #40586c;display:grid;gap:5px}
 .log-shared-row>div:first-child{display:grid;gap:4px}
 .log-shared-row small{color:#b9c9da}.log-shared-row .log-lane-detail{margin:0}
+
+/* v0.50 · isolated build preview */
+.log-preview-header{border:1px dashed #65b5ff;border-radius:12px;background:#172d43;padding:12px;margin:10px 0}
+.log-preview-header>small{color:#8bc5ff;font-weight:850;font-size:10px;letter-spacing:.08em}
+.log-preview-header h3{margin:5px 0;font-size:17px}.log-preview-header p{font-size:12px;line-height:1.5;color:#bfcfe0}
+.log-preview-proposed{border-style:dashed;border-color:#65b5ff;border-left-color:#65b5ff}.log-preview-proposed header small{color:#8bc5ff}
+.log-preview-proposed header strong,.log-preview-ingredient>span,.log-reuse-option>span{display:flex;align-items:center;gap:6px;min-width:0;overflow-wrap:anywhere}
+.log-preview-ingredient{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid #40586c;font-size:11px}
+.log-preview-ingredient b{flex-shrink:0;font-variant-numeric:tabular-nums}.log-preview-proposed button{margin-top:8px;width:100%;font-size:11px}
+.log-panel .log-reuse-option{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #40586c}
+.log-reuse-option input{width:18px;height:18px;min-height:0;flex:0 0 18px;accent-color:#efa08e}
+.log-reuse-option>span{display:grid;grid-template-columns:22px minmax(0,1fr);flex:1}.log-reuse-option small{grid-column:2;color:#b6c8da}
+.log-lane-visual>div>span{display:flex;align-items:center;gap:5px;min-width:0}

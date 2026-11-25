@@ -142,3 +142,19 @@ test('Balance opens the same actual resource network without scenario demand',()
  assert.match(html,/NauvisLogistics\?\.actualNetwork/);
  assert.match(html,/data-balance-route/);
 });
+
+test('reuse requires explicitly available recorded groups and no outgoing modeled commitment',()=>{
+ const {reuseCandidates}=require('../logistics.js');
+ const rows=[{recipe:'a',count:2,destination:'Available for new build'},{recipe:'a',count:3,destination:'Main bus'},{recipe:'b',count:1,destination:'Available for new build'}],model={a:['A',1,1,'asm',{}],b:['B',1,1,'asm',{}]},rate=(_,r,row)=>({output:row.count*45});
+ const key='machine:a|Available for new build',graph={nodes:[],edges:[]};
+ assert.equal(reuseCandidates(rows,model,graph,new Map([[key,.5]]),rate).find(r=>r.item==='a').rate,45);
+ graph.nodes=[{id:'s',kind:'source',item:'a',link:key},{id:'d',kind:'destination',item:'a'}];graph.edges=[{id:'r',from:'s',to:'d',tier:'yellow',belts:1}];
+ assert.deepEqual(reuseCandidates(rows,model,graph,new Map(),rate).map(r=>r.item),['b']);
+});
+test('blueprint handoff is explicit and isolated from saved network and Inventory',()=>{
+ const js=read('logistics.js'),ratio=read('recipe-ratios.js');
+ assert.match(ratio,/data-ratio-logistics-preview/);
+ assert.match(js,/blueprintDraft=clone\(result\)/);
+ assert.match(js,/engine\.incrementalPlan\(full,selectedRates\)/);
+ assert.match(js,/Session-only preview/);
+});

@@ -134,3 +134,17 @@ test('per-array lane pairing saves physical belts without mixing unrelated array
   for(const r of p.requirements){const lanes=p.groups.reduce((s,g)=>s+g.count*((g.a===r.id?1:0)+(g.b===r.id?1:0)),0);assert.equal(lanes,r.lanes);assert.ok(lanes*p.lane>=r.needed)}
  }
 });
+
+test('incremental plan deducts available supply once across shared dependencies, never final output',()=>{
+ const {analyzeRecipeRatios,incrementalPlan}=require('../recipe-ratios.js');
+ const model={a:['A',1,1,'asm',{b:2,c:1}],b:['B',1,1,'asm',{d:1}],c:['C',1,1,'asm',{d:2}],d:['D',1,1,'asm',{ore:1}]};
+ const full=analyzeRecipeRatios(model,{id:'a',rate:45,machine:.75,belt:900,source:'raw'},{stopRaw:new Set(),stopBus:new Set(),fluids:new Set(),names:{}});
+ const before=JSON.stringify(full),inc=incrementalPlan(full,{a:999,b:45,d:45,ore:15});
+ assert.equal(inc.entries.find(x=>x.key==='a').needed,45);
+ assert.equal(inc.entries.find(x=>x.key==='d').needed,90);
+ assert.equal(inc.external[0].needed,75);assert.equal(inc.reused.find(x=>x.key==='d').rate,45);
+ assert.equal(inc.roundedTotal,5);assert.equal(JSON.stringify(full),before);
+ const all=incrementalPlan(full,{b:1000,c:1000,d:1000});
+ assert.deepEqual(all.entries.map(x=>x.key),['a']);assert.equal(all.external.length,0);
+ assert.equal(all.reused.length,2);
+});

@@ -271,12 +271,26 @@ function ensureEntityPort(graph,port,entity,idFactory){
  if(existing)return existing.id;
  const key=idFactory();graph.nodes.push({id:key,item:port.item,kind:port.kind,label:entity.label,link:port.link,autoLabel:true,amount:'',tier:'red',entityAnchor:port.kind==='destination'});return key;
 }
-if(typeof module==='object'&&module.exports)module.exports={normalize,connect,analyze,order,TIERS,layoutBelts,groupKey,networkResults,diagnostics,scenarioGraph,entityProjection,ensureEntityPort,laneCount,cap,compatiblePair,sanitizeBundles,pairLanes,unpairLanes,updateRoute,physicalFeeders};
+function reuseCandidates(rows,recipes,graph,factors,rates){
+ const result=new Map(),g=normalize(graph);
+ for(const row of rows||[]){
+  if(row.destination!=='Available for new build'||!recipes[row.recipe]||!(Number(row.count)>0))continue;
+  const key='machine:'+row.recipe+'|'+row.destination;
+  const r=result.get(key)||{key,item:row.recipe,count:0,rate:0};
+  r.count+=Number(row.count);r.rate+=rates(row.recipe,recipes[row.recipe],row).output;result.set(key,r);
+ }
+ return [...result.values()].filter(r=>{
+  const nodes=g.nodes.filter(n=>n.kind==='source'&&n.link===r.key);
+  return nodes.length<=1&&!g.edges.some(e=>nodes.some(n=>n.id===e.from));
+ }).map(r=>({...r,rate:r.rate*Math.max(0,Math.min(1,factors?.get(r.key)??1))})).filter(r=>r.rate>1e-9);
+}
+if(typeof module==='object'&&module.exports)module.exports={normalize,connect,analyze,order,TIERS,layoutBelts,groupKey,networkResults,diagnostics,scenarioGraph,entityProjection,ensureEntityPort,laneCount,cap,compatiblePair,sanitizeBundles,pairLanes,unpairLanes,updateRoute,physicalFeeders,reuseCandidates};
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 const fmt=n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:1}),opts=(arr,v)=>arr.map(([a,b])=>'<option value="'+esc(a)+'"'+(a===v?' selected':'')+'>'+esc(b)+'</option>').join('');
 const materialName=k=>R[k]?.[0]||names[k]||k.replaceAll('-',' ');
 const itemColor=k=>root.NauvisIcons?.color?.(k)||'#86c2f1';
+let blueprintDraft=null,previewMode=false,reuseSelection=new Set(),previewArray=null;
 let includeScenario=false,entityMode=true,entityPicker=false,entityPending=null,entityFilter='all',entityView=null;
 let item='iron-plate',selected=null,connecting=null,undo=null,notice='',brushTier='red',brushCount=1,brushLanes=2,drag=null,picker=false,ignoreClickUntil=0;
 const materials=[...new Set([...Object.keys(R),...Object.keys(names),'uranium-ore'])].filter(k=>!FLUID.has(k)&&!['crude-oil','sulfuric-acid'].includes(k)).sort((a,b)=>materialName(a).localeCompare(materialName(b)));
@@ -442,7 +456,7 @@ function entityCatalog(){
  }
  return [...groups.values()].filter(e=>e.ports.some(p=>p.solid&&p.rate>0)).sort((a,b)=>a.label.localeCompare(b.label));
 }
-function modeBar(){return '<div class="log-mode"><button data-log-mode="entities" aria-pressed="'+entityMode+'">Production network</button><button data-log-mode="resource" aria-pressed="'+!entityMode+'">Resource detail</button></div>'}
+function modeBar(){return '<div class="log-mode"><button data-log-mode="entities" aria-pressed="'+(!previewMode&&entityMode)+'">Production network</button><button data-log-mode="resource" aria-pressed="'+(!previewMode&&!entityMode)+'">Resource detail</button>'+(blueprintDraft?'<button data-log-mode="preview" aria-pressed="'+previewMode+'">Build preview</button>':'')+'</div>'}
 function entityPort(key,index){const entity=entityView?.entities.find(e=>e.key===key);return entity&&entity.ports[index]?{entity,port:entity.ports[index]}:null}
 function addEntity(key){
  const record=entityCatalog().find(e=>e.key===key);if(!record)return;
@@ -459,7 +473,7 @@ function connectEntity(from,to){
  }catch(err){notice=err.message;render()}
 }
 function inspectResource(resource,key=null){
- entityMode=false;item=resource;selected=key;connecting=null;entityPending=null;picker=false;render();
+ previewMode=false;entityMode=false;item=resource;selected=key;connecting=null;entityPending=null;picker=false;render();
 }
 function mixedFeederPanel(graph){
  const groups=physicalFeeders(graph),pairs=groups.filter(x=>x.mixed);
@@ -520,8 +534,40 @@ function renderEntities(host){
  '<p class="log-message" role="status">'+esc(notice||'Tap an output +, then a matching input +. Tap ↗ to inspect or edit its resource-specific network.')+'</p>'+
  '<p class="log-muted">One card per linked production group. Unconnected ingredient ports are unverified, not assumed supplied or starved. Pipe transport and proposed arrays are not yet supported. Mixed feeders share one final segment; map lines show resource allocations. All existing resource routes remain editable in Resource detail. Network changes do not modify Inventory.</p>';
 }
+function previewBlueprint(result){
+ if(!result?.entries?.length||!(result.rate>0))return;
+ blueprintDraft=clone(result);reuseSelection=new Set();previewArray=result.id;previewMode=true;
+ selected=null;entityPending=null;connecting=null;activateWorkspace('logistics',true);render();
+}
+function renderPreview(host){
+ if(!blueprintDraft){previewMode=false;render();return}
+ const full=blueprintDraft,engine=root.NauvisEngineering,network=actualNetwork();
+ // A non-convergent network is not an eligible basis for reuse.
+ const graph=scenarioGraph(data(),false),eligibleItems=new Set([...full.entries.map(x=>x.key),...full.external.map(x=>x.key)].filter(x=>x!==full.id));
+ const candidates=network.converged&&!Array.from(network.results.values()).some(x=>x.error)?reuseCandidates(setup.machines,R,graph,network.factors,root.NauvisEffects.recordedRates).filter(r=>eligibleItems.has(r.item)):[];
+ const selectedRates={};
+ for(const c of candidates)if(reuseSelection.has(c.key))selectedRates[c.item]=(selectedRates[c.item]||0)+c.rate;
+ const result=engine.incrementalPlan(full,selectedRates),saved=full.roundedTotal-result.roundedTotal;
+ const used=new Map(result.reused.map(x=>[x.key,x.rate]));
+ const itemLabel=k=>esc(materialName(k));
+ const itemGlyph=k=>root.NauvisIcons?.item?.(k,22)||'';
+ const entry=result.entries.find(e=>e.key===previewArray)||result.entries.find(e=>e.key===result.id);
+ const lanePlan=entry?engine.planArrayLanes(entry,result.belt,false):null;
+ const tier=Object.keys(TIERS).find(k=>TIERS[k]===result.belt)||'red';
+ const lane=(k)=>'<div style="--material:'+esc(k?itemColor(k):'#41515e')+'"><span>'+(k?itemGlyph(k)+itemLabel(k):'Unused lane')+'</span><b>'+fmt(k?result.belt/2:0)+'/min</b></div>';
+ const proposed=result.entries.map(e=>'<article class="log-entity-card log-preview-proposed"><header><small>PROPOSED · NOT BUILT</small><strong>'+itemGlyph(e.key)+' '+esc(e.name)+'</strong><span>'+e.count+' new machines · '+fmt(e.needed)+'/min target</span></header><div class="log-entity-section">REQUIRED INPUTS</div>'+e.ingredients.map(i=>'<div class="log-preview-ingredient"><span>'+itemGlyph(i.id)+' '+esc(i.name)+'</span><b>'+fmt(i.needed)+'/min</b></div>').join('')+'<button data-log-preview-array="'+esc(e.key)+'" aria-pressed="'+(entry?.key===e.key)+'">Inspect recommended feeder lanes</button></article>').join('');
+ host.innerHTML=modeBar()+'<div class="log-preview-header"><small>HYPOTHETICAL BUILD · SESSION PREVIEW</small><h3>'+esc(full.name)+' · '+fmt(full.rate)+'/min new output</h3><p>Actual Inventory and saved network are unchanged. Select available recorded output to reduce this new build; verify delivery before constructing.</p><div class="log-stat-grid"><div><small>Original machines</small><b>'+full.roundedTotal+'</b></div><div><small>New machines</small><b>'+result.roundedTotal+'</b></div><div><small>Avoided</small><b>'+saved+'</b></div></div></div>'+
+ '<div class="log-mixed-panel"><div class="log-brush-head"><strong>Reuse recorded production</strong><span>'+candidates.length+' eligible</span></div>'+
+ (candidates.length?candidates.map(c=>'<label class="log-reuse-option"><input type="checkbox" data-log-reuse="'+esc(c.key)+'" '+(reuseSelection.has(c.key)?'checked':'')+'><span>'+itemGlyph(c.item)+' <b>'+itemLabel(c.item)+'</b><small>'+c.count+' recorded machines · '+fmt(c.rate)+'/min candidate capacity'+(reuseSelection.has(c.key)?' · '+fmt(used.get(c.item)||0)+'/min assigned':'')+'</small></span></label>').join(''):'<p class="log-muted">No eligible recorded production. Assign an existing line to “Available for new build” in Inventory, and leave it without outgoing network commitments to make it eligible.</p>')+
+ '<p class="log-muted">Only explicitly available lines without outgoing modeled routes are offered. Missing ingredient routes remain unverified; selected reuse is an assumption, not a reservation or proof of delivery. The final output target remains additional production.</p></div>'+
+ '<div class="log-brush-head"><strong>Proposed production arrays</strong><span>'+result.entries.length+' stages</span></div><div class="log-entity-grid">'+proposed+'</div>'+
+ '<div class="log-mixed-panel"><strong>Remaining external inputs</strong>'+ (result.external.length?result.external.map(x=>'<div class="log-preview-ingredient"><span>'+itemGlyph(x.key)+' '+esc(x.name)+'</span><b>'+fmt(x.needed)+'/min'+(x.isFluid?' · pipe':'')+'</b></div>').join(''):'<p class="log-muted">None at this recipe boundary.</p>')+'<p class="log-muted">External inputs still require supply; not automatically taken from your main bus.</p></div>'+
+ (lanePlan?'<div class="log-mixed-panel"><div class="log-brush-head"><strong>'+esc(entry.name)+' · feeder recommendation</strong><span>'+lanePlan.physical+' '+tier+' · '+lanePlan.saved+' saved</span></div>'+lanePlan.groups.map(g=>'<div class="log-shared-row"><b>'+g.count+' × '+(g.a===g.b?'full':g.b?'mixed':'half')+' feeder</b><div class="log-lane-visual" style="--belt:'+({yellow:'#e5c35f',red:'#e17b71',blue:'#79b5f6'}[tier])+'">'+lane(g.a)+lane(g.b)+'</div></div>').join('')+'<p class="log-muted">Exact target demand; pipe and inserter throughput not modeled. These are proposed feeder allocations, not saved actual routes.</p></div>':'')+
+ '<div class="log-actions"><button class="log-primary" data-log-preview-action="back">Return to original blueprint</button><button data-log-preview-action="clear">Discard preview</button></div><p class="log-muted">Session-only preview. Nothing is queued or synced. The original Blueprint Designer still queues the full standalone plan; incremental construction handoff is not yet supported.</p>';
+}
 function render(){
  const host=$('logisticsEditor');if(!host||!$('logistics')?.classList.contains('active'))return;
+ if(previewMode){renderPreview(host);return}
  if(entityMode){renderEntities(host);return}
  const oldGraph=$('logGraph'),sx=oldGraph?.scrollLeft||0,sy=oldGraph?.scrollTop||0;const g=sub(scenarioGraph(data(),includeScenario));if(!g.nodes.some(n=>n.id===selected)&&!g.edges.some(e=>e.id===selected))selected=null;
  let a,network;try{network=networkResults(scenarioGraph(data(),includeScenario),lookup);a=network.results.get(item)||analyze(g,lookup);if(a.error)throw Error(a.error)}catch(e){host.innerHTML='<p class="log-danger">'+esc(e.message)+'</p><button data-log-action="clear-graph">Clear this resource diagram</button>';return}
@@ -540,7 +586,9 @@ function init(){
  const host=$('logisticsEditor');if(!host)return;
  host.addEventListener('click',ev=>{
   if(Date.now()<ignoreClickUntil){ev.preventDefault();return}
-  const mode=ev.target.closest('[data-log-mode]');if(mode){entityMode=mode.dataset.logMode==='entities';selected=null;connecting=null;entityPending=null;picker=false;render();return}
+  const previewAction=ev.target.closest('[data-log-preview-action]')?.dataset.logPreviewAction;if(previewAction){if(previewAction==='back'&&blueprintDraft){root.NauvisRatioExplorer?.setGoal(blueprintDraft);activateWorkspace('build',true);root.NauvisRatioExplorer?.openAt('build')}else if(previewAction==='clear'){blueprintDraft=null;previewMode=false;reuseSelection.clear();entityMode=true;render()}return}
+  const pa=ev.target.closest('[data-log-preview-array]');if(pa){previewArray=pa.dataset.logPreviewArray;render();return}
+  const mode=ev.target.closest('[data-log-mode]');if(mode){previewMode=mode.dataset.logMode==='preview';if(!previewMode)entityMode=mode.dataset.logMode==='entities';selected=null;connecting=null;entityPending=null;picker=false;render();return}
   const ef=ev.target.closest('[data-log-entity-filter]');if(ef){entityFilter=ef.dataset.logEntityFilter;render();return}
   const ea=ev.target.closest('[data-log-entity-add]');if(ea){addEntity(ea.dataset.logEntityAdd);return}
   const ep=ev.target.closest('[data-log-entity-port]');if(ep){const target={key:ep.dataset.logEntityPort,index:Number(ep.dataset.portIndex)},p=entityPort(target.key,target.index);if(!p)return;if(p.port.kind==='source'){entityPending=target;render()}else if(entityPending)connectEntity(entityPending,target);else if(p.port.nodeId)inspectResource(p.port.item,p.port.nodeId);return}
@@ -569,7 +617,7 @@ function init(){
   if(action==='clear-graph'&&root.confirm('Clear only this resource network?')){const g=data(),ids=new Set(g.nodes.filter(n=>n.item===item).map(n=>n.id));g.nodes=g.nodes.filter(n=>!ids.has(n.id));g.edges=g.edges.filter(e=>!ids.has(e.from)&&!ids.has(e.to));commit(g,'Resource diagram cleared.');}
  });
  host.addEventListener('change',ev=>{
-  const input=ev.target;if(input.matches('[data-log-pair]')){if(input.value)try{commit(pairLanes(data(),input.dataset.logPair,input.value,id()),'Mixed feeder paired. Both resources reserve one lane. Inventory unchanged.')}catch(err){notice=err.message;render()}return}if(input.matches('[data-log-scenario]')){includeScenario=input.checked;selected=null;connecting=null;render();return}if(input.matches('[data-log-split]')){const g=data(),visible=scenarioGraph(g,includeScenario),ids=new Set(visible.edges.map(e=>e.id)),edges=g.edges.filter(e=>e.from===input.dataset.logSplit&&ids.has(e.id)),v=Number(input.value);if(edges.length===2&&Number.isFinite(v)&&v>=0&&v<=100){edges[0].weight=v;edges[1].weight=100-v;commit(g,'Branch allocation updated.')}return}if(input.matches('[data-log-slider],[data-log-exact]')){const v=Number(input.value);if(Number.isSafeInteger(v)&&v>=1&&v<=100)applyBrush({belts:v});else render();return}if(input.matches('[data-log-resource]')){item=input.value;selected=null;connecting=null;picker=false;notice='';render();return}
+  const input=ev.target;if(input.matches('[data-log-reuse]')){if(input.checked)reuseSelection.add(input.dataset.logReuse);else reuseSelection.delete(input.dataset.logReuse);render();return}if(input.matches('[data-log-pair]')){if(input.value)try{commit(pairLanes(data(),input.dataset.logPair,input.value,id()),'Mixed feeder paired. Both resources reserve one lane. Inventory unchanged.')}catch(err){notice=err.message;render()}return}if(input.matches('[data-log-scenario]')){includeScenario=input.checked;selected=null;connecting=null;render();return}if(input.matches('[data-log-split]')){const g=data(),visible=scenarioGraph(g,includeScenario),ids=new Set(visible.edges.map(e=>e.id)),edges=g.edges.filter(e=>e.from===input.dataset.logSplit&&ids.has(e.id)),v=Number(input.value);if(edges.length===2&&Number.isFinite(v)&&v>=0&&v<=100){edges[0].weight=v;edges[1].weight=100-v;commit(g,'Branch allocation updated.')}return}if(input.matches('[data-log-slider],[data-log-exact]')){const v=Number(input.value);if(Number.isSafeInteger(v)&&v>=1&&v<=100)applyBrush({belts:v});else render();return}if(input.matches('[data-log-resource]')){item=input.value;selected=null;connecting=null;picker=false;notice='';render();return}
   const field=input.dataset.logField;if(!field)return;
   const g=data(),n=g.nodes.find(n=>n.id===selected),e=g.edges.find(e=>e.id===selected);
   if(n){let v=input.value;if(field==='label'&&!v.trim())v=n.kind;if(field==='amount'&&v!==''&&(!Number.isFinite(Number(v))||Number(v)<0)){notice='Use a nonnegative belt equivalent.';render();return}const patch={[field]:v};if(field==='label'||(field==='link'&&!v))patch.autoLabel=false;
@@ -599,7 +647,7 @@ function init(){
  });
  host.addEventListener('pointercancel',()=>{drag=null;render()});
  let lastWidth=root.innerWidth;root.addEventListener('resize',()=>{if(root.innerWidth!==lastWidth){lastWidth=root.innerWidth;if($('logistics')?.classList.contains('active'))render()}},{passive:true});
- root.NauvisLogistics={render,actualNetwork,openResource(resource){inspectResource(resource);},invalidate(){undo=null;selected=null;connecting=null;picker=false;drag=null;includeScenario=false;entityPending=null;entityPicker=false;notice='';render()}};
+ root.NauvisLogistics={render,actualNetwork,previewBlueprint,openResource(resource){inspectResource(resource);},invalidate(){blueprintDraft=null;previewMode=false;reuseSelection.clear();undo=null;selected=null;connecting=null;picker=false;drag=null;includeScenario=false;entityPending=null;entityPicker=false;notice='';render()}};
  render();
 }
 init();

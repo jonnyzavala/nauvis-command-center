@@ -133,8 +133,36 @@ function planIngredientLanes(ingredients,belt,scale=1){
 function planArrayLanes(entry,belt,rounded=false){
  return planIngredientLanes(entry.ingredients,belt,rounded&&entry.needed>0?entry.count*entry.perMachine/entry.needed:1);
 }
-if(typeof module==='object'&&module.exports)module.exports={analyzeRecipeRatios,assertFiniteRate,recipeGroup,recipeMatches,RECIPE_GROUPS,planIngredientLanes,planArrayLanes};
+// Allocate explicitly selected existing supply once across shared dependencies.
+// The final goal is NEW output; do not silently substitute existing final product.
+function incrementalPlan(full,available={}){
+ if(!full?.entries?.length||!Number.isFinite(full.rate)||full.rate<=0)throw Error('Choose a positive blueprint target.');
+ const needs=new Map([[full.id,full.rate]]),reused=[],entries=[],external=[];
+ const take=(key,required,name)=>{
+  const amount=key===full.id?0:Math.min(required,Math.max(0,Number(available[key])||0));
+  if(amount>1e-9)reused.push({key,name,rate:amount});
+  return Math.max(0,required-amount);
+ };
+ // Descending depth guarantees all consuming stages contribute before the
+ // shared ingredient is sized; a supply pool is deducted once, not per branch.
+ for(const row of [...full.entries].sort((a,b)=>b.depth-a.depth)){
+  const total=needs.get(row.key)||0,needed=take(row.key,total,row.name);
+  if(needed<=1e-9)continue;
+  const scale=needed/row.needed,exact=needed/row.perMachine,count=Math.ceil(exact-1e-10);
+  const ingredients=row.ingredients.map(x=>({...x,needed:x.needed*scale}));
+  for(const x of ingredients)needs.set(x.id,(needs.get(x.id)||0)+x.needed);
+  entries.push({...row,needed,exact,count,craftsPerMinute:row.craftsPerMinute*scale,ingredients});
+ }
+ for(const row of full.external){
+  const needed=take(row.key,needs.get(row.key)||0,row.name);
+  if(needed>1e-9)external.push({...row,needed,belts:row.isFluid?null:Math.ceil(needed/full.belt-1e-10)});
+ }
+ entries.sort((a,b)=>a.depth-b.depth||a.name.localeCompare(b.name));
+ return {...full,entries,external,reused,roundedTotal:entries.reduce((s,x)=>s+x.count,0),exactTotal:entries.reduce((s,x)=>s+x.exact,0),kinds:entries.reduce((a,x)=>{a[x.kind]=(a[x.kind]||0)+x.count;return a},{asm:0,chem:0,furnace:0}),baselineMachines:full.roundedTotal};
+}
+if(typeof module==='object'&&module.exports)module.exports={analyzeRecipeRatios,assertFiniteRate,recipeGroup,recipeMatches,RECIPE_GROUPS,planIngredientLanes,planArrayLanes,incrementalPlan};
 root.NauvisRecipeMath=analyzeRecipeRatios;
+root.NauvisEngineering={incrementalPlan,planIngredientLanes,planArrayLanes};
 if(typeof document==='undefined')return;
 
 const $=id=>document.getElementById(id);
@@ -259,6 +287,7 @@ function buildView(result,card){
  return fieldset+
   (advancedOn?'<p class="ratio-effect-status"><strong>Upgrade profile active:</strong> machine counts and upstream ingredients reflect compatible module/quality bonuses. Review per-recipe effects under “Why this ratio?”.</p>':'')+
   '<div data-ratio-flow-root class="ratio-flow-root"></div>'+lanePanel(result)+
+  '<div class="ratio-save-strip"><button class="ratio-save-project" data-ratio-logistics-preview type="button">Preview in Logistics <span aria-hidden="true">→</span></button><span>Test proposed production and explicitly available existing supply without changing Inventory.</span></div>'+
   '<div class="ratio-save-strip"><button class="ratio-save-project" data-ratio-project-save type="button">Queue construction <span aria-hidden="true">→</span></button><span>Creates a planned checklist only. Actual Inventory changes when machines are marked built.</span></div>'+
   '<div data-ratio-legacy-table hidden>'+
   '<div class="ratio-overview">'+
@@ -332,6 +361,7 @@ function renderCard(card){
   target.querySelector('[data-ratio-lane-panel]')?.addEventListener('toggle',e=>{laneOpen=e.target.open});
   target.querySelector('[data-ratio-lane-array]')?.addEventListener('change',e=>{laneArray=e.target.value;laneOpen=true;renderAll()});
   target.querySelector('[data-ratio-lane-rounded]')?.addEventListener('change',e=>{laneRounded=e.target.checked;laneOpen=true;renderAll()});
+  target.querySelector('[data-ratio-logistics-preview]')?.addEventListener('click',()=>{if(result.rate>0)root.NauvisLogistics?.previewBlueprint?.(result);else root.alert('Choose a production target above zero.');});
   target.querySelector('[data-ratio-project-save]')?.addEventListener('click',()=>root.NauvisProjects?.createFromRatio(result));
   const button=target.querySelector('[data-ratio-send]');
   button.addEventListener('click',()=>{
