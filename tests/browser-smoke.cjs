@@ -33,6 +33,14 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   for(const cue of ['click','ratchet','countUp','countDown','check','uncheck','build','route']){click(w,'[data-sensory-test="'+cue+'"]');await new Promise(r=>setTimeout(r,15));assert(w.document.querySelector('#sensoryStatus').textContent.includes('Played '+cue+' preview'),'Industrial preview '+cue+' plays in Chrome')}
   set(w,'#sensoryPalette','electronic');
   assert(w.NauvisSensory.getPrefs().palette==='electronic','Classic sound palette selectable');
+  set(w,'#sensoryBackend','media');
+  click(w,'#sensoryTestSound');
+  for(let i=0;i<30&&!w.document.querySelector('#sensoryStatus').textContent.includes('Media test tone sent');i++)await new Promise(r=>setTimeout(r,50));
+  assert(w.document.querySelector('#sensoryStatus').textContent.includes('Media test tone sent'),'Independent media audio test plays PCM WAV in Chrome');
+  click(w,'[data-sensory-test="click"]');
+  for(let i=0;i<30&&!w.document.querySelector('#sensoryStatus').textContent.includes('Played click preview');i++)await new Promise(r=>setTimeout(r,50));
+  assert(w.document.querySelector('#sensoryStatus').textContent.includes('Played click preview'),'Media palette cue resolves playback');
+  set(w,'#sensoryBackend','auto');
   set(w,'#sensoryVolume','67','input');
   set(w,'#sensoryMotion','off');
   click(w,'#sensoryCat-achievements');
