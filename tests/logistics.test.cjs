@@ -61,7 +61,7 @@ test('gross and post-steel iron are mutually exclusive sources',()=>{
 });
 test('touch-first editor has a unified inventory picker, belt slider, split slider and output ports',()=>{
  const js=read('logistics.js'),css=read('logistics.css');
- for(const token of ['data-log-port','data-physical-belt','data-log-slider','data-log-split','data-log-link','smelt:steel-input','steelCapMachines*5','setPointerCapture','elementFromPoint'])assert.ok(js.includes(token),token);
+ for(const token of ['data-log-port','data-physical-belt','data-log-slider','data-log-split','data-log-link','smelt:steel-input','steelRatedInput','setPointerCapture','elementFromPoint'])assert.ok(js.includes(token),token);
  assert.match(css,/touch-action:none/);
 });
 
