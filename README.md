@@ -290,3 +290,6 @@ The default industrial palette combines short filtered noise transients, damped 
 
 ### v1.0.3 · Audio recovery
 Visible Test sound and Restart audio controls, diagnostic audio state and a category-independent test tone (still respects master mute and volume). Trusted touch release/click gestures can retry suspended audio, resume attempts are bounded, and explicit restart recreates the audio context. Test tone scheduling does not prove audible hardware output. No factory or cloud changes.
+
+### v1.0.4 · Compact header
+Keep NAUVIS · FACTORY OPERATIONS together on one line with a dedicated mobile header row, preserving the existing cloud and audio controls. Responsive browser checks cover desktop, 390px and 320px widths. No factory data changes.
