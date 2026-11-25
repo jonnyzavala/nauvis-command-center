@@ -16,7 +16,29 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   let w=prep(await load());
   await new Promise(r=>setTimeout(r,50));
   if(w.document.querySelector('#factoryOnboardingDialog').open)click(w,'[data-onboard-action="close"]');
-  assert(w.NauvisLocal&&w.NauvisLogistics&&w.NauvisRecipeMath,'Application and deferred modules initialized');
+  assert(w.NauvisLocal&&w.NauvisLogistics&&w.NauvisRecipeMath&&w.NauvisSensory,'Application and deferred modules initialized');
+  const beforeSensory=JSON.stringify(snap(w));
+  click(w,'#sensoryLaunch');
+  assert(w.document.querySelector('#sensoryDialog').open,'Sensory settings open from header');
+  assert(!w.NauvisSensory.getPrefs().enabled,'Sound starts muted');
+  click(w,'#sensoryEnabled');
+  await w.NauvisSensory.unlock();
+  assert(w.NauvisSensory.state()==='running','Real Chrome Web Audio context runs with test autoplay permission');
+  click(w,'[data-sensory-test="achievement"]');
+  await new Promise(r=>setTimeout(r,80));
+  assert(w.document.querySelector('#sensoryStatus').textContent.includes('Played achievement'),'Sound preview triggers in real Chrome');
+  set(w,'#sensoryVolume','67','input');
+  set(w,'#sensoryMotion','off');
+  click(w,'#sensoryCat-achievements');
+  assert(w.NauvisSensory.getPrefs().volume===67&&w.NauvisSensory.getPrefs().categories.achievements===false,'Sensory settings update independently');
+  assert(w.document.body.dataset.sensoryMotion==='off','Motion off is applied');
+  assert(JSON.stringify(snap(w))===beforeSensory,'Sensory settings never modify factory snapshot');
+  click(w,'#sensoryClose');
+  w=prep(await load());
+  assert(w.NauvisSensory.getPrefs().volume===67&&!w.NauvisSensory.getPrefs().categories.achievements,'Device preferences survive reload');
+  click(w,'#sensoryLaunch');click(w,'#sensoryReset');
+  assert(!w.NauvisSensory.getPrefs().enabled&&w.NauvisSensory.getPrefs().volume===35,'Restore defaults mutes audio');
+  click(w,'#sensoryClose');
   const data=snap(w);
   data.plan.projects=[];data.plan.journal=[];
   data.setup.machines=[{recipe:'electronic-circuit',count:4,tier:.75,destination:'Available for new build'},{recipe:'copper-cable',count:2,tier:.75,destination:'Main bus'}];
@@ -76,6 +98,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   }
   w.activateWorkspace('setup');
   const backup=snap(w);
+  w.NauvisSensory.setPrefs({volume:51,motion:'subtle'});
   // Suppress the test download itself; still exercise the real backup/reset UI.
   const originalClick=w.HTMLAnchorElement.prototype.click;
   w.HTMLAnchorElement.prototype.click=function(){if(!this.download)return originalClick.call(this)};
@@ -84,6 +107,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   const empty=snap(w);
   assert(empty.setup.machines.length===0&&empty.plan.projects.length===0&&!empty.setup.logisticsDrafts&&!empty.setup.logistics&&empty.setup.smelt.ironFurnaces===0,'Fresh Start removes all synthetic factory records');
   assert(empty.guide.goal===backup.guide.goal,'Fresh Start preserves planner preferences');
+  assert(w.NauvisSensory.getPrefs().volume===51&&w.NauvisSensory.getPrefs().motion==='subtle','Fresh Start preserves sensory preferences');
   assert(w.document.querySelector('#factoryOnboardingDialog').open,'Fresh Start opens guided setup automatically');
   click(w,'[data-onboard-mode="existing"]');click(w,'[data-onboard-action="next"]');
   set(w,'[data-onboard-field="belt"]','1800');click(w,'[data-onboard-action="next"]');
@@ -123,7 +147,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   res.setHeader('Content-Type',mime[path.extname(file)]||'application/octet-stream');fs.createReadStream(file).pipe(res);
  });
  await new Promise(r=>server.listen(0,'127.0.0.1',r));
- const chrome=spawn(process.env.CHROME_BIN||'google-chrome',['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-background-networking','--no-first-run','--no-default-browser-check','--window-size=1280,1000','--user-data-dir='+profile,'http://127.0.0.1:'+server.address().port+'/__smoke'],{stdio:['ignore','ignore','pipe']});
+ const chrome=spawn(process.env.CHROME_BIN||'google-chrome',['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-background-networking','--autoplay-policy=no-user-gesture-required','--no-first-run','--no-default-browser-check','--window-size=1280,1000','--user-data-dir='+profile,'http://127.0.0.1:'+server.address().port+'/__smoke'],{stdio:['ignore','ignore','pipe']});
  let stderr='';chrome.stderr.on('data',d=>stderr=(stderr+d).slice(-3000));
  chrome.on('error',e=>resolveResult({ok:false,error:e.message,checks:[]}));
  chrome.on('exit',code=>resolveResult({ok:false,error:'Chrome exited '+code+' '+stderr,checks:[]}));
