@@ -64,7 +64,7 @@ test('existing manually placed infrastructure is not implicitly claimed or recou
  assert.equal(next.rows.find(x=>x.id==='manual').count,12);
  assert.equal(next.rows.find(x=>x.projectId==='p2').count,1);
  assert.match(projects,/matchingUnlinkedAssets/);
- assert.match(projects,/if\(!root\.confirm\(msg\)\)return/);
+ assert.match(projects,/if\(overlaps\.length&&!root\.confirm\(/);
 });
 test('a previously modified or duplicated linked asset blocks project updates',()=>{
  const p=deploymentProject('Battery bank','accumulator',3,'p3');
