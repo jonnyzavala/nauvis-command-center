@@ -72,7 +72,7 @@ function open(reason='manual'){
  if(dialog.open)return;
  baseline=root.NauvisLocal?.snapshot?.();if(!baseline)return;
  tourOnly=!emptyFactory(baseline);config=defaults(baseline);step=0;tourIndex=0;notice='';
- remember();render();dialog.showModal();
+ remember();if(tourOnly&&root.NauvisCoach){root.NauvisCoach.openMenu();return}render();dialog.showModal();
 }
 function close(){if(dialog.open)dialog.close();remember()}
 function title(t,sub){return '<header class="onboard-header"><small>NAUVIS · '+(tourOnly||step===4?'WORKSPACE TOUR':'GUIDED START')+'</small><h2 id="factoryOnboardingTitle">'+esc(t)+'</h2><p>'+esc(sub)+'</p></header>'}
@@ -121,7 +121,7 @@ function apply(){
  const latest=root.NauvisLocal.snapshot();
  if(JSON.stringify(latest)!==JSON.stringify(baseline))throw Error('Factory data changed while setup was open. Close and reopen the wizard; nothing has been overwritten.');
  const next=prepareOnboarding(latest,config,ctx());
- root.NauvisLocal.apply(next);root.NauvisCloud?.changed?.();root.NauvisSensory?.semantic?.('saved');step=4;tourIndex=0;notice='';render();
+ root.NauvisLocal.apply(next);root.NauvisCloud?.changed?.();root.NauvisSensory?.semantic?.('saved');step=4;tourIndex=0;notice='';if(root.NauvisCoach){close();root.NauvisCoach.openMenu()}else render();
 }
 host.addEventListener('change',e=>{
  if(!e.target.matches('[data-onboard-field]'))return;
