@@ -304,12 +304,12 @@ function catalog(kind,resource=item){
   const smelt={'iron-plate':s.busIron,'copper-plate':s.copper,'steel-plate':s.steel,'stone-brick':s.bricks};
   if(Object.hasOwn(smelt,item)){
    const countKey={'iron-plate':'ironFurnaces','copper-plate':'copperFurnaces','steel-plate':'steelFurnaces','stone-brick':'brickFurnaces'}[item];
-   choices.push({key:'smelt:'+item,label:num(sm[countKey])+' '+materialName(item)+' smelters'+(item==='iron-plate'?' · bus output':''),rate:smelt[item],inputRated:item==='iron-plate'?s.ironM:item==='steel-plate'?s.steelCapMachines:item==='copper-plate'?num(sm.copperFurnaces)*s.perPlate:num(sm.brickFurnaces)*s.perPlate,reserved:item==='iron-plate'?s.steelInput:0});
+   choices.push({key:'smelt:'+item,label:num(sm[countKey])+' '+materialName(item)+' smelters'+(item==='iron-plate'?' · bus output':''),rate:smelt[item],inputRated:item==='iron-plate'?s.ironM:item==='steel-plate'?s.steelCapMachines:item==='copper-plate'?s.copperM:s.brickM,reserved:item==='iron-plate'?s.steelInput:0});
    if(item==='iron-plate')choices.push({key:'smelt:iron-gross',label:num(sm.ironFurnaces)+' iron plate smelters · before steel allocation',rate:s.iron,inputRated:s.ironM});
   }
  }
- if(kind==='destination'&&item==='iron-plate'&&num(sm.steelFurnaces)>0)choices.push({key:'smelt:steel-input',label:num(sm.steelFurnaces)+' steel smelters',rate:s.steelCapMachines*5});
- if(kind==='destination')for(const [resource,countKey,key,per] of [['iron-ore','ironFurnaces','iron',s.perPlate],['copper-ore','copperFurnaces','copper',s.perPlate],['stone','brickFurnaces','brick',s.perPlate*2]])if(item===resource&&num(sm[countKey])>0)choices.push({key:'smelt:'+key+'-input',label:num(sm[countKey])+' '+key+' smelters',rate:num(sm[countKey])*per});
+ if(kind==='destination'&&item==='iron-plate'&&num(sm.steelFurnaces)>0)choices.push({key:'smelt:steel-input',label:num(sm.steelFurnaces)+' steel smelters',rate:s.steelRatedInput});
+ if(kind==='destination')for(const [resource,countKey,key,per] of [['iron-ore','ironFurnaces','iron',s.rates['iron-plate'].inputRated],['copper-ore','copperFurnaces','copper',s.rates['copper-plate'].inputRated],['stone','brickFurnaces','brick',s.rates['stone-brick'].inputRated]])if(item===resource&&num(sm[countKey])>0)choices.push({key:'smelt:'+key+'-input',label:num(sm[countKey])+' '+key+' smelters',rate:per});
  for(const row of setup.machines){
   const r=R[row.recipe];if(!r)continue;
   const rates=root.NauvisEffects.recordedRates(row.recipe,r,row),dest=row.destination||'Unspecified',key='machine:'+row.recipe+'|'+dest;
