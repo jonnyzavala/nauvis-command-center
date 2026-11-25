@@ -72,6 +72,18 @@ function recipeRates(id,recipe,input={},count=1){
  const crafts=60*profile.machineSpeed/recipe[1]*n,output=crafts*yieldPerCraft;
  return {profile,yieldPerCraft,crafts,output,inputs:Object.fromEntries(Object.entries(recipe[4]||{}).map(([k,v])=>[k,crafts*v]))};
 }
+// Legacy grouped links keep their original key. New lines get an opaque identity.
+// Allocation changes do not change identity; changing recipe is a replacement.
+function machineKey(row){
+ const prefix='machine:'+row.recipe+'|';
+ return typeof row.entityKey==='string'&&row.entityKey.startsWith(prefix)&&row.entityKey.length<=300?row.entityKey:prefix+(row.destination||'Unspecified');
+}
+function materializeMachineKeys(rows){return (Array.isArray(rows)?rows:[]).map(row=>({...row,entityKey:machineKey(row)}))}
+function newMachineKey(recipe,token){
+ const value=String(token??(root.crypto?.randomUUID?.()||Date.now().toString(36)+Math.random().toString(36).slice(2)));
+ return 'machine:'+recipe+'|id:'+encodeURIComponent(value);
+}
+function machineKeyMatches(key,recipe){return typeof key==='string'&&key.length<=300&&key.startsWith('machine:'+recipe+'|')&&key.slice(('machine:'+recipe+'|').length).length>0}
 function recordedRates(id,recipe,row){
  const machine=recipe?.[3]==='asm'?(Number(row.tier)||.75):1;
  const n=Math.max(0,Number(row.count)||0);
@@ -222,6 +234,6 @@ function validateOwnershipSnapshot(data){
  return true;
 }
 if(typeof module==='object'&&module.exports)
- module.exports={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,SMELT_FIELDS,validateSmeltProfiles,smeltingRates,smeltingCapacity,smeltOwnership,editSmelting,applySmeltBuildDelta,prepareBackupImport,validateOwnershipSnapshot,normalizeLogisticsDrafts,saveLogisticsDraft,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
-root.NauvisEffects={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,SMELT_FIELDS,validateSmeltProfiles,smeltingRates,smeltingCapacity,smeltOwnership,editSmelting,applySmeltBuildDelta,prepareBackupImport,validateOwnershipSnapshot,normalizeLogisticsDrafts,saveLogisticsDraft,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
+ module.exports={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,machineKey,materializeMachineKeys,newMachineKey,machineKeyMatches,supportedRate,SMELT_FIELDS,validateSmeltProfiles,smeltingRates,smeltingCapacity,smeltOwnership,editSmelting,applySmeltBuildDelta,prepareBackupImport,validateOwnershipSnapshot,normalizeLogisticsDrafts,saveLogisticsDraft,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
+root.NauvisEffects={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,machineKey,materializeMachineKeys,newMachineKey,machineKeyMatches,supportedRate,SMELT_FIELDS,validateSmeltProfiles,smeltingRates,smeltingCapacity,smeltOwnership,editSmelting,applySmeltBuildDelta,prepareBackupImport,validateOwnershipSnapshot,normalizeLogisticsDrafts,saveLogisticsDraft,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
 })(typeof window==='undefined'?globalThis:window);
