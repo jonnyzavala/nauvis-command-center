@@ -400,6 +400,13 @@ function renderBeltView(host){
  host.querySelector('[data-focus-blueprint-belt]')?.addEventListener('change',e=>{state.belt=Number(e.target.value);renderAll();renderBeltView(host)});
  host.querySelector('[data-ratio-lane-array]')?.addEventListener('change',e=>{laneArray=e.target.value;renderBeltView(host)});
  host.querySelector('[data-ratio-lane-rounded]')?.addEventListener('change',e=>{laneRounded=e.target.checked;renderBeltView(host)});
+ const entry=result.entries.find(e=>e.key===laneArray)||result.entries.find(e=>e.key===result.id)||result.entries.at(-1);
+ const plan=entry?planArrayLanes(entry,result.belt,laneRounded):null;
+ host.querySelectorAll('.ratio-lane-rates>div').forEach((row,i)=>{
+  const requirement=plan?.requirements[i];if(!requirement)return;
+  const btn=document.createElement('button');btn.type='button';btn.className='focus-check-material';btn.textContent='Check supply →';btn.setAttribute('aria-label','Check '+requirement.name+' supply for '+entry.name);
+  btn.addEventListener('click',()=>root.NauvisFocus?.checkMaterial?.({key:requirement.id,name:requirement.name,needed:requirement.needed,belt:result.belt,destination:entry.name+' · '+entry.count+' machines'}));row.append(btn);
+ });
  root.NauvisRatioFlow?.mount(host,result,'focus-belts');
 }
 root.NauvisRatioExplorer={refresh:renderAll,currentResult,renderBeltView,setGoal(goal){
