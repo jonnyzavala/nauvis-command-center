@@ -290,7 +290,7 @@ const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,
 const fmt=n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:1}),opts=(arr,v)=>arr.map(([a,b])=>'<option value="'+esc(a)+'"'+(a===v?' selected':'')+'>'+esc(b)+'</option>').join('');
 const materialName=k=>R[k]?.[0]||names[k]||k.replaceAll('-',' ');
 const itemColor=k=>root.NauvisIcons?.color?.(k)||'#86c2f1';
-let blueprintDraft=null,savedDesignId=null,previewMode=false,reuseSelection=new Set(),previewArray=null;
+let blueprintDraft=null,savedDesignId=null,savedDraftId=null,previewMode=false,reuseSelection=new Set(),previewArray=null,draftLibrary=false;
 let includeScenario=false,entityMode=true,entityPicker=false,entityPending=null,entityFilter='all',entityView=null;
 let item='iron-plate',selected=null,connecting=null,undo=null,notice='',brushTier='red',brushCount=1,brushLanes=2,drag=null,picker=false,ignoreClickUntil=0;
 const materials=[...new Set([...Object.keys(R),...Object.keys(names),'uranium-ore'])].filter(k=>!FLUID.has(k)&&!['crude-oil','sulfuric-acid'].includes(k)).sort((a,b)=>materialName(a).localeCompare(materialName(b)));
@@ -456,7 +456,7 @@ function entityCatalog(){
  }
  return [...groups.values()].filter(e=>e.ports.some(p=>p.solid&&p.rate>0)).sort((a,b)=>a.label.localeCompare(b.label));
 }
-function modeBar(){return '<div class="log-mode"><button data-log-mode="entities" aria-pressed="'+(!previewMode&&entityMode)+'">Production network</button><button data-log-mode="resource" aria-pressed="'+(!previewMode&&!entityMode)+'">Resource detail</button>'+(blueprintDraft?'<button data-log-mode="preview" aria-pressed="'+previewMode+'">Build preview</button>':'')+'</div>'}
+function modeBar(){return '<div class="log-mode"><button data-log-mode="entities" aria-pressed="'+(!draftLibrary&&!previewMode&&entityMode)+'">Production network</button><button data-log-mode="resource" aria-pressed="'+(!draftLibrary&&!previewMode&&!entityMode)+'">Resource detail</button><button data-log-mode="drafts" aria-pressed="'+draftLibrary+'">Saved drafts</button>'+(blueprintDraft?'<button data-log-mode="preview" aria-pressed="'+previewMode+'">Build preview</button>':'')+'</div>'}
 function entityPort(key,index){const entity=entityView?.entities.find(e=>e.key===key);return entity&&entity.ports[index]?{entity,port:entity.ports[index]}:null}
 function addEntity(key){
  const record=entityCatalog().find(e=>e.key===key);if(!record)return;
@@ -473,7 +473,7 @@ function connectEntity(from,to){
  }catch(err){notice=err.message;render()}
 }
 function inspectResource(resource,key=null){
- previewMode=false;entityMode=false;item=resource;selected=key;connecting=null;entityPending=null;picker=false;render();
+ draftLibrary=false;previewMode=false;entityMode=false;item=resource;selected=key;connecting=null;entityPending=null;picker=false;render();
 }
 function mixedFeederPanel(graph){
  const groups=physicalFeeders(graph),pairs=groups.filter(x=>x.mixed);
@@ -536,8 +536,49 @@ function renderEntities(host){
 }
 function previewBlueprint(result){
  if(!result?.entries?.length||!(result.rate>0))return;
- blueprintDraft=clone(result);savedDesignId=null;reuseSelection=new Set();previewArray=result.id;previewMode=true;
+ blueprintDraft=clone(result);savedDesignId=null;savedDraftId=null;draftLibrary=false;reuseSelection=new Set();previewArray=result.id;previewMode=true;notice='';
  selected=null;entityPending=null;connecting=null;activateWorkspace('logistics',true);render();
+}
+function drafts(){return root.NauvisEffects.normalizeLogisticsDrafts(setup.logisticsDrafts)}
+function draftRecord(){
+ if(!blueprintDraft||savedDesignId)throw Error('Open a proposed build before saving a draft.');
+ return {goal:blueprintDraft,reuseKeys:[...reuseSelection],focus:previewArray||blueprintDraft.id,updatedAt:new Date().toISOString()};
+}
+function persistDraft(copy=false){
+ try{
+  const previous=!copy&&savedDraftId?drafts().find(x=>x.id===savedDraftId):null;
+  if(!copy&&savedDraftId&&!previous)throw Error('This draft no longer exists. Save as a new draft instead.');
+  const name=previous?.name??root.prompt('Name this proposed Logistics design',fmt(blueprintDraft.rate)+' '+materialName(blueprintDraft.id)+'/min');
+  if(name===null)return;
+  const next={...draftRecord(),id:previous?.id||id(),name};
+  setup.logisticsDrafts=root.NauvisEffects.saveLogisticsDraft(drafts(),next);savedDraftId=next.id;
+  saveSetup();notice='Proposed design saved. No actual machines, routes or commitments changed.';render();
+ }catch(err){root.alert(err.message)}
+}
+function openDraft(key){
+ try{
+  const record=drafts().find(x=>x.id===key);if(!record)throw Error('Saved draft no longer exists.');
+  if(!Object.hasOwn(R,record.goal.id))throw Error('The recipe in this draft is no longer supported.');
+  const result=root.NauvisRecipeMath(R,record.goal,{stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names});
+  blueprintDraft=clone(result);savedDesignId=null;savedDraftId=record.id;reuseSelection=new Set(record.reuseKeys);previewArray=record.focus;
+  draftLibrary=false;previewMode=true;notice='Draft reopened. Supply and machine requirements recalculated using the current factory.';render();
+ }catch(err){root.alert(err.message)}
+}
+function deleteDraft(key){
+ try{
+  const row=drafts().find(x=>x.id===key);if(!row||!root.confirm('Delete proposed draft "'+row.name+'"? Actual Inventory and Construction are unchanged.'))return;
+  setup.logisticsDrafts=drafts().filter(x=>x.id!==key);
+  if(savedDraftId===key)savedDraftId=null;
+  saveSetup();notice='Draft deleted. No actual records changed.';render();
+ }catch(err){root.alert(err.message)}
+}
+function renderDraftLibrary(host){
+ try{
+  const rows=drafts().slice().sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+  host.innerHTML=modeBar()+'<div class="log-mixed-panel"><div class="log-brush-head"><strong>Saved proposed designs</strong><span>'+rows.length+' / 30</span></div><p class="log-muted">Drafts save your goal, upgrade profile and selected reuse sources. Reopen to recalculate current capacity. Drafts are not Construction projects and do not reserve supply or record physical routes.</p>'+
+  (rows.map(x=>'<article class="log-entity-card log-preview-proposed"><header><small>PROPOSED · NOT BUILT</small><strong>'+esc(x.name)+'</strong><span>'+esc(materialName(x.goal.id))+' · '+fmt(x.goal.rate)+'/min · '+esc(x.goal.source)+' inputs</span></header><div class="log-actions"><button class="log-primary" data-log-draft-open="'+esc(x.id)+'">Open draft</button><button data-log-draft-delete="'+esc(x.id)+'">Delete</button></div></article>').join('')||'<p class="log-muted">No saved drafts. Open a Blueprint Designer goal in Logistics and choose Save draft.</p>')+
+  '<p class="log-message" role="status">'+esc(notice)+'</p></div>';
+ }catch(err){host.innerHTML=modeBar()+'<p class="log-danger">'+esc(err.message)+'</p>'}
 }
 function availableProduction(){
  const network=actualNetwork(),graph=scenarioGraph(data(),false),claims=root.NauvisProjects?.reuseClaims?.()||new Map();
@@ -582,13 +623,13 @@ function queuePreview(){
     const latest=previewCalculation().result;
     if(JSON.stringify(latest)!==JSON.stringify(pending))throw Error('The available supply or calculated plan changed. Close this dialog and review the preview again.');
    },
-   onSaved(){blueprintDraft=null;savedDesignId=null;previewMode=false;reuseSelection.clear();render()}
+   onSaved(){blueprintDraft=null;savedDesignId=null;savedDraftId=null;previewMode=false;draftLibrary=false;reuseSelection.clear();render()}
   });
  }catch(err){root.alert(err.message)}
 }
 function viewSavedDesign(project){
  if(!project?.design?.analysis)return;
- blueprintDraft=clone(project.design.analysis);savedDesignId=project.id;previewArray=blueprintDraft.id;reuseSelection.clear();previewMode=true;
+ blueprintDraft=clone(project.design.analysis);savedDesignId=project.id;savedDraftId=null;draftLibrary=false;previewArray=blueprintDraft.id;reuseSelection.clear();previewMode=true;notice='';
  selected=null;entityPending=null;connecting=null;activateWorkspace('logistics',true);render();
 }
 function renderPreview(host){
@@ -597,6 +638,8 @@ function renderPreview(host){
  if(savedDesignId&&!saved){blueprintDraft=null;savedDesignId=null;previewMode=false;render();return}
  const {result,candidates}=saved?{result:saved.design.analysis,candidates:[]}:previewCalculation(),baseline=saved?saved.design.baselineMachines:full.roundedTotal,avoided=baseline-result.roundedTotal;
  const used=new Map(result.reused.map(x=>[x.key,x.rate]));
+ const missing=saved?[]:[...reuseSelection].filter(k=>!candidates.some(c=>c.key===k));
+ const draftName=!saved&&savedDraftId?drafts().find(x=>x.id===savedDraftId)?.name:null;
  const itemLabel=k=>esc(materialName(k));
  const itemGlyph=k=>root.NauvisIcons?.item?.(k,22)||'';
  const entry=result.entries.find(e=>e.key===previewArray)||result.entries.find(e=>e.key===result.id);
@@ -604,18 +647,19 @@ function renderPreview(host){
  const tier=Object.keys(TIERS).find(k=>TIERS[k]===result.belt)||'red';
  const lane=(k)=>'<div style="--material:'+esc(k?itemColor(k):'#41515e')+'"><span>'+(k?itemGlyph(k)+itemLabel(k):'Unused lane')+'</span><b>'+fmt(k?result.belt/2:0)+'/min</b></div>';
  const proposed=result.entries.map(e=>'<article class="log-entity-card log-preview-proposed"><header><small>'+(saved?'SAVED DESIGN · '+(saved.tasks.find(t=>t.recipe===e.key)?.built||0)+' / '+e.count+' BUILT':'PROPOSED · NOT BUILT')+'</small><strong>'+itemGlyph(e.key)+' '+esc(e.name)+'</strong><span>'+e.count+' new machines · '+fmt(e.needed)+'/min target</span></header><div class="log-entity-section">REQUIRED INPUTS</div>'+e.ingredients.map(i=>'<div class="log-preview-ingredient"><span>'+itemGlyph(i.id)+' '+esc(i.name)+'</span><b>'+fmt(i.needed)+'/min</b></div>').join('')+'<button data-log-preview-array="'+esc(e.key)+'" aria-pressed="'+(entry?.key===e.key)+'">Inspect recommended feeder lanes</button></article>').join('');
- host.innerHTML=modeBar()+'<div class="log-preview-header"><small>'+(saved?'SAVED CONSTRUCTION DESIGN · READ ONLY':'HYPOTHETICAL BUILD · SESSION PREVIEW')+'</small><h3>'+esc(full.name)+' · '+fmt(full.rate)+'/min new output</h3><p>'+(saved?'Frozen construction design. Built counts are tracked in Construction; this view never recalculates the saved machine counts.':'Actual Inventory and saved network are unchanged. Select available recorded output to reduce this new build; verify delivery before constructing.')+'</p><div class="log-stat-grid"><div><small>Original machines</small><b>'+baseline+'</b></div><div><small>New machines</small><b>'+result.roundedTotal+'</b></div><div><small>Avoided</small><b>'+avoided+'</b></div></div></div>'+
+ host.innerHTML=modeBar()+'<div class="log-preview-header"><small>'+(saved?'SAVED CONSTRUCTION DESIGN · READ ONLY':draftName?'SAVED DRAFT · PROPOSED':'HYPOTHETICAL BUILD · SESSION PREVIEW')+'</small><h3>'+esc(draftName||full.name)+' · '+fmt(full.rate)+'/min new output</h3><p>'+(saved?'Frozen construction design. Built counts are tracked in Construction; this view never recalculates the saved machine counts.':'Actual Inventory and saved network are unchanged. Select available recorded output to reduce this new build; verify delivery before constructing.')+'</p><div class="log-stat-grid"><div><small>Original machines</small><b>'+baseline+'</b></div><div><small>New machines</small><b>'+result.roundedTotal+'</b></div><div><small>Avoided</small><b>'+avoided+'</b></div></div></div>'+
  (saved?'<div class="log-mixed-panel"><strong>Saved reuse commitments</strong>'+((result.reuseClaims||[]).map(c=>'<div class="log-preview-ingredient"><span>'+itemGlyph(c.item)+' '+itemLabel(c.item)+'</span><b>'+fmt(c.rate)+'/min</b></div>').join('')||'<p class="log-muted">No reuse.</p>')+'<p class="log-muted">'+(saved.reuseReleased?'Released; historical design only.':'Retained as planning commitments, not verified belt deliveries.')+'</p></div>':'<div class="log-mixed-panel"><div class="log-brush-head"><strong>Reuse recorded production</strong><span>'+candidates.length+' eligible</span></div>'+
  (candidates.length?candidates.map(c=>'<label class="log-reuse-option"><input type="checkbox" data-log-reuse="'+esc(c.key)+'" '+(reuseSelection.has(c.key)?'checked':'')+'><span>'+itemGlyph(c.item)+' <b>'+itemLabel(c.item)+'</b><small>'+c.count+' recorded machines · '+fmt(c.rate)+'/min uncommitted candidate capacity'+(reuseSelection.has(c.key)?' · '+fmt(used.get(c.item)||0)+'/min assigned':'')+'</small></span></label>').join(''):'<p class="log-muted">No eligible recorded production. Assign an existing line to “Available for new build” in Inventory, and leave it without outgoing network commitments to make it eligible.</p>')+
- '<p class="log-muted">Only explicitly available lines without outgoing modeled routes are offered. Missing ingredient routes remain unverified; selected reuse remains hypothetical until queued. Queued commitments reduce availability for subsequent designs, but do not prove delivery. The final output target remains additional production.</p></div>')+
+ (missing.length?'<p class="log-danger">'+missing.length+' saved reuse selection(s) are no longer eligible; excluded from the calculation. <button data-log-preview-action="clear-missing">Clear unavailable selections</button></p>':'')+'<p class="log-muted">Only explicitly available lines without outgoing modeled routes are offered. Missing ingredient routes remain unverified; selected reuse remains hypothetical until queued. Queued commitments reduce availability for subsequent designs, but do not prove delivery. The final output target remains additional production.</p></div>')+
  '<div class="log-brush-head"><strong>Proposed production arrays</strong><span>'+result.entries.length+' stages</span></div><div class="log-entity-grid">'+proposed+'</div>'+
  '<div class="log-mixed-panel"><strong>Remaining external inputs</strong>'+ (result.external.length?result.external.map(x=>'<div class="log-preview-ingredient"><span>'+itemGlyph(x.key)+' '+esc(x.name)+'</span><b>'+fmt(x.needed)+'/min'+(x.isFluid?' · pipe':'')+'</b></div>').join(''):'<p class="log-muted">None at this recipe boundary.</p>')+'<p class="log-muted">External inputs still require supply; not automatically taken from your main bus.</p></div>'+
  (lanePlan?'<div class="log-mixed-panel"><div class="log-brush-head"><strong>'+esc(entry.name)+' · feeder recommendation</strong><span>'+lanePlan.physical+' '+tier+' · '+lanePlan.saved+' saved</span></div>'+lanePlan.groups.map(g=>'<div class="log-shared-row"><b>'+g.count+' × '+(g.a===g.b?'full':g.b?'mixed':'half')+' feeder</b><div class="log-lane-visual" style="--belt:'+({yellow:'#e5c35f',red:'#e17b71',blue:'#79b5f6'}[tier])+'">'+lane(g.a)+lane(g.b)+'</div></div>').join('')+'<p class="log-muted">Exact target demand; pipe and inserter throughput not modeled. These are proposed feeder allocations, not saved actual routes.</p></div>':'')+
- (saved?'<div class="log-actions"><button class="log-primary" data-log-preview-action="construction">Return to Construction</button><button data-log-preview-action="clear">Close saved design</button></div>':'<div class="log-actions"><button class="log-primary" data-log-preview-action="queue">Queue '+result.roundedTotal+' additional machines</button><button data-log-preview-action="back">Return to original blueprint</button><button data-log-preview-action="clear">Discard preview</button></div><p class="log-muted">Session-only preview until explicitly queued. Saving the project preserves this exact design and its planned reuse; actual machines and routes remain unchanged.</p>');
+ (saved?'<div class="log-actions"><button class="log-primary" data-log-preview-action="construction">Return to Construction</button><button data-log-preview-action="clear">Close saved design</button></div>':'<div class="log-actions"><button class="log-primary" data-log-preview-action="queue">Queue '+result.roundedTotal+' additional machines</button><button data-log-preview-action="save-draft">'+(draftName?'Update saved draft':'Save draft')+'</button>'+(draftName?'<button data-log-preview-action="copy-draft">Save as new draft</button>':'')+'<button data-log-preview-action="back">Return to original blueprint</button><button data-log-preview-action="clear">Close preview</button></div><p class="log-muted">Save a draft to keep it across devices without reserving supply. Queue construction separately to freeze the calculated design. Saved drafts remain reusable after queueing. Actual machines and routes remain unchanged.</p><p class="log-message" role="status">'+esc(notice)+'</p>');
 }
 function render(){
  const host=$('logisticsEditor');if(!host||!$('logistics')?.classList.contains('active'))return;
- if(previewMode){renderPreview(host);return}
+ if(draftLibrary){renderDraftLibrary(host);return}
+ if(previewMode){try{renderPreview(host)}catch(err){host.innerHTML=modeBar()+'<p class="log-danger">'+esc(err.message)+'</p>'}return}
  if(entityMode){renderEntities(host);return}
  const oldGraph=$('logGraph'),sx=oldGraph?.scrollLeft||0,sy=oldGraph?.scrollTop||0;const g=sub(scenarioGraph(data(),includeScenario));if(!g.nodes.some(n=>n.id===selected)&&!g.edges.some(e=>e.id===selected))selected=null;
  let a,network;try{network=networkResults(scenarioGraph(data(),includeScenario),lookup);a=network.results.get(item)||analyze(g,lookup);if(a.error)throw Error(a.error)}catch(e){host.innerHTML='<p class="log-danger">'+esc(e.message)+'</p><button data-log-action="clear-graph">Clear this resource diagram</button>';return}
@@ -634,9 +678,10 @@ function init(){
  const host=$('logisticsEditor');if(!host)return;
  host.addEventListener('click',ev=>{
   if(Date.now()<ignoreClickUntil){ev.preventDefault();return}
-  const previewAction=ev.target.closest('[data-log-preview-action]')?.dataset.logPreviewAction;if(previewAction){if(previewAction==='queue'){queuePreview();return}if(previewAction==='construction'){activateWorkspace('factory',true);return}if(previewAction==='back'&&blueprintDraft){root.NauvisRatioExplorer?.setGoal(blueprintDraft);activateWorkspace('build',true);root.NauvisRatioExplorer?.openAt('build')}else if(previewAction==='clear'){blueprintDraft=null;savedDesignId=null;previewMode=false;reuseSelection.clear();entityMode=true;render()}return}
+  const open=ev.target.closest('[data-log-draft-open]');if(open){openDraft(open.dataset.logDraftOpen);return}const del=ev.target.closest('[data-log-draft-delete]');if(del){deleteDraft(del.dataset.logDraftDelete);return}
+  const previewAction=ev.target.closest('[data-log-preview-action]')?.dataset.logPreviewAction;if(previewAction){if(previewAction==='save-draft'||previewAction==='copy-draft'){persistDraft(previewAction==='copy-draft');return}if(previewAction==='clear-missing'){const eligible=new Set(eligibleReuse(blueprintDraft).map(x=>x.key));reuseSelection=new Set([...reuseSelection].filter(k=>eligible.has(k)));render();return}if(previewAction==='queue'){queuePreview();return}if(previewAction==='construction'){activateWorkspace('factory',true);return}if(previewAction==='back'&&blueprintDraft){root.NauvisRatioExplorer?.setGoal(blueprintDraft);activateWorkspace('build',true);root.NauvisRatioExplorer?.openAt('build')}else if(previewAction==='clear'){blueprintDraft=null;savedDesignId=null;savedDraftId=null;previewMode=false;draftLibrary=false;reuseSelection.clear();entityMode=true;notice='';render()}return}
   const pa=ev.target.closest('[data-log-preview-array]');if(pa){previewArray=pa.dataset.logPreviewArray;render();return}
-  const mode=ev.target.closest('[data-log-mode]');if(mode){previewMode=mode.dataset.logMode==='preview';if(!previewMode)entityMode=mode.dataset.logMode==='entities';selected=null;connecting=null;entityPending=null;picker=false;render();return}
+  const mode=ev.target.closest('[data-log-mode]');if(mode){draftLibrary=mode.dataset.logMode==='drafts';previewMode=mode.dataset.logMode==='preview';if(!previewMode&&!draftLibrary)entityMode=mode.dataset.logMode==='entities';selected=null;connecting=null;entityPending=null;picker=false;render();return}
   const ef=ev.target.closest('[data-log-entity-filter]');if(ef){entityFilter=ef.dataset.logEntityFilter;render();return}
   const ea=ev.target.closest('[data-log-entity-add]');if(ea){addEntity(ea.dataset.logEntityAdd);return}
   const ep=ev.target.closest('[data-log-entity-port]');if(ep){const target={key:ep.dataset.logEntityPort,index:Number(ep.dataset.portIndex)},p=entityPort(target.key,target.index);if(!p)return;if(p.port.kind==='source'){entityPending=target;render()}else if(entityPending)connectEntity(entityPending,target);else if(p.port.nodeId)inspectResource(p.port.item,p.port.nodeId);return}
@@ -695,7 +740,7 @@ function init(){
  });
  host.addEventListener('pointercancel',()=>{drag=null;render()});
  let lastWidth=root.innerWidth;root.addEventListener('resize',()=>{if(root.innerWidth!==lastWidth){lastWidth=root.innerWidth;if($('logistics')?.classList.contains('active'))render()}},{passive:true});
- root.NauvisLogistics={render,actualNetwork,previewBlueprint,viewSavedDesign,eligibleReuse,availableProduction,auditReuse,openResource(resource){inspectResource(resource);},invalidate(){blueprintDraft=null;savedDesignId=null;previewMode=false;reuseSelection.clear();undo=null;selected=null;connecting=null;picker=false;drag=null;includeScenario=false;entityPending=null;entityPicker=false;notice='';render()}};
+ root.NauvisLogistics={render,actualNetwork,previewBlueprint,viewSavedDesign,eligibleReuse,availableProduction,auditReuse,openResource(resource){inspectResource(resource);},invalidate(){blueprintDraft=null;savedDesignId=null;savedDraftId=null;draftLibrary=false;previewMode=false;reuseSelection.clear();undo=null;selected=null;connecting=null;picker=false;drag=null;includeScenario=false;entityPending=null;entityPicker=false;notice='';render()}};
  render();
  if(typeof renderSetupCompare==='function')renderSetupCompare();
  if(typeof renderBalance==='function')renderBalance();

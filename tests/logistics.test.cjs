@@ -156,7 +156,7 @@ test('blueprint handoff is explicit and isolated from saved network and Inventor
  assert.match(ratio,/data-ratio-logistics-preview/);
  assert.match(js,/blueprintDraft=clone\(result\)/);
  assert.match(js,/NauvisEngineering\.incrementalPlan\(blueprintDraft,selectedRates\)/);
- assert.match(js,/Session-only preview/);
+ assert.match(js,/Save a draft to keep it across devices/);
 });
 
 test('queued reuse claims reduce available rate and do not add machines',()=>{

@@ -603,7 +603,7 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.55 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.56 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory &amp; Balance</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Plan &amp; Build</button></div></nav>
  </div>
@@ -713,7 +713,7 @@ body[data-workspace="build"]{
    <button type="button" id="factoryBackupBtn">1. Download complete JSON backup</button>
    <label><input type="checkbox" id="factoryBackupConfirmed" disabled> 2. I have saved the downloaded backup file</label>
    <button type="button" id="factoryResetLaunch" disabled>3. Clear all factory data…</button>
-   <p class="factory-reset-warning">This clears production lines, smelting and oil quantities, recorded routes, legacy infrastructure, active and archived projects, district targets and progress, and journal history. Paired devices receive the empty snapshot. Recover old data from your downloaded backup.</p>
+   <p class="factory-reset-warning">This clears production lines, smelting and oil quantities, recorded routes, saved Logistics drafts, legacy infrastructure, active and archived projects, district targets and progress, and journal history. Paired devices receive the empty snapshot. Recover old data from your downloaded backup.</p>
    <p id="factoryResetStatus" role="status"></p>
   </div>
  </div>
@@ -853,7 +853,7 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v0.55 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, fuel/power delivery, beacon geometry and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.56 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, fuel/power delivery, beacon geometry and inserter constraints remain unmodeled.</footer>
 </div>
 <script src="./item-icons.js"></script>
 <script src="./production-effects.js"></script>
@@ -1145,7 +1145,7 @@ const setupSeed={smelt:{ironFurnaces:384,ironBelts:8,ironToSteel:4,steelFurnaces
 const oldSetup=load(setupKey)||{};
 const blankSmelt=Object.fromEntries(Object.entries(setupSeed.smelt).map(([k,v])=>[k,['furnaceSpeed','beltTier'].includes(k)?v:0]));
 const blankOil=Object.fromEntries(Object.keys(setupSeed.oil).map(k=>[k,0]));
-const setup={smelt:{...blankSmelt,...(oldSetup.smelt||{})},oil:{...blankOil,...(oldSetup.oil||{})},machines:oldSetup.machines||[],feeds:oldSetup.feeds||[],assets:Array.isArray(oldSetup.assets)?oldSetup.assets:[],...(oldSetup.logistics?{logistics:oldSetup.logistics}:{})};
+const setup={smelt:{...blankSmelt,...(oldSetup.smelt||{})},oil:{...blankOil,...(oldSetup.oil||{})},machines:oldSetup.machines||[],feeds:oldSetup.feeds||[],assets:Array.isArray(oldSetup.assets)?oldSetup.assets:[],...(oldSetup.logistics?{logistics:oldSetup.logistics}:{}),...(oldSetup.logisticsDrafts!==undefined?{logisticsDrafts:oldSetup.logisticsDrafts}:{})};
 const destinations=['Main bus','Blue science','Purple science','Yellow science','Robot factory','Military mall','Red circuits','Blue circuits','Storage','Available for new build','Other'];
 const itemsForSetup=allOrder.filter(k=>R[k]&&R[k][3]!=='furnace');
 const feedMaterials=[['plastic-bar','Plastic bars'],['coal','Coal'],['stone','Stone'],['electronic-circuit','Green circuits'],['advanced-circuit','Red circuits'],['processing-unit','Blue circuits'],['sulfur','Sulfur'],['battery','Batteries'],['solid-fuel','Solid fuel'],['low-density-structure','Low-density structures'],['iron-ore','Iron ore'],['copper-ore','Copper ore'],['iron-gear-wheel','Gears'],['engine-unit','Engines'],['other','Other resource']];
@@ -1550,6 +1550,7 @@ window.NauvisLocal={
    setup.feeds=Array.isArray(data.setup.feeds)?data.setup.feeds:[];
    setup.assets=Array.isArray(data.setup.assets)?data.setup.assets:[];
    if(data.setup.logistics)setup.logistics=data.setup.logistics;else delete setup.logistics;
+   if(data.setup.logisticsDrafts!==undefined)setup.logisticsDrafts=window.NauvisEffects.normalizeLogisticsDrafts(data.setup.logisticsDrafts);else delete setup.logisticsDrafts;
    window.NauvisLogistics?.invalidate?.();
    balancePrefs.includeGoal=!!data.balancePrefs?.includeGoal;
    el('balanceIncludeGoal').checked=balancePrefs.includeGoal;
