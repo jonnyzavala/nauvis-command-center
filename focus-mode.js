@@ -48,6 +48,7 @@ function progress(projects){
 if(typeof module==='object'&&module.exports)module.exports={TIERS,DEFAULT,normalize,analyze,progress,machineSupply};
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id),fmt=n=>Number(n).toLocaleString(undefined,{maximumFractionDigits:1}),esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let flowView='blueprint';
 let mode='focus',state=normalize({...DEFAULT,item:'Resource',supply:0,branches:[]}),planInputs=[],sourceCalc={recipe:'iron-plate',type:'steel',count:0};
 try{mode=localStorage.getItem(MODE)==='full'?'full':'focus';const saved=localStorage.getItem(FLOW);if(saved)state=normalize(JSON.parse(saved))}catch{}
 const fullOnly=new Set(['learn','setup','balance']);
@@ -79,7 +80,7 @@ function onActivate(view){
  }
  if(mode==='focus'&&['build','factory','log','flow'].includes(view))lastFocus=view;
  if(mode==='full'&&(fullOnly.has(view)||view==='logistics'))lastFull=view;
- if(view==='flow'){renderInputs();renderResults()}refresh();
+ if(view==='flow'){refreshPlanInputs();showFlow(flowView)}refresh();
 }
 function refresh(){
  const snap=root.NauvisLocal?.snapshot?.();if(!snap)return;
@@ -107,12 +108,33 @@ function renderInputs(){
  host.innerHTML=(planInputs.length?'<div class="focus-flow-policy"><label>Use a planned input<select id="focusPlanInput"><option value="">Choose material from this blueprint</option>'+planInputs.map((x,i)=>'<option value="'+i+'">'+esc(x.name)+' · '+fmt(x.needed)+'/min</option>').join('')+'</select></label><button type="button" data-flow-action="load-plan">Load selected input</button></div>':'')+'<div class="focus-flow-fields">'+field('Resource','item',state.item,'text')+field('Available supply / min','supply',state.supply)+beltFields(state,'')+'</div>'+supplyPanel()+'<div class="focus-flow-policy"><label>Distribution model<select data-flow-field="policy"><option value="automatic" '+(state.policy==='automatic'?'selected':'')+'>Automatic · redistribute unused capacity</option><option value="fixed" '+(state.policy==='fixed'?'selected':'')+'>Fixed shares · no redistribution</option></select></label></div><div class="focus-flow-branches">'+state.branches.map((b,i)=>'<article class="focus-branch-input"><div class="focus-branch-heading"><strong>Destination '+(i+1)+'</strong><button type="button" data-flow-remove="'+i+'" aria-label="Remove destination '+(i+1)+'">×</button></div><div class="focus-flow-fields">'+field('Name','b:'+i+':name',b.name,'text')+field('Demand / min','b:'+i+':demand',b.demand)+beltFields(b,'b:'+i+':')+(state.policy==='fixed'?field('Relative share','b:'+i+':weight',b.weight):'')+'</div></article>').join('')+'</div><div class="focus-flow-actions"><button type="button" data-flow-action="add" '+(state.branches.length>=8?'disabled':'')+'>+ Add destination</button><button type="button" data-flow-action="example">Load example</button><button type="button" data-flow-action="clear">Clear check</button></div>';supplyPreview();
 }
 function saveFlow(){try{localStorage.setItem(FLOW,JSON.stringify(state))}catch{}}
+function refreshPlanInputs(result=root.NauvisRatioExplorer?.currentResult?.()){
+ if(!result)return;
+ const tier=Object.keys(TIERS).find(k=>TIERS[k]===result.belt)||'red';
+ planInputs=(result.external||[]).filter(x=>!x.isFluid).map(x=>({key:x.key,name:x.name,needed:x.needed,tier,destination:result.name+' blueprint'}));
+}
+function showFlow(next){
+ flowView=next==='quick'?'quick':'blueprint';
+ $('focusBlueprintBelts').hidden=flowView!=='blueprint';
+ $('focusQuickSplit').hidden=flowView!=='quick';
+ document.querySelectorAll('[data-flow-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.flowView===flowView)));
+ if(flowView==='blueprint')root.NauvisRatioExplorer?.renderBeltView?.($('focusBlueprintBelts'));
+ else{refreshPlanInputs();renderInputs();renderResults()}
+}
+function openEditor(kind,index){
+ const editor=$('focusFlowEditor');editor.open=true;
+ let target=editor;
+ if(kind==='source'){const calc=$('focusSupplyCalculator');calc.open=true;target=calc}
+ if(kind==='destination')target=editor.querySelectorAll('.focus-branch-input')[index]||editor;
+ if(kind==='transport')target=editor.querySelector('[data-flow-field="tier"]')?.closest('label')||editor;
+ target.scrollIntoView({block:'center',behavior:root.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+}
 function renderResults(){
  const host=$('focusFlowResults');if(!host)return;
  const a=analyze(state),pct=a.demand?Math.min(100,100*a.delivered/a.demand):0,good=a.demand>0&&a.shortage<1e-6;
  const diagnosis=!a.demand?'Enter destination demand':good?'Modeled demand covered':a.productionGap>0?'Production shortage':a.trunkGap>0?'Supply belt bottleneck':'Distribution / branch bottleneck';
- const rows=a.rows.map((b,i)=>'<div class="focus-flow-destination"><div class="focus-belt-link" style="--belt:'+({yellow:'#e5c35f',red:'#e87572',blue:'#79b5f6',green:'#91d79a'}[b.tier])+'"><span style="width:'+Math.min(100,b.capacity?100*b.delivered/b.capacity:0)+'%"></span></div><article><small>'+esc(b.name)+'</small><strong>'+fmt(b.delivered)+' <span>/ '+fmt(b.demand)+'</span></strong><div class="focus-bar '+(b.short>1e-6?'short':'')+'"><span style="width:'+(b.coverage===null?0:Math.min(100,b.coverage*100))+'%"></span></div><small>'+fmt(b.capacity)+'/min branch capacity · '+(b.short>1e-6?fmt(b.short)+'/min short':b.demand?'covered':'no demand')+'</small></article></div>').join('');
- host.innerHTML='<div class="focus-flow-metrics"><div><small>AVAILABLE SUPPLY</small><strong>'+fmt(a.s.supply)+'</strong><span>/min</span></div><div><small>TOTAL DEMAND</small><strong>'+fmt(a.demand)+'</strong><span>/min</span></div><div><small>DELIVERED</small><strong>'+fmt(a.delivered)+'</strong><span>/min</span></div></div><div class="focus-flow-report '+(good?'good':a.shortage?'warn':'')+'"><div class="focus-ring" style="--p:'+pct+'%" role="img" aria-label="'+fmt(pct)+' percent modeled coverage"><strong>'+Math.round(pct)+'%</strong><small>COVERAGE</small></div><div><h3>'+diagnosis+'</h3><p>'+(!a.demand?'No positive demand entered.':good?'Enough supply and transport in this simplified scenario.':fmt(a.shortage)+'/min total short')+'</p><small>Production gap '+fmt(a.productionGap)+' · trunk gap '+fmt(a.trunkGap)+' · branch/allocation gap '+fmt(a.distributionGap)+'</small></div></div><div class="focus-flow-diagram"><div class="focus-flow-source"><small>'+esc(a.s.item)+'</small><strong>'+fmt(a.incoming)+'/min</strong><span>of '+fmt(a.capacity)+' belt capacity</span></div><div class="focus-trunk" style="--belt:'+({yellow:'#e5c35f',red:'#e87572',blue:'#79b5f6',green:'#91d79a'}[a.s.tier])+'"></div><div class="focus-split"><span>◆</span><small>'+esc(a.s.policy==='fixed'?'Fixed allocation':'Splitter')+'</small></div><div class="focus-flow-dests">'+(rows||'<p>Add a destination to check the split.</p>')+'</div></div><p class="focus-flow-note">Unused incoming capacity: '+fmt(a.unused)+'/min. '+(a.s.policy==='fixed'?'Fixed shares are a hypothetical allocation, not a literal splitter behavior.':'Automatic assumes equal split with redistribution from backed-up branches.')+' Assumes stated supply and unstacked solid belts, no inserter, geometry, priority or fluid constraints. These are local what-if inputs, not actual Inventory.</p>';
+ const rows=a.rows.map((b,i)=>'<div class="focus-flow-destination"><div class="focus-belt-link" style="--belt:'+({yellow:'#e5c35f',red:'#e87572',blue:'#79b5f6',green:'#91d79a'}[b.tier])+'"><span style="width:'+Math.min(100,b.capacity?100*b.delivered/b.capacity:0)+'%"></span></div><article><button type="button" class="focus-node-label" data-flow-edit="destination" data-flow-index="'+i+'">'+esc(b.name)+' <span>✎</span></button><strong>'+fmt(b.delivered)+' <span>/ '+fmt(b.demand)+'</span></strong><div class="focus-bar '+(b.short>1e-6?'short':'')+'"><span style="width:'+(b.coverage===null?0:Math.min(100,b.coverage*100))+'%"></span></div><small>'+fmt(b.capacity)+'/min branch capacity · '+(b.short>1e-6?fmt(b.short)+'/min short':b.demand?'covered':'no demand')+'</small></article></div>').join('');
+ host.innerHTML='<div class="focus-flow-metrics"><div><small>AVAILABLE SUPPLY</small><strong>'+fmt(a.s.supply)+'</strong><span>/min</span></div><div><small>TOTAL DEMAND</small><strong>'+fmt(a.demand)+'</strong><span>/min</span></div><div><small>DELIVERED</small><strong>'+fmt(a.delivered)+'</strong><span>/min</span></div></div><div class="focus-flow-report '+(good?'good':a.shortage?'warn':'')+'"><div class="focus-ring" style="--p:'+pct+'%" role="img" aria-label="'+fmt(pct)+' percent modeled coverage"><strong>'+Math.round(pct)+'%</strong><small>COVERAGE</small></div><div><h3>'+diagnosis+'</h3><p>'+(!a.demand?'No positive demand entered.':good?'Enough supply and transport in this simplified scenario.':fmt(a.shortage)+'/min total short')+'</p><small>Production gap '+fmt(a.productionGap)+' · trunk gap '+fmt(a.trunkGap)+' · branch/allocation gap '+fmt(a.distributionGap)+'</small></div></div><div class="focus-flow-diagram"><div class="focus-flow-source"><button type="button" class="focus-node-label" data-flow-edit="source">'+esc(a.s.item)+' <span>✎</span></button><strong>'+fmt(a.incoming)+'/min</strong><span>of '+fmt(a.capacity)+' belt capacity</span></div><div class="focus-trunk" style="--belt:'+({yellow:'#e5c35f',red:'#e87572',blue:'#79b5f6',green:'#91d79a'}[a.s.tier])+'"></div><button type="button" class="focus-split" data-flow-edit="transport" aria-label="Edit belt transport"><span>◆</span><small>'+esc(a.s.policy==='fixed'?'Fixed allocation':'Splitter')+'</small></button><div class="focus-flow-dests">'+(rows||'<p>Add a destination to check the split.</p>')+'</div></div><div class="focus-flow-quick-actions"><button type="button" data-flow-edit="source">+ Set source</button><button type="button" data-flow-edit="transport">Edit belts</button><button type="button" data-flow-edit="add" '+(a.rows.length>=8?'disabled':'')+'>+ Destination</button><button type="button" data-flow-edit="example">Load example</button></div><p class="focus-flow-note">Unused incoming capacity: '+fmt(a.unused)+'/min. '+(a.s.policy==='fixed'?'Fixed shares are a hypothetical allocation, not a literal splitter behavior.':'Automatic assumes equal split with redistribution from backed-up branches.')+' Assumes stated supply and unstacked solid belts, no inserter, geometry, priority or fluid constraints. These are local what-if inputs, not actual Inventory.</p>';
 }
 $('focusFlowInputs')?.addEventListener('input',e=>{
  if(e.target.id==='focusSourceCount'){sourceCalc.count=e.target.value;supplyPreview();return}const k=e.target.dataset.flowField;if(!k)return;const parts=k.split(':');let v=e.target.value;
@@ -123,7 +145,7 @@ $('focusFlowInputs')?.addEventListener('change',e=>{if(e.target.id==='focusSourc
 $('focusFlowInputs')?.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;
  if(b.dataset.flowAction==='use-machine-supply'){try{const a=machineSupply(R,sourceCalc.recipe,sourceCalc.type,sourceCalc.count,root.NauvisEffects);if(state.branches.length&&state.item!=='Resource'&&state.item.toLowerCase().replace(/s$/,'')!==a.name.toLowerCase().replace(/s$/,'')&&!root.confirm('Change the resource to '+a.name+'? Existing destination rates will be retained.'))return;state.item=a.name;state.supply=a.output}catch(err){$('focusSupplyPreview').textContent=err.message;return}}
- else if(b.dataset.flowAction==='load-plan'){const i=$('focusPlanInput')?.value;if(i===''||!planInputs[Number(i)])return;const x=planInputs[Number(i)];state=normalize({...DEFAULT,item:x.name,supply:0,tier:x.tier,branches:[{name:x.destination,demand:x.needed,tier:x.tier,belts:Math.max(1,Math.ceil(x.needed/TIERS[x.tier])),lanes:2,weight:1}]})}
+ else if(b.dataset.flowAction==='load-plan'){const i=$('focusPlanInput')?.value;if(i===''||!planInputs[Number(i)])return;const x=planInputs[Number(i)];if(state.branches.length&&!root.confirm('Replace this quick check with '+x.name+' demand from the blueprint?'))return;const neededBelts=Math.max(1,Math.ceil(x.needed/TIERS[x.tier]));if(R[x.key]&&['asm','chem','furnace'].includes(R[x.key][3])){sourceCalc.recipe=x.key;sourceCalc.type=machineTypes(x.key)[0][0];sourceCalc.count=0}state=normalize({...DEFAULT,item:x.name,supply:0,tier:x.tier,belts:neededBelts,branches:[{name:x.destination,demand:x.needed,tier:x.tier,belts:Math.max(1,Math.ceil(x.needed/TIERS[x.tier])),lanes:2,weight:1}]})}
  else if(b.dataset.flowRemove!==undefined)state.branches.splice(Number(b.dataset.flowRemove),1);
  else if(b.dataset.flowAction==='add'&&state.branches.length<8)state.branches.push({name:'Destination '+(state.branches.length+1),demand:0,tier:state.tier,belts:1,lanes:2,weight:1});
  else if(b.dataset.flowAction==='example')state=normalize(DEFAULT);
@@ -134,7 +156,18 @@ $('focusFlowInputs')?.addEventListener('click',e=>{
 $('focusModeToggle')?.addEventListener('click',()=>setMode(mode==='focus'?'full':'focus'));
 document.querySelectorAll('[data-focus-view]').forEach(b=>b.addEventListener('click',()=>root.activateWorkspace(b.dataset.focusView,true)));
 document.addEventListener('click',e=>{const b=e.target.closest('[data-focus-jump]');if(b)root.activateWorkspace(b.dataset.focusJump,true)});
-function fromPlan(result){const tier=Object.keys(TIERS).find(k=>TIERS[k]===result.belt)||'red';planInputs=(result.external||[]).filter(x=>!x.isFluid).map(x=>({name:x.name,needed:x.needed,tier,destination:result.name+' blueprint'}));root.activateWorkspace('flow',true)}
+document.querySelectorAll('[data-flow-view]').forEach(b=>b.addEventListener('click',()=>showFlow(b.dataset.flowView)));
+ document.querySelectorAll('[data-flow-open-network]').forEach(b=>b.addEventListener('click',()=>{
+  if(b.dataset.flowOpenNetwork==='actual'){root.NauvisLogistics?.openActualNetwork?.();return}
+  const result=root.NauvisRatioExplorer?.currentResult?.();if(result?.entries?.length&&result.rate>0)root.NauvisLogistics?.previewBlueprint?.(result,true);else root.alert('Choose a production target in Planner first.');
+ }));
+ $('focusFlowResults')?.addEventListener('click',e=>{
+  const b=e.target.closest('[data-flow-edit]');if(!b)return;
+  const kind=b.dataset.flowEdit;
+  if(kind==='add'||kind==='example'){const action=$('focusFlowInputs').querySelector('[data-flow-action="'+kind+'"]');action?.click();if(kind==='add')openEditor('destination',state.branches.length-1);return}
+  openEditor(kind,Number(b.dataset.flowIndex));
+ });
+ function fromPlan(result){refreshPlanInputs(result);flowView='blueprint';root.activateWorkspace('flow',true)}
 root.NauvisFocus={setMode,beforeActivate,onActivate,refresh,fromPlan,getMode:()=>mode,analyze:()=>analyze(state)};
 renderInputs();renderResults();applyMode(mode,mode==='focus'?'build':'balance');
 })(typeof window==='undefined'?globalThis:window);
