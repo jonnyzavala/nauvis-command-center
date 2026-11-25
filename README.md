@@ -307,3 +307,6 @@ Real safe-area insets plus 4px in standalone mode; one continuous Focus gradient
 
 ### v1.1.2 · Checklist-first construction
 Active project checklists open by default, precede collapsed reference material, and show colored per-group progress bars. One-step controls remain; arbitrary batch size, finish group and confirmed finish project use a validated all-or-nothing batch of the same linked Inventory adjustments. Each action records one journal entry and saves paired counts together. Re-rendering preserves existing disclosure states and restores the acted-on row's viewport position. Completion feedback uses status messages, short motion-aware highlights and existing sound/haptic preferences. No live factory changes or schema changes.
+
+### v1.1.3 · Visual Flow workspace
+Blueprint belts opens the existing lane-pairing and production-chain diagrams directly from the current Planner, with selectable belt tier and receiving array. Quick split is a separate diagram-first local what-if view with editable source and destination nodes and a collapsed configuration form. Explicit blueprint input import populates demand and suggested minimum belts; unknown supply stays zero until entered. Proposed network opens with recommended hypothetical routes, while Existing network opens the original resource diagram. No factory changes from these views.
