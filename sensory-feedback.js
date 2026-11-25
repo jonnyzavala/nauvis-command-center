@@ -70,7 +70,7 @@ const $=id=>document.getElementById(id),dialog=$('sensoryDialog'),launcher=$('se
 const engine=makeEngine(root.AudioContext||root.webkitAudioContext,()=>prefs,()=>!document.hidden);
 const reduce=root.matchMedia?.('(prefers-reduced-motion: reduce)');
 let lastGesture=-Infinity,lastSemantic=-Infinity,localChange=false,priorAwards=null,lastAward=-Infinity,lastRange=new WeakMap();
-let pendingPulse=null;
+let pendingReward=null;
 const status=text=>{const node=$('sensoryStatus');if(node)node.textContent=text};
 function paint(){
  document.body.dataset.sensoryMotion=reduce?.matches?'off':prefs.motion;
@@ -100,7 +100,7 @@ function cue(event,el,{semantic=false,haptic=true}={}){
 }
 function semantic(event,el){if(performance.now()-lastGesture>1500||root.NauvisCloudApplying)return false;return cue(event,el,{semantic:true})}
 function markLocalChange(){if(!root.NauvisCloudApplying&&performance.now()-lastGesture<1500)localChange=true}
-function resetBaseline(){localChange=false;priorAwards=null}
+function resetBaseline(){localChange=false;priorAwards=null;if(pendingReward!==null){clearTimeout(pendingReward);pendingReward=null}}
 function updateAwards(keys){
  const previous=priorAwards;priorAwards=[...new Set(keys||[])];
  const earned=previous===null?[]:gained(previous,priorAwards);
@@ -109,7 +109,7 @@ function updateAwards(keys){
  const active=document.querySelector('.view.active .factory-milestones');
  if(active)pulse(active,'sensory-award-flash');
  // One reward sound per burst, never on initial load, cloud restore, or tab switch.
- if(performance.now()-lastAward>1800&&performance.now()-lastSemantic>250){cue('achievement',null,{semantic:true});lastAward=performance.now()}
+ if(performance.now()-lastAward>1800){lastAward=performance.now();if(pendingReward!==null)clearTimeout(pendingReward);const delay=performance.now()-lastSemantic<250?680:0;pendingReward=setTimeout(()=>{pendingReward=null;if(!document.hidden&&earned.some(k=>priorAwards?.includes(k)))cue('achievement',null,{semantic:true,haptic:false})},delay)}
  return earned;
 }
 function isUiSetting(el){return !!el.closest('#sensoryDialog,#sensoryLaunch')}
@@ -133,7 +133,7 @@ document.addEventListener('change',e=>{
  if(kind)cue(kind,el);
 },false);
 document.addEventListener('input',e=>{
- const el=e.target;if(!e.isTrusted||!el?.matches?.('input[type="range"],input[type="number"]')||isUiSetting(el)||el.disabled)return;
+ const el=e.target;if(!e.isTrusted||!el?.matches?.('input[type="range"],input[type="number"],input[type="text"],input:not([type]),textarea')||isUiSetting(el)||el.disabled)return;
  const now=performance.now(),prev=lastRange.get(el);
  if(prev&&now-prev.time<85)return;lastRange.set(el,{time:now});cue('tick',null,{haptic:false});
 },false);
