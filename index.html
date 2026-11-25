@@ -603,7 +603,7 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.48 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.49 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory &amp; Balance</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Plan &amp; Build</button></div></nav>
  </div>
@@ -838,7 +838,7 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v0.48 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.49 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script src="./item-icons.js"></script>
 <script src="./production-effects.js"></script>
@@ -1189,13 +1189,7 @@ function renderSetupOil(){const o=setup.oil,r=safeNum(o.refineries),h=safeNum(o.
 }
 function setupLineOutput(row){
  if(!R[row.recipe])return 0;
- const r=R[row.recipe];
- let speed=r[3]==='asm'?safeNum(row.tier||.75):r[3]==='chem'?1:2,production=1;
- try{
-  const e=window.NauvisEffects?.forRecipe?.(row.recipe,r[3],{...row,machine:r[3]==='asm'?Number(row.tier||.75):1});
-  if(e){speed=e.machineSpeed;production+=e.productivityBonus}
- }catch(_e){}
- return safeNum(row.count)*60*r[2]*production*speed/r[1];
+ return window.NauvisEffects.recordedRates(row.recipe,R[row.recipe],row).output;
 }
 function renderSetupMachines(){const opts=itemsForSetup.map(k=>[k,R[k][0]]);
  el('setupMachineRows').innerHTML=setup.machines.map((row,i)=>`<div class="setup-row">
@@ -1255,30 +1249,28 @@ function initSetup(){
 
 const balancePrefs={includeGoal:!!(load('nauvis-balance-v07')||{}).includeGoal};
 function resourceAuditEngine(ctx){
- const supply={}, existing={}, scenario={}, known=new Set(), allocations=[];
+ const supply={}, supported={}, existing={}, scenario={}, known=new Set(), allocations=[];
+ const factors=ctx.network?.factors||new Map();
+ const support=(record,key)=>window.NauvisEffects.supportedRate(record,factors.get(key)??1);
  const add=(obj,k,v)=>{if(Number.isFinite(v)&&v>1e-8)obj[k]=(obj[k]||0)+v};
  const base=ctx.base, oil=ctx.oil, model=ctx.recipes;
- for(const [k,v] of Object.entries({'iron-plate':base.busIron,'copper-plate':base.copper,'steel-plate':base.steel,'stone-brick':base.bricks})){known.add(k);add(supply,k,v);}
+ for(const [k,v] of Object.entries({'iron-plate':base.busIron,'copper-plate':base.copper,'steel-plate':base.steel,'stone-brick':base.bricks})){known.add(k);add(supply,k,v);const key={'iron-plate':'iron','copper-plate':'copper','steel-plate':'steel','stone-brick':'brick'}[k],raw={'iron-plate':base.ironM,'steel-plate':base.steelCapMachines,'copper-plate':ctx.smelt?Number(ctx.smelt.copperFurnaces)*base.perPlate:undefined,'stone-brick':ctx.smelt?Number(ctx.smelt.brickFurnaces)*base.perPlate:undefined}[k];add(supported,k,support({rate:v,inputRated:raw,reserved:k==='iron-plate'?base.steelInput:0},'smelt:'+key));}
  const ref=Math.max(0,Number(oil.refineries)||0), heavyPlants=Math.max(0,Number(oil.heavyCrackers)||0), lightPlants=Math.max(0,Number(oil.lightCrackers)||0);
  const heavy=ref*300, light=ref*540, gas=ref*660, heavyCracked=Math.min(heavy,heavyPlants*1200), lightPool=light+heavyCracked*.75, lightCracked=Math.min(lightPool,lightPlants*900);
  for(const k of ['petroleum-gas','light-oil','heavy-oil'])known.add(k);
  add(supply,'petroleum-gas',gas+lightCracked*(2/3));
  add(supply,'light-oil',Math.max(0,lightPool-lightCracked));
  add(supply,'heavy-oil',Math.max(0,heavy-heavyCracked));
+ for(const k of ['petroleum-gas','light-oil','heavy-oil'])add(supported,k,supply[k]||0);
  for(const row of ctx.machines){
   const recipe=model[row.recipe]; if(!recipe)continue;
-  const speedBase=recipe[3]==='asm'?(Number(row.tier)||.75):recipe[3]==='furnace'?2:1;
-  let speed=speedBase,effectiveOutput=recipe[2];
-  try{
-   const profile=window.NauvisEffects?.forRecipe?.(row.recipe,recipe[3],{...row,machine:speedBase});
-   if(profile){speed=profile.machineSpeed;effectiveOutput*=1+profile.productivityBonus}
-  }catch(_e){}
-  const output=Math.max(0,Number(row.count)||0)*60*effectiveOutput*speed/recipe[1];
+  const rates=window.NauvisEffects.recordedRates(row.recipe,recipe,row),output=rates.output;
   if(output<=0)continue;
   known.add(row.recipe);
   add(supply,row.recipe,output);
+  add(supported,row.recipe,support({rate:output},'machine:'+row.recipe+'|'+(row.destination||'Unspecified')));
   allocations.push({item:row.recipe,destination:row.destination||'Unspecified',rate:output,count:Number(row.count)||0});
-  for(const [ingredient,qty] of Object.entries(recipe[4]))add(existing,ingredient,output*qty/effectiveOutput);
+  for(const [ingredient,amount] of Object.entries(rates.inputs))add(existing,ingredient,amount);
  }
  if(ctx.includeGoal)for(const [item,amount] of Object.entries(ctx.goalExternal||{}))add(scenario,item,amount);
  const exclude=new Set(['water','crude-oil','iron-ore','copper-ore']);
@@ -1289,7 +1281,8 @@ function resourceAuditEngine(ctx){
   const produced=supply[id]||0,needed=existing[id]||0,planned=scenario[id]||0,total=needed+planned,hasSource=known.has(id);
   const margin=produced-total;
   const status=!hasSource&&total>0?'unknown':hasSource&&margin<-.01?'short':hasSource&&total>produced*.85&&total>0?'tight':'ok';
-  return{id,produced,needed,planned,total,margin,hasSource,status};
+  const modeledOutput=supported[id]||0,modeledMargin=modeledOutput-total;
+  return{id,produced,needed,planned,total,margin,hasSource,status,modeledOutput,modeledMargin,routeLimited:hasSource&&produced-modeledOutput>.01};
  });
  return{rows,allocations,summary:{short:rows.filter(x=>x.status==='short').length,unknown:rows.filter(x=>x.status==='unknown').length,tight:rows.filter(x=>x.status==='tight').length,recorded:ctx.machines.filter(r=>(Number(r.count)||0)>0).length,scenario:ctx.includeGoal},oilCaveat:ref>0};
 }
@@ -1307,7 +1300,15 @@ function renderBalance(){
    proposed=Object.fromEntries(sim.external.map(x=>[x.key,x.needed]));
   }catch(_e){}
  }
- const result=resourceAuditEngine({base:computeSetup(),oil:setup.oil,recipes:R,machines:setup.machines,includeGoal,goalExternal:proposed});
+ let network=null;
+ try{network=window.NauvisLogistics?.actualNetwork?.()||null}catch(_e){}
+ const result=resourceAuditEngine({base:computeSetup(),smelt:setup.smelt,oil:setup.oil,recipes:R,machines:setup.machines,includeGoal,goalExternal:proposed,network:network?.converged?network:null});
+ const routeRows=[];
+ if(network)for(const [id,a] of network.results){if(a.error){routeRows.push({id,error:a.error,short:0,unknown:0,gap:0});continue}
+  const destinations=Object.values(a.nodes).filter(n=>n.demand!==null),short=destinations.filter(n=>n.margin<-.01);
+  const unknown=Object.values(a.nodes).filter(n=>n.missing).length;
+  if(short.length||unknown)routeRows.push({id,short:short.length,unknown,gap:short.reduce((s,n)=>s-n.margin,0)});
+ }
  const f=fmt;
  el('balanceSummary').innerHTML=[
    {number:result.summary.recorded,label:'Recorded production lines',col:c.blue},
@@ -1316,21 +1317,24 @@ function renderBalance(){
    {number:includeGoal?R[guide.goal][0]:'Existing production',label:includeGoal?f(guide.rate)+'/min scenario included':'No hypothetical build included',col:c.purple}
   ].map(x=>`<div class="balance-kpi" style="--accent:${x.col}"><b>${escapeHTML(String(x.number))}</b><span>${escapeHTML(x.label)}</span></div>`).join('');
  const statuses={short:['SHORT',c.red],tight:['TIGHT',c.gold],unknown:['UNRECORDED',c.gold],ok:['OK',c.green]};
- el('balanceLedger').innerHTML=`<div class="tablewrap"><table class="balance-ledger"><thead><tr><th>Material</th><th>Potential output</th><th>Existing use</th><th>New goal</th><th>Potential balance</th></tr></thead><tbody>${result.rows.map(r=>{
+ el('balanceLedger').innerHTML=`<div class="tablewrap"><table class="balance-ledger"><thead><tr><th>Material</th><th>Rated output</th><th>Existing use</th><th>New goal</th><th>Potential balance</th></tr></thead><tbody>${result.rows.map(r=>{
    const [label,color]=statuses[r.status];
    const text=r.hasSource?`${r.margin>=0?'+':''}${f(r.margin)}`:'Unknown source';
    const bar=r.hasSource&&r.produced>0?Math.min(100,r.total/r.produced*100):0;
-   return `<tr><td><span class="balance-item-label">${itemIcon(r.id,29)}<strong>${escapeHTML(nameOf(r.id))}</strong></span><div class="little" style="color:${color}">${label}</div></td><td class="balance-number">${r.hasSource?f(r.produced):'Not entered'}</td><td class="balance-number">${f(r.needed)}</td><td class="balance-number">${r.planned?f(r.planned):'·'}</td><td class="balance-number"><b style="color:${color}">${escapeHTML(text)}</b><div class="balance-meter"><span style="width:${bar}%;background:${color}"></span></div></td></tr>`;
+   return `<tr><td><span class="balance-item-label">${itemIcon(r.id,29)}<strong>${escapeHTML(nameOf(r.id))}</strong></span><div class="little" style="color:${color}">${label}</div></td><td class="balance-number">${r.hasSource?f(r.produced):'Not entered'}${r.routeLimited?`<div class="little" style="color:${c.gold}">${f(r.modeledOutput)} route-constrained</div>`:''}</td><td class="balance-number">${f(r.needed)}</td><td class="balance-number">${r.planned?f(r.planned):'·'}</td><td class="balance-number"><b style="color:${color}">${escapeHTML(text)}</b>${r.routeLimited?`<div class="little" style="color:${r.modeledMargin<-.01?c.red:c.gold}">${r.modeledMargin>=0?'+':''}${f(r.modeledMargin)} with modeled inputs</div>`:''}<div class="balance-meter"><span style="width:${bar}%;background:${color}"></span></div></td></tr>`;
   }).join('')}</tbody></table></div>`;
  const alerts=result.rows.filter(x=>x.status==='short'||x.status==='unknown'||x.status==='tight').sort((a,b)=>({short:0,unknown:1,tight:2}[a.status]-{short:0,unknown:1,tight:2}[b.status]));
  const notes=[];
+ if(network&&!network.converged)notes.push({title:'Route model not converged',desc:'Rated ledger remains available. Route-constrained output is not displayed until the network calculation converges.',col:c.gold});
+ for(const x of routeRows.slice(0,5))notes.push({title:nameOf(x.id)+' · ROUTE CHECK',desc:x.error?'Resource graph requires review.':(x.short?x.short+' modeled destination(s) short by '+f(x.gap)+'/min in total. ':'')+(x.unknown?x.unknown+' missing or duplicate linked records.':''),col:x.short||x.error?c.red:c.gold,route:x.id});
  if(!result.summary.recorded)notes.push({title:'Enter your existing assemblers and chemical plants',desc:'Smelting is prefilled, but no factory production lines are recorded. Any apparent surplus is not verified spare capacity.',col:c.gold});
  for(const x of alerts.slice(0,7)){
   const desc=x.status==='short'?`Potential shortage ${f(Math.abs(x.margin))}/min at rated machine speed.`:x.status==='unknown'?`Recorded consumers need ${f(x.total)}/min, but the producing machines or source have not been entered.`:`Recorded demand uses most of the modeled ${f(x.produced)}/min capacity.`;
   notes.push({title:nameOf(x.id)+' · '+statuses[x.status][0],desc,col:statuses[x.status][1]});
  }
  if(!notes.length)notes.push({title:'No shortage in recorded production',desc:'This only covers the machinery you have entered, and does not establish that every physical belt is connected.',col:c.green});
- el('balanceAlerts').innerHTML=notes.map(n=>`<div class="balance-alert" style="--accent:${n.col}"><b>${escapeHTML(n.title)}</b><p>${escapeHTML(n.desc)}</p></div>`).join('');
+ el('balanceAlerts').innerHTML=notes.map(n=>`<div class="balance-alert" style="--accent:${n.col}"><b>${escapeHTML(n.title)}</b><p>${escapeHTML(n.desc)}</p>${n.route?`<button class="btn ghost" data-balance-route="${escapeHTML(n.route)}">Inspect logistics →</button>`:''}</div>`).join('');
+ el('balanceAlerts').querySelectorAll('[data-balance-route]').forEach(button=>button.addEventListener('click',()=>{activateWorkspace('logistics',true);window.NauvisLogistics?.openResource(button.dataset.balanceRoute)}));
  const dedicated=result.allocations.filter(x=>!['Main bus','Available for new build'].includes(x.destination));
  el('balanceAllocations').innerHTML=dedicated.length?`<div class="balance-routes">${dedicated.map(x=>`<div class="balance-route"><span>${escapeHTML(nameOf(x.item))} → ${escapeHTML(x.destination)}</span><b>${f(x.rate)}/min</b></div>`).join('')}</div><p class="small">These outputs are reserved by their recorded destination. A positive global balance does not make them available to the main bus.</p>`:'<p class="small">No dedicated production destinations entered yet. Add lines under Existing factory.</p>';
  el('balanceTransport').innerHTML=setup.feeds.length?`<div class="balance-routes">${setup.feeds.filter(x=>(Number(x.count)||0)>0).map(x=>`<div class="balance-route"><span>${escapeHTML(nameOf(x.recipe))} → ${escapeHTML(x.destination)}</span><b>${f((Number(x.count)||0)*beltSpeed(x.tier))}/min maximum</b></div>`).join('')}</div><p class="small">Transport capacities are not added to production supply. Avoid entering the same belt twice as separate sources.</p>`:'<p class="small">No transport lines recorded. Belts never generate items on their own.</p>';
@@ -1338,7 +1342,7 @@ function renderBalance(){
 
 /* Each entry: title, always-visible tip, explanation, teaching points, and practical next step. */
 const HELP_DATA={
- b0:["How to read the factory balance","Output minus demand shows potential headroom.","This is an estimate based on the machinery you have recorded.",["Output assumes full-speed operation and adequate ingredients.","Existing use adds what each recorded production line would consume.","A positive balance does not prove all belts and pipes physically connect."],"Start by looking for SHORT or UNRECORDED materials."],
+ b0:["How to read the factory balance","Output minus demand shows potential headroom.","Rated capacity and modeled logistics constraints are distinct. Missing routes and inputs are not verified.",["Output assumes full-speed operation and adequate ingredients.","Existing use adds what each recorded production line would consume.","A positive balance does not prove all belts and pipes physically connect."],"Start by looking for SHORT or UNRECORDED materials."],
  b1:["Read the supply-and-demand table","Compare potential production with total recorded consumption.","Each material gets one row in the combined ledger.",["Potential output is what your entered producers could make per minute.","Existing use includes the ingredient demands of all recorded lines.","New goal is optional extra demand from the Build next tab."],"SHORT means demand exceeds recorded capacity. UNRECORDED means a source is missing from your inputs."],
  b2:["Understand shortage warnings","Fix an upstream shortage before adding more downstream assemblers.","The biggest machines are not always the bottleneck.",["SHORT: recorded demand exceeds potential supply.","UNRECORDED: demand exists, but you have not entered a known producer.","TIGHT: recorded demand would use most of available capacity."],"Check the producing line under Existing factory."],
  b3:["What this calculation cannot see","It cannot read your Switch 2 factory in real time.","The ledger is a planning model, not an in-game sensor.",["It does not automatically know actual train deliveries or circuit pump settings.","A belt's capacity is not proof that the belt is full.","A machine may idle if storage fills or ingredients run out."],"Compare with Factorio's production statistics when exact throughput matters."],

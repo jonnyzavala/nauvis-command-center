@@ -140,8 +140,8 @@ test('advanced assets load offline and preserved cloud snapshot shape is unchang
  const sw=read('service-worker.js');
  for(const file of ['production-effects.js','machine-upgrades.js','advanced-v028.css'])
   assert.ok(sw.includes("'./"+file+"'"),file);
- assert.match(sw,/nauvis-shell-v048/);
- assert.match(html,/Nauvis Command Center v0\.48/);
+ assert.match(sw,/nauvis-shell-v049/);
+ assert.match(html,/Nauvis Command Center v0\.49/);
  assert.match(html,/src="\.\/production-effects\.js"/);
  assert.match(html,/src="\.\/machine-upgrades\.js"/);
  assert.match(html,/href="\.\/advanced-v028\.css"/);
@@ -181,4 +181,18 @@ test('second module profile survives planner, project, linked factory rows and r
  close(ledger.rows.find(x=>x.id==='advanced-circuit').produced,row.perMachine);
  assert.match(ratioJs,/data-ratio-field="moduleCount2"/);
  assert.match(read('machine-upgrades.js'),/data-upgrade-field="moduleType2"/);
+});
+
+test('shared recipe rate model accounts for productivity in output but not ingredients per craft',()=>{
+ const r=R['advanced-circuit'],row={recipe:'advanced-circuit',count:24,tier:.75,moduleType:'productivity1',moduleCount:2};
+ const rates=effects.recordedRates(row.recipe,r,row);close(rates.output,174.96);close(rates.inputs['electronic-circuit'],324);close(rates.inputs['copper-cable'],648);
+ const a=html.indexOf('function resourceAuditEngine('),b=html.indexOf('function renderBalance()',a);
+ const fn=Function('window',html.slice(a,b)+';return resourceAuditEngine;')({NauvisEffects:effects});
+ const ledger=fn({base:{busIron:0,copper:0,steel:0,bricks:0},oil:{},recipes:R,machines:[row],includeGoal:false,network:{factors:new Map([['machine:advanced-circuit|Unspecified',.5]])}});
+ const out=ledger.rows.find(x=>x.id==='advanced-circuit');close(out.produced,174.96);close(out.modeledOutput,87.48);assert.equal(out.routeLimited,true);close(ledger.rows.find(x=>x.id==='electronic-circuit').needed,324);
+});
+test('already transport-limited smelting capacity is capped, not multiplied twice',()=>{
+ close(effects.supportedRate({rate:180,inputRated:360},.5),180);
+ close(effects.supportedRate({rate:180,inputRated:360},.25),90);
+ close(effects.supportedRate({rate:900,inputRated:1800,reserved:900},.75),450);
 });

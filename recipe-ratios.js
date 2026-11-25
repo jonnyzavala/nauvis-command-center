@@ -57,7 +57,7 @@ function analyzeRecipeRatios(recipes,query,context){
  const entries=[...amounts].map(([key,needed])=>{
   const r=recipes[key],kind=r[3],profile=effectiveFor(key,r),machineSpeed=profile.machineSpeed;
   const effectiveOutputPerCraft=r[2]*(1+profile.productivityBonus);
-  const perMachine=60*effectiveOutputPerCraft*machineSpeed/r[1];
+  const perMachine=effectsLib?.recipeRates?effectsLib.recipeRates(key,r,query,1).output:60*effectiveOutputPerCraft*machineSpeed/r[1];
   const exact=needed/perMachine,rounded=needed?Math.ceil(exact-1e-10):0;
   return {
    key,name:r[0],kind,needed,perMachine,exact,count:rounded,

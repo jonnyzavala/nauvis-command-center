@@ -60,7 +60,29 @@ function effectiveOutputPerCraft(quantity,effects){
  if(!Number.isFinite(out)||out<=0)throw Error('Invalid effective recipe output.');
  return out;
 }
+// Shared production math: the same recipe profile drives Inventory,
+// Blueprint, Logistics and the rated Balance ledger.
+function recipeRates(id,recipe,input={},count=1){
+ if(!recipe||!(recipe[1]>0)||!(recipe[2]>0))throw Error('Invalid recipe.');
+ const n=Number(count);if(!Number.isFinite(n)||n<0)throw Error('Invalid machine count.');
+ const profile=forRecipe(id,recipe[3],input),yieldPerCraft=effectiveOutputPerCraft(recipe[2],profile);
+ const crafts=60*profile.machineSpeed/recipe[1]*n,output=crafts*yieldPerCraft;
+ return {profile,yieldPerCraft,crafts,output,inputs:Object.fromEntries(Object.entries(recipe[4]||{}).map(([k,v])=>[k,crafts*v]))};
+}
+function recordedRates(id,recipe,row){
+ const machine=recipe?.[3]==='asm'?(Number(row.tier)||.75):1;
+ const n=Math.max(0,Number(row.count)||0);
+ try{return recipeRates(id,recipe,{...row,machine},n)}
+ catch(_e){return recipeRates(id,recipe,{machine:[.5,.75,1.25].includes(machine)?machine:.75},n)}
+}
+function supportedRate(record,factor=1){
+ const rated=Math.max(0,Number(record.rate)||0),f=Math.max(0,Math.min(1,Number(factor)||0));
+ if(f===1)return rated;
+ const raw=Number(record.inputRated);
+ if(Number.isFinite(raw))return Math.min(rated,Math.max(0,raw*f-(Number(record.reserved)||0)));
+ return rated*f;
+}
 if(typeof module==='object'&&module.exports)
- module.exports={forRecipe,settings,effectiveOutputPerCraft,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
-root.NauvisEffects={forRecipe,settings,effectiveOutputPerCraft,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
+ module.exports={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
+root.NauvisEffects={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
 })(typeof window==='undefined'?globalThis:window);

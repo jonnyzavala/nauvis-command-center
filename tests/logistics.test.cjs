@@ -134,3 +134,11 @@ test('legacy full belts and half-belt shortages are sized correctly',()=>{
  const g={nodes:[node('s','source',{amount:4,tier:'yellow'}),node('d','destination',{amount:1.5,tier:'yellow'})],edges:[{...edge('r','s','d',1,'','yellow'),lanes:1}]};
  const a=diagnostics(g,analyze(g),()=>null);assert.equal(a.findings[0].short,900);assert.equal(a.findings[0].actions.find(x=>x.type==='transport').extra,2);
 });
+
+test('Balance opens the same actual resource network without scenario demand',()=>{
+ const js=read('logistics.js'),html=read('index.html');
+ assert.match(js,/function actualNetwork\(\)\{return networkResults\(scenarioGraph\(data\(\),false\),lookup\)\}/);
+ assert.match(js,/NauvisEffects\.recordedRates/);
+ assert.match(html,/NauvisLogistics\?\.actualNetwork/);
+ assert.match(html,/data-balance-route/);
+});

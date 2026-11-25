@@ -165,7 +165,7 @@ function networkResults(raw,lookup){
  const records=new Map(g.nodes.filter(n=>n.link).map(n=>[n.id,lookup(n)]));
  let factors=new Map(),results=new Map(),converged=false;
  const getRecord=n=>records.get(n.id)||null;
- const effective=n=>{const r=getRecord(n);if(!r)return null;return n.kind==='source'?{...r,rate:num(r.rate)*(factors.get(groupKey(n))??1)}:r};
+ const effective=n=>{const r=getRecord(n);if(!r)return null;const factor=factors.get(groupKey(n))??1;return n.kind==='source'?{...r,rate:root.NauvisEffects?.supportedRate?root.NauvisEffects.supportedRate(r,factor):num(r.rate)*factor}:r};
  for(let pass=0;pass<64;pass++){
   results=new Map();const next=new Map(factors);
   for(const [item,graph] of networks){
@@ -290,19 +290,16 @@ function catalog(kind,resource=item){
   const smelt={'iron-plate':s.busIron,'copper-plate':s.copper,'steel-plate':s.steel,'stone-brick':s.bricks};
   if(Object.hasOwn(smelt,item)){
    const countKey={'iron-plate':'ironFurnaces','copper-plate':'copperFurnaces','steel-plate':'steelFurnaces','stone-brick':'brickFurnaces'}[item];
-   choices.push({key:'smelt:'+item,label:num(sm[countKey])+' '+materialName(item)+' smelters'+(item==='iron-plate'?' · bus output':''),rate:smelt[item]});
-   if(item==='iron-plate')choices.push({key:'smelt:iron-gross',label:num(sm.ironFurnaces)+' iron plate smelters · before steel allocation',rate:s.iron});
+   choices.push({key:'smelt:'+item,label:num(sm[countKey])+' '+materialName(item)+' smelters'+(item==='iron-plate'?' · bus output':''),rate:smelt[item],inputRated:item==='iron-plate'?s.ironM:item==='steel-plate'?s.steelCapMachines:item==='copper-plate'?num(sm.copperFurnaces)*s.perPlate:num(sm.brickFurnaces)*s.perPlate,reserved:item==='iron-plate'?s.steelInput:0});
+   if(item==='iron-plate')choices.push({key:'smelt:iron-gross',label:num(sm.ironFurnaces)+' iron plate smelters · before steel allocation',rate:s.iron,inputRated:s.ironM});
   }
  }
  if(kind==='destination'&&item==='iron-plate'&&num(sm.steelFurnaces)>0)choices.push({key:'smelt:steel-input',label:num(sm.steelFurnaces)+' steel smelters',rate:s.steelCapMachines*5});
  if(kind==='destination')for(const [resource,countKey,key,per] of [['iron-ore','ironFurnaces','iron',s.perPlate],['copper-ore','copperFurnaces','copper',s.perPlate],['stone','brickFurnaces','brick',s.perPlate*2]])if(item===resource&&num(sm[countKey])>0)choices.push({key:'smelt:'+key+'-input',label:num(sm[countKey])+' '+key+' smelters',rate:num(sm[countKey])*per});
  for(const row of setup.machines){
   const r=R[row.recipe];if(!r)continue;
-  const rate=setupLineOutput(row),dest=row.destination||'Unspecified',key='machine:'+row.recipe+'|'+dest;
-  let value=kind==='source'?(row.recipe===item?rate:0):0;
-  if(kind==='destination'&&r[4]?.[item]){
-   try{const effect=root.NauvisEffects.forRecipe(row.recipe,r[3],{...row,machine:r[3]==='asm'?Number(row.tier||.75):1});value=rate*r[4][item]/(r[2]*(1+effect.productivityBonus))}catch(_e){value=rate*r[4][item]/r[2]}
-  }
+  const rates=root.NauvisEffects.recordedRates(row.recipe,r,row),dest=row.destination||'Unspecified',key='machine:'+row.recipe+'|'+dest;
+  const value=kind==='source'?(row.recipe===item?rates.output:0):(rates.inputs[item]||0);
   if(value>0){const old=groups.get(key)||{key,label:r[0]+' · '+dest,rate:0,count:0};old.rate+=value;old.count+=num(row.count);groups.set(key,old)}
  }
  choices.push(...[...groups.values()].map(x=>({...x,label:x.count+' × '+x.label})));
@@ -313,11 +310,12 @@ function catalog(kind,resource=item){
  return choices;
 }
 function lookup(n){return catalog(n.kind,n.item).find(x=>x.key===n.link)||null}
+function actualNetwork(){return networkResults(scenarioGraph(data(),false),lookup)}
 const linkKey=k=>k==='smelt:iron-gross'?'smelt:iron-plate':k;
 function used(g,kind,link,except){return g.nodes.some(n=>n.id!==except&&n.item===item&&n.kind===kind&&n.link&&linkKey(n.link)===linkKey(link))}
 const nodeLabel=n=>n?.autoLabel&&n.link?lookup(n)?.label||n.label:n?.label||'';
 function commit(next,msg){
- undo=clone(data());next=sanitizeBundles(next);setup.logistics=normalize(next);saveSetup();notice=msg||'Saved to factory.';root.NauvisWorkspace?.refresh?.('logistics');render();
+ undo=clone(data());next=sanitizeBundles(next);setup.logistics=normalize(next);saveSetup();if(typeof renderBalance==='function')renderBalance();notice=msg||'Saved to factory.';root.NauvisWorkspace?.refresh?.('logistics');render();
 }
 function editNode(key,patch){const g=data();g.nodes=g.nodes.map(n=>n.id===key?{...n,...patch}:n);commit(g,'Node updated.')}
 function add(kind,link=''){
@@ -566,7 +564,7 @@ function init(){
   if(action==='picker'){picker=!picker;render();return}
   if(action==='connect'){connecting=selected;notice='';render();return}
   if(action==='cancel'||action==='clear'){connecting=null;if(action==='clear')selected=null;render();return}
-  if(action==='undo'&&undo){const next=undo;undo=null;entityPending=null;setup.logistics=normalize(next);saveSetup();selected=null;connecting=null;notice='Last logistics edit undone.';root.NauvisWorkspace?.refresh?.('logistics');render();return}
+  if(action==='undo'&&undo){const next=undo;undo=null;entityPending=null;setup.logistics=normalize(next);saveSetup();if(typeof renderBalance==='function')renderBalance();selected=null;connecting=null;notice='Last logistics edit undone.';root.NauvisWorkspace?.refresh?.('logistics');render();return}
   if(action==='delete'){const g=data();g.nodes=g.nodes.filter(n=>n.id!==selected);g.edges=g.edges.filter(e=>e.id!==selected&&e.from!==selected&&e.to!==selected);selected=null;connecting=null;commit(g,'Removed. Undo is available.');return}
   if(action==='clear-graph'&&root.confirm('Clear only this resource network?')){const g=data(),ids=new Set(g.nodes.filter(n=>n.item===item).map(n=>n.id));g.nodes=g.nodes.filter(n=>!ids.has(n.id));g.edges=g.edges.filter(e=>!ids.has(e.from)&&!ids.has(e.to));commit(g,'Resource diagram cleared.');}
  });
@@ -601,7 +599,7 @@ function init(){
  });
  host.addEventListener('pointercancel',()=>{drag=null;render()});
  let lastWidth=root.innerWidth;root.addEventListener('resize',()=>{if(root.innerWidth!==lastWidth){lastWidth=root.innerWidth;if($('logistics')?.classList.contains('active'))render()}},{passive:true});
- root.NauvisLogistics={render,invalidate(){undo=null;selected=null;connecting=null;picker=false;drag=null;includeScenario=false;entityPending=null;entityPicker=false;notice='';render()}};
+ root.NauvisLogistics={render,actualNetwork,openResource(resource){inspectResource(resource);},invalidate(){undo=null;selected=null;connecting=null;picker=false;drag=null;includeScenario=false;entityPending=null;entityPicker=false;notice='';render()}};
  render();
 }
 init();
