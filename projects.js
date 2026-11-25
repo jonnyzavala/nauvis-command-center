@@ -491,7 +491,7 @@ function positiveFeedback(id,recipe,delta,groupDone,projectDone){
  toast.className='project-feedback-toast'+(projectDone?' project-feedback-win':groupDone?' project-feedback-group':'');toast.hidden=false;
  if(feedbackTimer!==null)clearTimeout(feedbackTimer);
  feedbackTimer=setTimeout(()=>{if(seq===feedbackSequence)toast.hidden=true;el?.classList.remove('project-celebrate','project-count-flash')},projectDone?2500:groupDone?1800:1000);
- root.NauvisSensory?.semantic?.(projectDone?'complete':delta>0?'build':'reverse',el);
+ root.NauvisSensory?.semantic?.(projectDone?'complete':groupDone?'phase':delta>0?'build':'reverse',el);
 }
 function updateBuiltBatch(id,adjustments,recipe=null){
  const project=selectedProject(id);if(!project||project.status==='archived')return;

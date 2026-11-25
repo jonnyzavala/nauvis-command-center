@@ -348,7 +348,33 @@ function focusBundle(bundle,edges){
  for(const path of bundle.paths)visit(path);
  return {active,points};
 }
-if(typeof module==='object'&&module.exports)module.exports={buildFlowGraph,routeLayout,baseRouteLayout,routingScore,fitLayout,mergeRoutes,roundedPath,focusGraph,focusBundle,toggleSelection,focusTone};
+
+/* One colored stroke represents one physical belt, independent of lane allocation. */
+const BELT_CAPACITY={yellow:900,red:1800,blue:2700,green:3600};
+function beltRequirement(rate,tier){const cap=BELT_CAPACITY[tier]||1800,equivalent=Math.max(0,Number(rate)||0)/cap;return {capacity:cap,equivalent,count:Math.ceil(equivalent-1e-10)}}
+function downstreamRate(bundle,path){
+ const same=(a,b)=>a.x===b.x&&a.y===b.y;
+ function visit(p,seen){if(seen.has(p))return 0;seen.add(p);return p.edge?p.edge.rate:bundle.paths.filter(x=>same(x.points[0],p.points.at(-1))).reduce((n,x)=>n+visit(x,seen),0)}
+ return visit(path,new Set());
+}
+function parallelPoints(points,offset){
+ return points.map((p,i)=>{const a=points[i-1],b=points[i+1],normal=(x,y)=>{const dx=y.x-x.x,dy=y.y-x.y,len=Math.hypot(dx,dy)||1;return {x:-dy/len,y:dx/len}};const n1=a?normal(a,p):null,n2=b?normal(p,b):null;const n=n1&&n2?{x:Math.abs(n1.x+n2.x)>1?Math.sign(n1.x+n2.x):n1.x+n2.x,y:Math.abs(n1.y+n2.y)>1?Math.sign(n1.y+n2.y):n1.y+n2.y}:n1||n2||{x:0,y:0};return {x:p.x+offset*n.x,y:p.y+offset*n.y}})
+}
+function beltLines(count,tier,vertical=false){
+ const n=Math.max(0,Math.floor(Number(count)||0)),shown=Math.min(16,n);
+ const color=({yellow:'#e5c35f',red:'#e87572',blue:'#79b5f6',green:'#91d79a'})[tier]||'#91a4b3';
+ if(!n)return '<span class="physical-belt-empty">No belts</span>';
+ const breadth=8+shown*7,w=vertical?breadth:100,h=vertical?100:breadth;
+ const lines=Array.from({length:shown},(_,i)=>{const p=7+i*7;return '<line data-belt-line="'+(i+1)+'" x1="'+(vertical?p:0)+'" y1="'+(vertical?0:p)+'" x2="'+(vertical?p:100)+'" y2="'+(vertical?100:p)+'" stroke="'+color+'" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linecap="round"/>'}).join('');
+ return '<span class="physical-belt-stack'+(vertical?' vertical':'')+'" role="img" aria-label="'+n+' '+escapeHTML(tier)+' physical belt'+(n===1?'':'s')+(n>shown?', '+shown+' lines shown':'')+'"><svg aria-hidden="true" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" style="'+(vertical?'width:'+breadth+'px;height:38px':'width:100%;height:'+breadth+'px')+'">'+lines+'</svg>'+(n>shown?'<small>+'+(n-shown)+' more belts</small>':'')+'</span>';
+}
+function feederLines(count,tier,a,b,capacity){
+ const mixed=a&&b&&a!==b,half=!b;
+ const desc=mixed?escapeHTML(a)+' + '+escapeHTML(b)+' · '+formatted(capacity/2)+'/min capacity per ingredient per belt':half?escapeHTML(a)+' · '+formatted(capacity/2)+'/min usable per belt (one lane)':escapeHTML(a||'Resource')+' · '+formatted(capacity)+'/min per full belt';
+ return '<div class="physical-feeder"><div class="physical-feeder-label"><b>'+count+' × '+escapeHTML(tier)+' belt'+(count===1?'':'s')+'</b><span>'+desc+'</span></div>'+beltLines(count,tier)+'<small>'+formatted(count*capacity)+'/min physical capacity · '+(mixed?'shared ingredients':half?'one lane used':'both lanes')+'</small></div>';
+}
+
+if(typeof module==='object'&&module.exports)module.exports={beltRequirement,downstreamRate,parallelPoints,beltLines,feederLines,buildFlowGraph,routeLayout,baseRouteLayout,routingScore,fitLayout,mergeRoutes,roundedPath,focusGraph,focusBundle,toggleSelection,focusTone};
 if(typeof document==='undefined')return;
 const browserViews=new Map();
 function nodeColor(node){
@@ -379,6 +405,8 @@ function mount(target,result,cardKey){
  const mode=(root.NauvisRatioFlow?.modeByCard?.get(cardKey)||'flow');
  const inputVisible=root.NauvisRatioFlow?.inputByCard?.get(cardKey)??true;
  const upstream=root.NauvisRatioFlow?.upstreamByCard?.get(cardKey)??false;
+ const beltMode=root.NauvisRatioFlow.beltModeByCard.get(cardKey)??false;
+ const tierList=Object.keys(BELT_CAPACITY),beltTier=root.NauvisRatioFlow.beltTierByCard.get(cardKey)||tierList.find(k=>BELT_CAPACITY[k]===result.belt)||'red';
  const compact=graph.nodes.filter(n=>n.type==='machine');
  const buildList=compact.map(n=>
   '<span class="ratio-flow-build-chip" style="--node-color:'+nodeColor(n)+'">'+itemGlyph(n.recipe,35)+'<strong>'+
@@ -394,15 +422,15 @@ function mount(target,result,cardKey){
   '<button type="button" data-flow-mode="table" aria-pressed="'+(mode==='table')+'">Table view</button></div>'+
   '<div class="ratio-flow-options" data-flow-options>'+
   '<label class="ratio-flow-input-toggle"><input data-flow-input-toggle type="checkbox"'+(inputVisible?' checked':'')+'><span>Show inputs</span></label>'+
-  '<label class="ratio-flow-input-toggle"><input data-flow-upstream-toggle type="checkbox"'+(upstream?' checked':'')+'><span>Upstream tree</span></label></div></div>'+
-  '<div data-flow-display></div>';
+  '<label class="ratio-flow-input-toggle"><input data-flow-upstream-toggle type="checkbox"'+(upstream?' checked':'')+'><span>Upstream tree</span></label><label class="ratio-flow-input-toggle"><input data-flow-belt-toggle type="checkbox"'+(beltMode?' checked':'')+'><span>Show belts</span></label></div></div>'+
+  '<div class="flow-belt-controls" data-flow-belt-controls><label>Belts required <strong data-flow-belt-tier-label></strong><input type="range" min="0" max="3" step="1" value="'+tierList.indexOf(beltTier)+'" data-flow-belt-tier aria-label="Belt tier"></label><div class="flow-belt-tier-labels"><span>Yellow</span><span>Red</span><span>Blue</span><span>Green</span></div><div data-flow-belt-summary></div></div><div data-flow-display></div>';
  const display=holder.querySelector('[data-flow-display]');
  const controls=[...holder.querySelectorAll('[data-flow-mode]')];
  const checkbox=holder.querySelector('[data-flow-input-toggle]');
  const panel=target.querySelector('[data-ratio-legacy-table]');
  const flowOptions=holder.querySelector('[data-flow-options]');
  const upstreamToggle=holder.querySelector('[data-flow-upstream-toggle]');
- const state={graph,display,holder,result,cardKey,inputVisible,upstream,selected:older?.result?.id===result.id?(older.selected||null):null,observer:null,
+ const state={graph,display,holder,result,cardKey,inputVisible,upstream,beltMode,beltTier,selected:older?.result?.id===result.id?(older.selected||null):null,observer:null,
   cancel:null,redraw:null};
  browserViews.set(cardKey,state);
  function update(){
@@ -412,6 +440,7 @@ function mount(target,result,cardKey){
    b.classList.toggle('active',active);b.setAttribute('aria-pressed',String(active));
   });
   flowOptions.hidden=!inFlow;
+  updateBeltControls();
   if(panel)panel.hidden=inFlow;
   display.hidden=!inFlow;
   state.observer?.disconnect();
@@ -421,6 +450,17 @@ function mount(target,result,cardKey){
   if(!inFlow){display.innerHTML='';return}
   drawLayout(state);
  }
+ const beltToggle=holder.querySelector('[data-flow-belt-toggle]'),slider=holder.querySelector('[data-flow-belt-tier]'),beltControls=holder.querySelector('[data-flow-belt-controls]');
+ function updateBeltControls(){
+  beltControls.hidden=!state.beltMode||root.NauvisRatioFlow.modeByCard.get(cardKey)==='table';
+  const tier=state.beltTier,cap=BELT_CAPACITY[tier];
+  holder.querySelector('[data-flow-belt-tier-label]').textContent=tier.toUpperCase()+' · '+formatted(cap)+'/min per belt';
+  const totals=new Map();for(const e of graph.edges){if(e.fluid||!e.from.startsWith('s:'))continue;totals.set(e.from,(totals.get(e.from)||0)+e.rate)}
+  const rows=[...totals].map(([key,rate])=>{const node=graph.nodes.find(n=>n.key===key),r=beltRequirement(rate,tier);return '<div class="flow-belt-resource"><b>'+r.count+' '+tier+' belt'+(r.count===1?'':'s')+' of '+escapeHTML(node.label)+'</b><small>'+formatted(rate)+'/min · '+Number(r.equivalent.toFixed(2))+' belt equivalents</small>'+beltLines(r.count,tier)+'</div>'});
+  holder.querySelector('[data-flow-belt-summary]').innerHTML=rows.join('')||'<p class="ratio-muted">No external solid inputs.</p>';
+ }
+ beltToggle.addEventListener('change',()=>{state.beltMode=beltToggle.checked;root.NauvisRatioFlow.beltModeByCard.set(cardKey,state.beltMode);update()});
+ slider.addEventListener('input',()=>{state.beltTier=tierList[Number(slider.value)];root.NauvisRatioFlow.beltTierByCard.set(cardKey,state.beltTier);updateBeltControls();state.refreshDetails?.();state.redraw?.()});
  controls.forEach(button=>button.addEventListener('click',()=>{
   root.NauvisRatioFlow.modeByCard.set(cardKey,button.dataset.flowMode);
   update();
@@ -485,7 +525,7 @@ function drawLayout(state){
    const other=nodeByKey.get(direction==='in'?edge.from:edge.to);
    const from=direction==='in'?(other?.label||edge.item):node.label;
    const to=direction==='in'?node.label:(other?.label||edge.to);
-   return '<span class="ratio-flow-connection"><b>'+formatted(edge.rate)+'/min</b> '+escapeHTML(from)+
+   return '<span class="ratio-flow-connection"><b>'+formatted(edge.rate)+'/min'+(state.beltMode&&!edge.fluid?' · '+beltRequirement(edge.rate,state.beltTier).count+' '+state.beltTier+' belt(s)':'')+'</b> '+escapeHTML(from)+
      '<span class="ratio-flow-connection-arrow">→ '+escapeHTML(to)+'</span></span>';
   };
   summary.innerHTML='<div class="ratio-flow-detail-top"><span class="ratio-flow-selected-title">'+itemGlyph(node.recipe,27)+escapeHTML(node.label)+'</span>'+
@@ -527,6 +567,13 @@ function drawLayout(state){
    const obstacles=segments.filter(s=>s.key!==bundle.key);
    for(const path of bundle.paths){
     const active=highlight.active.has(path),tone=focusTone(state.selected,active),d=roundedPath(path.points,16,obstacles);
+    if(state.beltMode&&!bundle.routes[0].edge.fluid){
+     const rate=downstreamRate(bundle,path),r=beltRequirement(rate,state.beltTier),n=Math.min(r.count,12),tierColor=({yellow:'#e5c35f',red:'#e87572',blue:'#79b5f6',green:'#91d79a'})[state.beltTier];
+     const markup=Array.from({length:n},(_,i)=>'<path data-blueprint-belt="'+(i+1)+'" d="'+roundedPath(parallelPoints(path.points,(i-(n-1)/2)*4),10,obstacles)+'" fill="none" stroke="'+tierColor+'" stroke-width="2" stroke-linecap="round" opacity="'+(state.selected&&!active?.35:1)+'"/>').join('');
+     const seg=path.points.slice(1).map((p,i)=>({a:path.points[i],b:p,len:Math.hypot(p.x-path.points[i].x,p.y-path.points[i].y)})).sort((a,b)=>b.len-a.len)[0];
+     const annotation=seg?'<text x="'+(seg.a.x+seg.b.x)/2+'" y="'+((seg.a.y+seg.b.y)/2-8-n*2)+'" text-anchor="middle" font-size="9" font-weight="700" fill="'+tierColor+'" stroke="#152b3b" stroke-width="2.5" paint-order="stroke" opacity="'+(state.selected&&!active?.35:1)+'">'+(r.count>12?r.count+' belts · ':'')+Number(r.equivalent.toFixed(2))+' '+state.beltTier+'</text>':'';
+     paths.push({active,markup:markup+annotation});continue;
+    }
     const line='<path class="ratio-link-underlay" d="'+d+'"/>'+
      (active?'<path class="ratio-link-glow" style="stroke:'+color+'" d="'+d+'"/>':'')+
      '<path class="ratio-link '+tone+'" style="stroke:'+color+'" d="'+d+'"'+(path.edge?' marker-end="url(#'+id+(active?'-on':'-off')+')"':'')+'/>';
@@ -553,6 +600,7 @@ function drawLayout(state){
  }
  cards.forEach(b=>b.addEventListener('click',()=>{state.selected=toggleSelection(state.selected,b.dataset.flowNode);showDetails();queueRedraw()}));
  showDetails();
+ state.refreshDetails=showDetails;
  state.redraw=queueRedraw;
  root.addEventListener('resize',queueRedraw,{passive:true});
  root.visualViewport?.addEventListener('resize',queueRedraw,{passive:true});
@@ -564,5 +612,5 @@ function drawLayout(state){
   const chrome=document.querySelector('.command-chrome');if(chrome)state.observer.observe(chrome);
  }
 }
-root.NauvisRatioFlow={mount,buildFlowGraph,routeLayout,roundedPath,focusGraph,focusBundle,modeByCard:new Map(),inputByCard:new Map(),upstreamByCard:new Map()};
+root.NauvisRatioFlow={beltRequirement,beltLines,feederLines,beltModeByCard:new Map(),beltTierByCard:new Map(),mount,buildFlowGraph,routeLayout,roundedPath,focusGraph,focusBundle,modeByCard:new Map(),inputByCard:new Map(),upstreamByCard:new Map()};
 })(typeof window==='undefined'?globalThis:window);

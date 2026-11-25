@@ -19,7 +19,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(w.NauvisLocal&&w.NauvisLogistics&&w.NauvisRecipeMath&&w.NauvisSensory,'Application and deferred modules initialized');
   assert(w.NauvisFocus.getMode()==='focus'&&w.document.querySelector('#build.active'),'Focus is the default and opens Planner');
   const initial=JSON.stringify(snap(w));
-  click(w,'[data-focus-view="flow"]');
+  w.activateWorkspace('flow',true);
   assert(w.document.querySelector('#focusBlueprintBelts [data-ratio-lane-panel]').open&&w.document.querySelector('#focusBlueprintBelts [data-ratio-flow-root]'),'Flow opens current blueprint lane diagram and production chain automatically');
   click(w,'[data-flow-view="quick"]');
   assert(w.document.querySelector('#focusBlueprintBelts').hidden&&!w.document.querySelector('#focusQuickSplit').hidden,'Quick split is an independent visual mode');

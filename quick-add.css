@@ -213,3 +213,8 @@ body.quick-add-open{overflow:hidden}
 .command-dock .quick-add-label{display:none}
 .command-dock .quick-add-symbol{width:30px;height:30px;flex-shrink:0}
 @media(max-width:440px){.quick-add-panel{left:8px;right:8px;width:auto}}
+
+/* Keep guide and quick change pinned independently of tab-specific flex content. */
+.command-dock{position:fixed;left:0;right:0;top:auto;bottom:var(--dock-viewport-offset,0px);height:var(--dock-height);transform:none}
+.command-dock .context-help,.command-dock .context-help[data-open="true"]{position:absolute;left:max(14px,env(safe-area-inset-left,0px));right:auto;top:auto;bottom:calc(10px + env(safe-area-inset-bottom,0px));margin:0}
+.command-dock .quick-add-toggle{position:absolute;right:max(14px,env(safe-area-inset-right,0px));left:auto;top:auto;bottom:calc(10px + env(safe-area-inset-bottom,0px));margin:0}

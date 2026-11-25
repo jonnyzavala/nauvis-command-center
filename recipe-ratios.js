@@ -204,16 +204,16 @@ function lanePanel(result){
  const entry=result.entries.find(e=>e.key===laneArray)||result.entries.find(e=>e.key===result.id)||result.entries.at(-1);
  if(!entry)return '';
  const plan=planArrayLanes(entry,result.belt,laneRounded),tier=result.belt===900?'yellow':result.belt===1800?'red':'blue',by=new Map(plan.requirements.map(x=>[x.id,x]));
- const laneMarkup=k=>'<span style="--lane-material:'+escape(k?colorFor(k,recipes[k]?.[3]||'asm'):'#405163')+'">'+(k?itemGlyph(k,22)+'<b>'+escape(by.get(k)?.name||k)+'</b>':'<b>Unused lane</b>')+'</span>';
- const groups=plan.groups.map(g=>'<div class="ratio-lane-row"><strong>'+g.count+'×</strong><div class="ratio-lane-belt">'+laneMarkup(g.a)+laneMarkup(g.b)+'</div><small>'+ (g.a===g.b?'Full':g.b?'Mixed':'Half')+'</small></div>').join('');
- return '<details class="ratio-lane-panel" data-ratio-lane-panel '+(laneOpen?'open':'')+'><summary><b>Ingredient belt layout</b><span>'+plan.physical+' '+tier+' · '+plan.saved+' saved</span></summary>'+
+ const name=k=>k?(by.get(k)?.name||k):null;
+ const groups=plan.groups.map(g=>root.NauvisRatioFlow.feederLines(g.count,tier,name(g.a),name(g.b),result.belt)).join('');
+ return '<details class="ratio-lane-panel" data-ratio-lane-panel '+(laneOpen?'open':'')+'><summary><b>Physical input belts</b><span>'+plan.physical+' '+tier+' · '+plan.saved+' saved</span></summary>'+
  '<div class="ratio-lane-body"><label>Receiving production array<select data-ratio-lane-array>'+select(result.entries.map(x=>[x.key,x.name+' · '+x.count+' machines']),entry.key)+'</select></label>'+
  '<label class="ratio-lane-check"><input type="checkbox" data-ratio-lane-rounded '+(laneRounded?'checked':'')+'> Feed every rounded machine at full speed</label>'+
- '<div class="ratio-lane-summary"><div><small>Separate belts</small><b>'+plan.dedicated+'</b></div><div><small>Shared lanes</small><b>'+plan.physical+'</b></div><div><small>Capacity per lane/min</small><b>'+number(plan.lane)+'</b></div></div>'+
- '<div class="ratio-lane-rates">'+plan.requirements.map(x=>'<div>'+itemGlyph(x.id,20)+'<span>'+escape(x.name)+'</span><b>'+number(x.needed)+'/min</b><small>'+x.lanes+' lane'+(x.lanes===1?'':'s')+'</small></div>').join('')+'</div>'+
- '<div class="ratio-lane-layout" style="--lane-tier:'+({yellow:'#e5c35f',red:'#e17b71',blue:'#79b5f6'}[tier])+'">'+(groups||'<p class="ratio-muted">No solid input belts required.</p>')+'</div>'+
+ '<div class="ratio-lane-summary"><div><small>Separate belts</small><b>'+plan.dedicated+'</b></div><div><small>Belts needed</small><b>'+plan.physical+'</b></div><div><small>Full belt / min</small><b>'+number(result.belt)+'</b></div></div>'+
+ '<div class="ratio-lane-rates">'+plan.requirements.map(x=>'<div>'+itemGlyph(x.id,20)+'<span>'+escape(x.name)+'</span><b>'+number(x.needed)+'/min</b><small>'+Math.ceil(x.lanes/2)+' dedicated belt'+(Math.ceil(x.lanes/2)===1?'':'s')+'</small></div>').join('')+'</div>'+
+ '<div class="physical-feeder-map"><small>INPUTS → '+escape(entry.name)+' · '+entry.count+' machines</small>'+(groups||'<p class="ratio-muted">No solid input belts required.</p>')+'<div class="physical-feeder-target"><strong>'+escape(entry.name)+'</strong><span>'+entry.count+' machines · '+number(entry.needed)+'/min target</span></div></div>'+
  (plan.fluids.length?'<p class="ratio-muted">Pipe inputs (excluded): '+plan.fluids.map(f=>escape(f.name)+' '+number(f.needed)+'/min').join(', ')+'.</p>':'')+
- '<p class="ratio-muted">Minimum dedicated lanes for this array, paired when possible. '+(laneRounded?'Uses full rounded machine capacity; supporting producers may need expansion.':'Uses exact target-rate ingredient demand, not the extra capacity from machine rounding.')+' Physical inserter throughput, loading and fuel are not modeled. Layout is advisory.</p></div></details>';
+ '<p class="ratio-muted">Each line is a physical belt. Mixed ingredients share a single line; exact input demand is listed above. '+(laneRounded?'Uses full rounded machine capacity; supporting producers may need expansion.':'Uses exact target-rate ingredient demand, not the extra capacity from machine rounding.')+' Physical inserter throughput, loading and fuel are not modeled. Layout is advisory.</p></div></details>';
 }
 function buildView(result,card){
  const cardKey=card.dataset.ratioExplorer;
@@ -288,7 +288,7 @@ function buildView(result,card){
   '<div class="focus-only focus-planner-kpis"><div><small>BUILD MACHINES</small><strong>'+result.roundedTotal+'</strong><span>Whole machines</span></div><div><small>OUTPUT TARGET</small><strong>'+number(result.rate)+'</strong><span>items/min</span></div><div><small>EXTERNAL INPUTS</small><strong>'+result.external.length+'</strong><span>Material types</span></div></div>'+
   (advancedOn?'<p class="ratio-effect-status"><strong>Upgrade profile active:</strong> machine counts and upstream ingredients reflect compatible module/quality bonuses. Review per-recipe effects under “Why this ratio?”.</p>':'')+
   '<div data-ratio-flow-root class="ratio-flow-root"></div>'+lanePanel(result)+
-  '<div class="ratio-save-strip focus-only"><button class="ratio-save-project" data-ratio-focus-flow type="button">Open belt diagrams →</button><span>See the current blueprint’s lane layout and production chain in Flow &amp; Belts.</span></div>'+
+  '<div class="ratio-save-strip focus-only"><button class="ratio-save-project" data-ratio-focus-flow type="button">Advanced belt tools →</button><span>Optional supply checks and network tools. Use Show belts on the blueprint above for requirements.</span></div>'+
   '<div class="ratio-save-strip"><button class="ratio-save-project" data-ratio-logistics-preview type="button">Preview in Logistics <span aria-hidden="true">→</span></button><span>Test proposed production and explicitly available existing supply without changing Inventory.</span></div>'+
   '<div class="ratio-save-strip"><button class="ratio-save-project" data-ratio-project-save type="button">Queue construction <span aria-hidden="true">→</span></button><span>Creates a planned checklist only. Actual Inventory changes when machines are marked built.</span></div>'+
   '<div data-ratio-legacy-table hidden>'+
