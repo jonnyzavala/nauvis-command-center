@@ -82,7 +82,48 @@ function supportedRate(record,factor=1){
  if(Number.isFinite(raw))return Math.min(rated,Math.max(0,raw*f-(Number(record.reserved)||0)));
  return rated*f;
 }
+// Project ownership is a subset of the existing aggregate smelting totals.
+// Never add the ownership ledger to those totals again.
+const SMELT_FIELDS={'iron-plate':'ironFurnaces','copper-plate':'copperFurnaces','steel-plate':'steelFurnaces','stone-brick':'brickFurnaces'};
+function smeltOwnership(smelt,projects){
+ const ledger=smelt?.projectBuilt??[];
+ if(!Array.isArray(ledger))throw Error('Smelting project ledger is invalid.');
+ const totals={},keys=new Set(),expected=new Map();
+ for(const p of projects||[])for(const t of p.tasks||[])if(t.kind==='furnace'&&t.built>0){
+  if(!Object.hasOwn(SMELT_FIELDS,t.recipe)||!Number.isSafeInteger(t.built)||t.built>t.planned)throw Error('Invalid smelting project task.');
+  expected.set(JSON.stringify([p.id,t.recipe]),t.built);
+ }
+ for(const r of ledger){
+  const field=SMELT_FIELDS[r?.recipe],key=JSON.stringify([r?.projectId,r?.recipe]);
+  if(!Object.hasOwn(SMELT_FIELDS,r?.recipe)||typeof r.projectId!=='string'||!Number.isSafeInteger(r.count)||r.count<1||keys.has(key)||expected.get(key)!==r.count)throw Error('Smelting project ownership differs from Construction. Review the saved snapshot.');
+  keys.add(key);totals[field]=(totals[field]||0)+r.count;
+ }
+ if(keys.size!==expected.size)throw Error('A built smelting project is missing its ownership record.');
+ for(const [field,count] of Object.entries(totals))if(!Number.isSafeInteger(Number(smelt[field]))||Number(smelt[field])<count)throw Error('Actual '+field+' cannot be lower than '+count+' project-owned furnaces.');
+ if(keys.size&&Number(smelt.furnaceSpeed)!==2)throw Error('Project-owned furnaces require the modeled 2× steel/electric speed.');
+ return totals;
+}
+function editSmelting(smelt,patch,projects){
+ const next={...smelt,...patch};
+ smeltOwnership(next,projects);
+ return next;
+}
+function applySmeltBuildDelta(project,recipe,delta,smelt,projects){
+ if(delta!==1&&delta!==-1)throw Error('Build adjustment must be one furnace.');
+ const t=project?.tasks?.find(x=>x.recipe===recipe),field=SMELT_FIELDS[recipe];
+ if(!Object.hasOwn(SMELT_FIELDS,recipe)||t?.kind!=='furnace')throw Error('Unsupported smelting task.');
+ smeltOwnership(smelt,projects);
+ if(Number(smelt.furnaceSpeed)!==2)throw Error('Set actual smelting to steel/electric (2×) before recording this project.');
+ if(!Number.isSafeInteger(t.built)||!Number.isSafeInteger(t.planned)||t.built+delta<0||t.built+delta>t.planned)throw Error('Built count must stay between zero and planned.');
+ const total=Number(smelt[field]??0);if(!Number.isSafeInteger(total)||total<0||total+delta<0)throw Error('Invalid actual furnace total.');
+ const count=t.built+delta,ledger=(smelt.projectBuilt||[]).filter(x=>x.projectId!==project.id||x.recipe!==recipe);
+ if(count)ledger.push({projectId:project.id,recipe,count});
+ const updated={...project,tasks:project.tasks.map(x=>x===t?{...x,built:count}:x)};
+ const next={...smelt,[field]:total+delta,projectBuilt:ledger};
+ smeltOwnership(next,projects.map(p=>p.id===project.id?updated:p));
+ return {project:updated,smelt:next};
+}
 if(typeof module==='object'&&module.exports)
- module.exports={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
-root.NauvisEffects={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
+ module.exports={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,SMELT_FIELDS,smeltOwnership,editSmelting,applySmeltBuildDelta,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
+root.NauvisEffects={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,SMELT_FIELDS,smeltOwnership,editSmelting,applySmeltBuildDelta,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
 })(typeof window==='undefined'?globalThis:window);

@@ -67,7 +67,8 @@ function summarizeSetupDelta(before,after){
  for(const [key,label] of keys){
   const x=before[key]||{},y=after[key]||{};
   if(snapshotsEqual(x,y))continue;
-  const diffs=[...new Set([...Object.keys(x),...Object.keys(y)])].filter(k=>x[k]!==y[k]);
+  const diffs=[...new Set([...Object.keys(x),...Object.keys(y)])].filter(k=>k!=='projectBuilt'&&x[k]!==y[k]);
+  if(!diffs.length)continue;
   const detail=diffs.slice(0,5).map(k=>k+': '+(x[k]??'—')+' → '+(y[k]??'—')).join(' · ')+(diffs.length>5?' · +'+(diffs.length-5)+' more':'');
   events.push({type:'infrastructure',title:label+' updated',detail,source:'Factory'});
  }

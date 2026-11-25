@@ -86,7 +86,11 @@ function applyQuickEdit(state,change,ctx){
    const value=asInteger(change.value,'Quantity');
    if(group==='smelt'&&change.field==='furnaceSpeed'&&![1,2].includes(value))throw Error('Choose a valid furnace speed.');
    if(group==='smelt'&&change.field==='beltTier'&&![900,1800,2700].includes(value))throw Error('Choose a valid belt tier.');
-   next.setup[group][change.field]=value;
+   if(group==='smelt'){
+    const effects=root.NauvisEffects||(typeof require==='function'?require('./production-effects.js'):null);
+    if(effects)next.setup.smelt=effects.editSmelting(next.setup.smelt,{[change.field]:value},labels.plan?.projects||[]);
+    else if(next.setup.smelt.projectBuilt?.length)throw Error('Smelting ownership validation unavailable.');else next.setup.smelt[change.field]=value;
+   }else next.setup[group][change.field]=value;
    label='Updated '+(specs.find(([key])=>key===change.field)?.[1]||change.field);
  }else if(change.kind==='progress'){
    if(!tasksFor(labels.plan||{}).some(([k])=>k===change.task))throw Error('Choose a current construction goal.');

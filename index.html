@@ -603,7 +603,7 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.51 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v0.52 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory &amp; Balance</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Plan &amp; Build</button></div></nav>
  </div>
@@ -775,6 +775,7 @@ body[data-workspace="build"]{
   <h2 id="projectsDialogTitle">Queue construction</h2>
   <p id="projectsDialogSubtitle">Save a construction plan without adding unbuilt machines.</p>
   <div class="project-dialog-field"><label for="projectsName">Project name</label><input type="text" id="projectsName" maxlength="80" autocomplete="off" required /></div>
+  <div id="projectsFurnaceField" class="project-dialog-field" hidden><label for="projectsFurnaceItem">Furnaces to build (2× speed)</label><select id="projectsFurnaceItem"><option value="">Choose actual furnace type</option><option value="steel-furnace">Steel furnace</option><option value="electric-furnace">Electric furnace (unboosted)</option></select></div>
   <p id="projectsDialogError" role="alert" hidden></p>
   <div class="project-dialog-buttons"><button type="button" id="projectsDialogClose">Cancel</button><button type="submit" id="projectsDialogSubmit">Queue construction</button></div>
  </form>
@@ -838,7 +839,7 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v0.51 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v0.52 · Factorio 2.0 / Space Age · Optional cloud sync · Rated factory-wide input/output ledger added in v0.7. Physical input routing, actual train deliveries, circuit-controlled pumps, modules, beacons and inserter constraints remain unmodeled.</footer>
 </div>
 <script src="./item-icons.js"></script>
 <script src="./production-effects.js"></script>
@@ -1156,6 +1157,7 @@ function setupStat(label,value,color,sub=''){return `<div class="setup-stat" sty
 function renderSetupSmelting(){const x=computeSetup(),s=setup.smelt;
  const ironOutBelts=safeNum(s.ironBelts),steelBelts=safeNum(s.ironToSteel),busBelts=Math.max(0,ironOutBelts-steelBelts);
  const note=[];
+ let owned={};try{owned=window.NauvisEffects.smeltOwnership(s,factory.projects||[])}catch(err){note.push(err.message)}
  if(steelBelts>ironOutBelts)note.push('You assigned more iron belts to steel than your total iron output. Steel allocation is capped at the available belts.');
  if(x.ironM<x.ironTransport-0.01)note.push('Iron furnaces cannot fill all configured iron output belts. Smelting is limiting throughput.');
  if(x.unusedSteelFeed>.1)note.push('Your steel input has more iron than the steel furnaces/output belts can consume. That feed may back up; it is not automatically returned to your bus.');
@@ -1174,6 +1176,7 @@ function renderSetupSmelting(){const x=computeSetup(),s=setup.smelt;
   ${setupStat('COPPER PLATES / MIN',x.copper,'#d99266',`${fmt(s.copperFurnaces)} furnaces`)}
   ${setupStat('BRICKS / MIN',x.bricks,'#a5c0bb',`${fmt(s.brickFurnaces)} furnaces`)}
  </div>
+ ${Object.keys(owned).length?`<p class="small">Construction-owned subset: ${Object.entries(owned).map(([k,v])=>`${fmt(v)} ${escapeHTML(k.replace('Furnaces',''))} furnaces`).join(' · ')}. Already included in the totals above. Reverse their built counts in Construction; output belt totals remain manually recorded.</p>`:''}
  <div class="notice ${note.length?'warn':'good'}" style="margin-top:13px">${note.length?note.map(m=>`<p>${escapeHTML(m)}</p>`).join(''):'Smelting counts, belt routing and steel consumption are consistent at their theoretical maximum. Ore, fuel and inserters are still unmeasured.'}</div>`;
 }
 function renderSetupOil(){const o=setup.oil,r=safeNum(o.refineries),h=safeNum(o.heavyCrackers),l=safeNum(o.lightCrackers);
@@ -1221,16 +1224,21 @@ function renderSetupFeeds(){el('setupFeedRows').innerHTML=setup.feeds.map((row,i
 function renderSetupFeedSummary(){const rows=setup.feeds.filter(x=>safeNum(x.count)>0);
  el('setupFeedSummary').innerHTML=rows.length?`<div class="tablewrap"><table class="setup-table"><thead><tr><th>Connected resource</th><th>Belts</th><th>Transport cap / min</th></tr></thead><tbody>${rows.map(f=>`<tr><td>${escapeHTML(feedMaterials.find(x=>x[0]===f.recipe)?.[1]||f.recipe)}<div class="tiny">→ ${escapeHTML(f.destination)}</div></td><td>${fmt(f.count)} ${f.tier}</td><td>${fmt(safeNum(f.count)*beltSpeed(f.tier))}</td></tr>`).join('')}</tbody></table></div><p class="small">Transport capacity assumes full belts with both lanes carrying the same item; it is not a verified production rate.</p>`:'';
 }
-function renderSetupCompare(){const x=calculate(guide.goal,guide.rate),available={};for(const row of setup.machines){if(row.destination!=='Available for new build'||(R[row.recipe]?.[3]==='asm'&&safeNum(row.tier||.75)!==Number(guide.machine)))continue;available[row.recipe]=(available[row.recipe]||0)+safeNum(row.count)}
- const rows=x.entries.map(a=>({name:a.name,need:a.count,have:Math.min(a.count,available[a.key]||0),missing:Math.max(0,a.count-(available[a.key]||0)),kind:a.kind,color:a.color}));
- const missing=rows.reduce((acc,a)=>acc+a.missing,0),reusable=rows.reduce((acc,a)=>acc+a.have,0);
- const s=computeSetup();const inputs=x.external;
- const caps={'iron-plate':s.busIron,'copper-plate':s.copper,'steel-plate':s.steel,'stone-brick':s.bricks};
- const scarce=Object.entries(caps).filter(([key,cap])=>inputs[key]>0&&inputs[key]>cap+.001).map(([k,cap])=>`${nameOf(k)} needs ${fmt(inputs[k])}/min; modeled output ${fmt(cap)}/min`);
- el('setupComparison').innerHTML=`<div class="inline" style="flex-wrap:wrap;gap:8px"><b>${escapeHTML(R[guide.goal][0])} · ${fmt(guide.rate)}/min</b><span class="tag">${fmt(reusable)} assigned · ${fmt(missing)} still needed</span></div>
- <div class="tablewrap" style="margin-top:12px"><table class="setup-table"><thead><tr><th>Recipe</th><th>Needed</th><th>Available*</th><th>Build</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHTML(r.name)}</td><td>${fmt(r.need)}</td><td>${fmt(r.have)}</td><td style="color:${r.missing?c.gold:c.green}">${fmt(r.missing)}</td></tr>`).join('')}</tbody></table></div>
- <p class="small">*Only lines explicitly assigned to “Available for new build” count. Exact recipe and assembler tier must match the planned machine speed. This comparison does not model shared input consumption.</p>
- ${scarce.length?`<div class="notice warn">Smelting supply warnings for this single build: ${scarce.map(escapeHTML).join('; ')}. Other factory consumption is additional.</div>`:'<div class="notice good">No modeled iron/copper/steel/brick shortage for this one selected build. Other running factories are not included.</div>'}`;
+function renderSetupCompare(){
+ const host=el('setupComparison');
+ if(!host)return;
+ const engine=window.NauvisEngineering,math=window.NauvisRecipeMath,logistics=window.NauvisLogistics;
+ if(!engine||!math||!logistics){host.innerHTML='<p class="small">Shared planning calculations load with the Blueprint and Logistics workspaces.</p>';return}
+ try{
+  const goal={id:guide.goal,rate:guide.rate,machine:guide.machine,source:guide.source,belt:guide.belt,moduleType:guide.moduleType||'none',moduleCount:guide.moduleCount||0,moduleType2:guide.moduleType2||'none',moduleCount2:guide.moduleCount2||0,machineQuality:guide.machineQuality||'normal',beaconSpeed:guide.beaconSpeed||0};
+  const full=math(R,goal,{stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names});
+  if(!full.entries.length){host.innerHTML='<p class="small">Choose a positive goal in Blueprint Designer.</p>';return}
+  const eligible=logistics.eligibleReuse(full),rates={};
+  for(const x of eligible)rates[x.item]=(rates[x.item]||0)+x.rate;
+  const reduced=engine.incrementalPlan(full,rates);
+  host.innerHTML='<div class="inline" style="flex-wrap:wrap;gap:8px"><b>'+escapeHTML(R[full.id][0])+' · '+fmt(full.rate)+'/min additional output</b><span class="tag">'+fmt(full.roundedTotal)+' standalone machines</span><span class="tag">'+fmt(reduced.roundedTotal)+' with eligible reuse</span></div><p class="small">Illustrative maximum reuse of explicitly available production, after modeled input constraints and queued commitments. Not a reservation or proof of delivery.</p><button class="btn" id="setupReusePreview">Review reuse in Logistics →</button>';
+  el('setupReusePreview').addEventListener('click',()=>logistics.previewBlueprint(full));
+ }catch(err){host.innerHTML='<p class="small">'+escapeHTML(err.message)+'</p>'}
 }
 function renderSetupSummaryOnly(){renderSetupSmelting();renderSetupOil();renderSetupMachineSummary();renderSetupFeedSummary();renderSetupCompare();renderBalance();window.NauvisLogistics?.render?.()}
 function saveSetup(){window.NauvisJournal?.captureSetup?.();try{localStorage.setItem(setupKey,JSON.stringify(setup))}catch(e){};if(!window.NauvisCloudApplying)window.NauvisCloud?.changed()}
@@ -1238,12 +1246,16 @@ function renderSetup(){renderSetupInputs();renderSetupMachines();renderSetupFeed
 function initSetup(){
  document.querySelectorAll('#setup [data-smelt], #setup [data-oil]').forEach(inp=>inp.addEventListener('change',e=>{
   const which=inp.dataset.smelt?'smelt':'oil',field=inp.dataset.smelt||inp.dataset.oil;
-  setup[which][field]=safeNum(inp.value);saveSetup();renderSetupSummaryOnly();
+  try{
+  if(which==='smelt'){const v=Number(inp.value);if(inp.value.trim()===''||!Number.isSafeInteger(v)||v<0)throw Error('Enter a nonnegative whole number.');Object.assign(setup.smelt,window.NauvisEffects.editSmelting(setup.smelt,{[field]:v},factory.projects||[]));}
+  else setup[which][field]=safeNum(inp.value);
+  saveSetup();renderSetupSummaryOnly();
+ }catch(err){alert(err.message);renderSetupInputs()}
  }));
  el('setupAddMachine').addEventListener('click',()=>window.NauvisQuick?.openInventory('machine'));
  el('setupAddFeed').addEventListener('click',()=>window.NauvisQuick?.openInventory('belt'));
- el('setupExample').addEventListener('click',()=>{if(!confirm('Overwrite actual smelting Inventory with hypothetical sample counts? This is not a planning action.'))return;Object.assign(setup.smelt,{ironFurnaces:288,ironBelts:6,ironToSteel:2,steelFurnaces:96,steelBelts:1,furnaceSpeed:2,beltTier:1800});saveSetup();renderSetup()});
- el('setupRestore').addEventListener('click',()=>{if(!confirm('Overwrite actual smelting Inventory with hypothetical sample counts? This is not a planning action.'))return;Object.assign(setup.smelt,setupSeed.smelt);saveSetup();renderSetup()});
+ el('setupExample').addEventListener('click',()=>{if(!confirm('Overwrite actual smelting Inventory with hypothetical sample counts? This is not a planning action.'))return;if(setup.smelt.projectBuilt?.length){alert('Sample replacement is blocked while Construction owns furnaces.');return}Object.assign(setup.smelt,{ironFurnaces:288,ironBelts:6,ironToSteel:2,steelFurnaces:96,steelBelts:1,furnaceSpeed:2,beltTier:1800});saveSetup();renderSetup()});
+ el('setupRestore').addEventListener('click',()=>{if(!confirm('Overwrite actual smelting Inventory with hypothetical sample counts? This is not a planning action.'))return;if(setup.smelt.projectBuilt?.length){alert('Sample replacement is blocked while Construction owns furnaces.');return}Object.assign(setup.smelt,setupSeed.smelt);saveSetup();renderSetup()});
  renderSetup();
 }
 
@@ -1325,9 +1337,10 @@ function renderBalance(){
   }).join('')}</tbody></table></div>`;
  const alerts=result.rows.filter(x=>x.status==='short'||x.status==='unknown'||x.status==='tight').sort((a,b)=>({short:0,unknown:1,tight:2}[a.status]-{short:0,unknown:1,tight:2}[b.status]));
  const notes=[];
+ try{for(const a of window.NauvisLogistics?.auditReuse?.()||[])if(a.short>.01||!a.verifiedModel)notes.push({title:nameOf(a.item)+' · REUSE COMMITMENT',desc:fmt(a.required)+'/min committed; '+fmt(a.capacity)+'/min '+(a.verifiedModel?'modeled capacity':'rated capacity; route model unavailable')+'. '+(a.short>.01?'Review the source and saved construction design.':'Verify the delivery path.'),col:a.short>.01?c.red:c.gold,route:a.item});}catch(_e){}
  if(network&&!network.converged)notes.push({title:'Route model not converged',desc:'Rated ledger remains available. Route-constrained output is not displayed until the network calculation converges.',col:c.gold});
  for(const x of routeRows.slice(0,5))notes.push({title:nameOf(x.id)+' · ROUTE CHECK',desc:x.error?'Resource graph requires review.':(x.short?x.short+' modeled destination(s) short by '+f(x.gap)+'/min in total. ':'')+(x.unknown?x.unknown+' missing or duplicate linked records.':''),col:x.short||x.error?c.red:c.gold,route:x.id});
- if(!result.summary.recorded)notes.push({title:'Enter your existing assemblers and chemical plants',desc:'Smelting is prefilled, but no factory production lines are recorded. Any apparent surplus is not verified spare capacity.',col:c.gold});
+ if(!result.summary.recorded)notes.push({title:'Enter your existing assemblers and chemical plants',desc:'No assembler or chemical-plant production lines are recorded. Any apparent surplus is not verified spare capacity.',col:c.gold});
  for(const x of alerts.slice(0,7)){
   const desc=x.status==='short'?`Potential shortage ${f(Math.abs(x.margin))}/min at rated machine speed.`:x.status==='unknown'?`Recorded consumers need ${f(x.total)}/min, but the producing machines or source have not been entered.`:`Recorded demand uses most of the modeled ${f(x.produced)}/min capacity.`;
   notes.push({title:nameOf(x.id)+' · '+statuses[x.status][0],desc,col:statuses[x.status][1]});
@@ -1463,6 +1476,7 @@ function activateWorkspace(view,scrollPage=false){
   if(yes)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
  });
  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===view));
+ if(view==='setup')renderSetupCompare();
  if(view==='balance')renderBalance();
  if(view==='logistics')window.NauvisLogistics?.render?.();
  guideFocus=null;guideTopic='';if(document.getElementById('contextHelp'))updateGuideContext();

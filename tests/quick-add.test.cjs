@@ -121,3 +121,13 @@ test('construction-linked records cannot be duplicated, removed, or change count
  const n=applyQuickEdit(s,machine({target:'0',destination:'Main bus'}),ctx).state;
  assert.equal(n.setup.machines[0].projectId,'p1');assert.equal(n.setup.machines[0].moduleCount,2);assert.equal(n.setup.machines[0].destination,'Main bus');
 });
+
+test('Quick Change cannot reduce actual furnace total below project ownership',()=>{
+ const s=original(),p={id:'raw',tasks:[{recipe:'iron-plate',kind:'furnace',built:2,planned:4}]};
+ s.setup.smelt.projectBuilt=[{projectId:'raw',recipe:'iron-plate',count:2}];
+ const context={...ctx,plan:{...ctx.plan,projects:[p]}};
+ assert.throws(()=>applyQuickEdit(s,{kind:'smelt',field:'ironFurnaces',value:1},context),/cannot be lower/);
+ assert.throws(()=>applyQuickEdit(s,{kind:'smelt',field:'furnaceSpeed',value:1},context),/2×/);
+ const next=applyQuickEdit(s,{kind:'smelt',field:'ironFurnaces',value:50},context).state;
+ assert.deepEqual(next.setup.smelt.projectBuilt,s.setup.smelt.projectBuilt);assert.equal(next.setup.smelt.ironFurnaces,50);
+});

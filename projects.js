@@ -45,13 +45,13 @@ function freezeDesign(analysis){
  if(!Number.isSafeInteger(analysis.baselineMachines)||analysis.baselineMachines<analysis.entries.reduce((n,e)=>n+e.count,0))throw Error('Invalid original machine total.');
  return JSON.parse(JSON.stringify({analysis, reuseClaims:analysis.reuseClaims||[], baselineMachines:analysis.baselineMachines}));
 }
-function buildProject(name,analysis,id,createdAt){
+function buildProject(name,analysis,id,createdAt,furnaceItem=null){
  validateProjectName(name);
  if(!analysis||!analysis.id||!Number.isFinite(analysis.rate)||!Array.isArray(analysis.entries)||!analysis.entries.length)
   throw Error('Choose a production goal above zero before saving a project.');
  if(!id||typeof id!=='string')throw Error('Project ID is required.');
- if(analysis.entries.some(row=>row.kind==='furnace'))
-  throw Error('Select Bus-fed inputs before saving a construction project. Raw-smelting projects are not supported yet.');
+ const hasFurnaces=analysis.entries.some(row=>row.kind==='furnace');
+ if(hasFurnaces&&(!['steel-furnace','electric-furnace'].includes(furnaceItem)||analysis.entries.some(r=>r.kind==='furnace'&&!['iron-plate','copper-plate','steel-plate','stone-brick'].includes(r.key))))throw Error('Raw smelting requires an explicit steel/electric furnace choice.');
  const tasks=analysis.entries.map(row=>{
   if(!row.key||!VALID_KINDS.has(row.kind)||!Number.isSafeInteger(row.count)||row.count<1)
    throw Error('Invalid recipe machine count.');
@@ -59,11 +59,27 @@ function buildProject(name,analysis,id,createdAt){
  });
  if(new Set(tasks.map(x=>x.recipe)).size!==tasks.length)throw Error('Duplicate recipe in project.');
  const design=freezeDesign(analysis);
- return {id,name:validateProjectName(name),status:'active',createdAt:String(createdAt),...(design?{design}:{}),
+ return {id,name:validateProjectName(name),status:'active',createdAt:String(createdAt),...(design?{design}:{}),...(hasFurnaces?{furnaceItem}:{}),
   goal:{id:analysis.id,rate:analysis.rate,machine:analysis.machine,source:analysis.source,belt:analysis.belt,
    moduleType:analysis.moduleType||'none',moduleCount:analysis.moduleCount||0,moduleType2:analysis.moduleType2||'none',moduleCount2:analysis.moduleCount2||0,
    machineQuality:analysis.machineQuality||'normal',beaconSpeed:analysis.beaconSpeed||0},
   tasks};
+}
+// Remaining machine items and their immediate crafting ingredients.
+function constructionMaterials(project,recipes){
+ const machineItems={asm:project.goal.machine===1.25?'assembling-machine-3':'assembling-machine-2',chem:'chemical-plant',furnace:project.furnaceItem};
+ const counts=new Map(),ingredients=new Map(),unknown=[];
+ for(const t of project.tasks||[]){
+  const key=machineItems[t.kind];if(!key)continue;
+  const old=counts.get(key)||{key,planned:0,built:0};old.planned+=t.planned;old.built+=t.built;counts.set(key,old);
+ }
+ for(const row of counts.values()){
+  const remaining=Math.max(0,row.planned-row.built);row.remaining=remaining;
+  if(!remaining)continue;const recipe=recipes[row.key];
+  if(!recipe){unknown.push(row.key);continue}
+  for(const [key,quantity] of Object.entries(recipe[4]||{}))ingredients.set(key,(ingredients.get(key)||0)+Math.ceil(remaining/recipe[2])*quantity);
+ }
+ return {machines:[...counts.values()],ingredients:[...ingredients].map(([key,quantity])=>({key,quantity})),unknown};
 }
 function projectProgress(project){
  const tasks=Array.isArray(project?.tasks)?project.tasks:[];
@@ -124,7 +140,7 @@ function normalizeProjects(value){
  });
 }
 if(typeof module==='object'&&module.exports)
- module.exports={buildProject,projectProgress,recordedForTask,applyBuildDelta,validateProjectName,normalizeProjects,reuseClaims,validateReuseClaims,freezeDesign};
+ module.exports={buildProject,projectProgress,recordedForTask,applyBuildDelta,validateProjectName,normalizeProjects,reuseClaims,validateReuseClaims,freezeDesign,constructionMaterials};
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id);
 const escape=s=>String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
@@ -181,29 +197,41 @@ function designDetails(p){
  '<strong>Other external input demand (full design target)</strong>'+(inputs||'<p class="small">None at this recipe boundary.</p>')+'</details>';
 }
 function materialDetails(p){
- const counts=new Map(),items={asm:p.goal.machine===1.25?'assembling-machine-3':'assembling-machine-2',chem:'chemical-plant'};
- for(const task of p.tasks){const k=items[task.kind];if(!k)continue;const v=counts.get(k)||{planned:0,built:0};v.planned+=task.planned;v.built+=task.built;counts.set(k,v)}
- if(!counts.size)return '';
- return '<details class="project-design"><summary>Machine construction materials</summary>'+[...counts].map(([k,v])=>'<div class="project-design-row"><span>'+itemGlyph(k,24)+' '+escape(R[k]?.[0]||k)+'</span><b>'+fmt(v.planned-v.built)+' remaining / '+fmt(v.planned)+'</b></div>').join('')+'<p class="small">Machine items to place, not their raw crafting ingredients. Belt length, inserters, power poles and module inventory are not inferred.</p></details>';
+ const materials=constructionMaterials(p,R);
+ if(!materials.machines.length)return '';
+ const row=(k,v)=>'<div class="project-design-row"><span>'+itemGlyph(k,24)+' '+escape(R[k]?.[0]||k)+'</span><b>'+v+'</b></div>';
+ return '<details class="project-design"><summary>Machine construction materials</summary>'+materials.machines.map(x=>row(x.key,fmt(x.remaining)+' remaining / '+fmt(x.planned))).join('')+
+ '<strong>Immediate crafting ingredients for remaining machines</strong>'+
+ (materials.ingredients.map(x=>row(x.key,fmt(x.quantity))).join('')||'<p class="small">None remaining or recipe unavailable.</p>')+
+ (materials.unknown.length?'<p class="small">Missing machine recipes: '+escape(materials.unknown.join(', '))+'</p>':'')+
+ '<p class="small">Gross requirements if crafting from components; subtract items you already own yourself. Not expanded to raw ores. No belt lengths, fuel, inserters, poles or installed module inventory inferred.</p></details>';
+}
+function furnaceRecorded(p,t){
+ const field=root.NauvisEffects.SMELT_FIELDS[t.recipe];
+ try{
+  root.NauvisEffects.smeltOwnership(setup.smelt,allProjects());
+  const count=(setup.smelt.projectBuilt||[]).find(x=>x.projectId===p.id&&x.recipe===t.recipe)?.count||0;
+  return {count,mismatch:!field||count!==t.built};
+ }catch(_e){return {count:0,mismatch:true}}
 }
 function projectHTML(p){
  const progress=projectProgress(p),pct=progress.planned?Math.round(100*progress.built/progress.planned):0;
  const archived=p.status==='archived';
  const lineItems=p.tasks.map(task=>{
   const isAsset=task.kind==='asset';
-  const saved=recordedForTask(p,task,isAsset?setup.assets:setup.machines);
+  const saved=task.kind==='furnace'?furnaceRecorded(p,task):recordedForTask(p,task,isAsset?setup.assets:setup.machines);
   const color=colorFor(task.recipe,task.kind);
   const mismatch=saved.mismatch||saved.count!==task.built;
-  const cannotRecord=task.kind==='furnace';
-  const possibleDuplicates=isAsset?matchingUnlinkedAssets(task.recipe,p.goal.area):matchingUnlinked(task.recipe,p.goal.machine);
+  const cannotRecord=task.kind==='furnace'&&Number(setup.smelt.furnaceSpeed)!==2;
+  const possibleDuplicates=task.kind==='furnace'?Math.max(0,Number(setup.smelt[root.NauvisEffects.SMELT_FIELDS[task.recipe]])-(setup.smelt.projectBuilt||[]).filter(x=>x.recipe===task.recipe).reduce((n,x)=>n+x.count,0)):isAsset?matchingUnlinkedAssets(task.recipe,p.goal.area):matchingUnlinked(task.recipe,p.goal.machine);
   return '<div class="project-task" style="--project-task-accent:'+color+'">'+
-   '<div class="project-task-identity"><span class="project-task-led" aria-hidden="true"></span>'+itemGlyph(task.recipe,32)+'<div><strong>'+escape(R[task.recipe]?.[0]||task.recipe)+'</strong><small>'+escape(noun(task.kind))+' · '+task.planned+' planned'+(task.kind==='asm'?' · Assembler '+(p.goal.machine===1.25?'3':'2'):'')+'</small></div></div>'+
+   '<div class="project-task-identity"><span class="project-task-led" aria-hidden="true"></span>'+itemGlyph(task.recipe,32)+'<div><strong>'+escape(R[task.recipe]?.[0]||task.recipe)+'</strong><small>'+escape(noun(task.kind))+' · '+task.planned+' planned'+(task.kind==='asm'?' · Assembler '+(p.goal.machine===1.25?'3':'2'):task.kind==='furnace'?' · '+escape(R[p.furnaceItem]?.[0]||'2× furnace'):'')+'</small></div></div>'+
    '<div class="project-task-controls"><button type="button" data-project-minus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" title="Reverse built count · removes one from actual Inventory" aria-label="Mark one fewer '+escape(task.recipe)+' built" '+(archived||task.built<=0||mismatch?'disabled':'')+'>−</button>'+
    '<span class="project-task-counter"><b>'+task.built+'</b><small>/ '+task.planned+(isAsset?' placed':' built')+'</small></span>'+
    '<button type="button" data-project-plus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" title="Mark one as built · adds one to actual Inventory" aria-label="Mark one more '+escape(task.recipe)+' built" '+(archived||task.built>=task.planned||mismatch||cannotRecord?'disabled':'')+'>+</button></div>'+
    '<div class="project-task-foot"><span class="project-task-recorded">'+saved.count+(isAsset?' deployed in Factory':' in actual Inventory')+' · linked to this project</span>'+
    (mismatch?'<span class="project-task-warning">Factory and project counts differ. Review the linked line in Factory.</span>':
-    cannotRecord?'<span class="project-task-warning">Save a bus-fed project to record machines automatically.</span>':
+    cannotRecord?'<span class="project-task-warning">Set actual smelting speed to 2× before recording this furnace.</span>':
     possibleDuplicates?'<span class="project-task-warning">Check for duplicates: '+possibleDuplicates+' matching unlinked machines already in Factory.</span>':'')+
    '</div></div>';
  }).join('');
@@ -250,6 +278,8 @@ function openDialog(mode,project,result,options=null){
  const title=$('projectsDialogTitle'),input=$('projectsName');
  title.textContent=editing?'Rename project':'Queue construction';
  $('projectsDialogSubmit').textContent=editing?'Save name':'Queue construction';
+ $('projectsFurnaceField').hidden=!!editing||!result?.entries?.some(r=>r.kind==='furnace');
+ $('projectsFurnaceItem').value='';
  input.value=editing?project.name:fmt(result.rate)+' '+(R[result.id]?.[0]||result.id)+'/min';
  $('projectsDialogSubtitle').textContent=editing?'Change the display name without changing machine counts.':result?.reused?'Queue '+result.roundedTotal+' additional machines from this incremental design. Reused output becomes a planning commitment. No machines are added to actual Inventory.':'Create a separate construction plan from this exact recipe calculation. No machines will be added to Existing Factory.';
  $('projectsDialog').showModal();
@@ -268,7 +298,8 @@ function saveDialog(event){
   }else{
    if(!pending)throw Error('No production calculation selected.');
    if(pendingOptions?.validate)pendingOptions.validate(pending);
-   const project=buildProject(name,pending,uniqueId(),new Date().toISOString());
+   if(pending.entries.some(r=>r.kind==='furnace')){root.NauvisEffects.smeltOwnership(setup.smelt,allProjects());if(Number(setup.smelt.furnaceSpeed)!==2)throw Error('Raw plans require actual smelting speed 2×.');}
+   const project=buildProject(name,pending,uniqueId(),new Date().toISOString(),$('projectsFurnaceItem').value);
    setProjects([...allProjects(),project],{
     type:'project',source:project.design?'Logistics preview':'Blueprint Designer',projectId:project.id,
     recipe:project.goal.id,title:'Saved construction project',
@@ -288,7 +319,10 @@ function updateBuilt(id,recipe,delta){
  const task=project.tasks.find(t=>t.recipe===recipe);if(!task)return;
  const isAsset=task.kind==='asset';
  try{
-  const overlap=isAsset?matchingUnlinkedAssets(recipe,project.goal.area):matchingUnlinked(recipe,project.goal.machine);
+  const isFurnace=task.kind==='furnace';
+  const ownership=isFurnace?root.NauvisEffects.smeltOwnership(setup.smelt,allProjects()):{};
+  const field=root.NauvisEffects.SMELT_FIELDS[recipe];
+  const overlap=isFurnace?Math.max(0,Number(setup.smelt[field]||0)-(ownership[field]||0)):isAsset?matchingUnlinkedAssets(recipe,project.goal.area):matchingUnlinked(recipe,project.goal.machine);
   const overlapKey=id+'|'+recipe;
   if(delta>0&&overlap>0&&!reviewedOverlaps.has(overlapKey)){
    const msg=overlap+' matching '+(R[recipe]?.[0]||recipe)+' '+(isAsset?'placed structures':'machines')+
@@ -297,13 +331,13 @@ function updateBuilt(id,recipe,delta){
    if(!root.confirm(msg))return;
    reviewedOverlaps.add(overlapKey);
   }
-  const change=isAsset?root.NauvisAssets?.applyBuildDelta?.(project,recipe,delta,setup.assets):
+  const change=isFurnace?root.NauvisEffects.applySmeltBuildDelta(project,recipe,delta,setup.smelt,allProjects()):isAsset?root.NauvisAssets?.applyBuildDelta?.(project,recipe,delta,setup.assets):
    applyBuildDelta(project,recipe,delta,setup.machines);
   if(!change)throw Error('Infrastructure inventory is not ready.');
   const expanded=!!$('projectsList')?.querySelector('[data-project-card="'+id+'"] .project-task-details')?.open;
   // Update the paired project and exactly one actual inventory ledger before syncing.
   factory.projects=allProjects().map(p=>p.id===id?change.project:p);
-  if(isAsset)setup.assets=change.rows;else setup.machines=change.rows;
+  if(isFurnace)Object.assign(setup.smelt,change.smelt);else if(isAsset)setup.assets=change.rows;else setup.machines=change.rows;
   const next=change.project.tasks.find(t=>t.recipe===recipe);
   const name=R[recipe]?.[0]||recipe;
   root.NauvisJournal?.record?.({
@@ -311,7 +345,7 @@ function updateBuilt(id,recipe,delta){
    before:next.built-delta,after:next.built,
    title:(delta>0?(isAsset?'Placed +1 ':'Built +1 '):(isAsset?'Reversed placement −1 ':'Reversed −1 '))+name,
    detail:project.name+' · '+(next.built-delta)+' → '+next.built+(isAsset?' deployed':' built')+
-    ' · '+(isAsset?'Factory infrastructure ledger':'Factory production-machine inventory')+' updated once.'+
+    ' · '+(isFurnace?'Factory smelting inventory':isAsset?'Factory infrastructure ledger':'Factory production-machine inventory')+' updated once.'+
     (overlap&&delta>0?' Review '+overlap+' existing unlinked '+name+' records for possible duplicate entry.':'')
   });
   saveSetup();save();renderSetup();
@@ -409,10 +443,7 @@ function attachEvents(){
 }
 function createFromRatio(result,options=null){
  if(!result?.entries?.length){root.alert('Choose a production target above zero before saving.');return}
- if(result.entries.some(row=>row.kind==='furnace')){
-  root.alert('To save this build, select Bus-fed inputs in Planner. Raw-smelting project recording is not supported yet, because furnaces belong to a separate smelting inventory.');
-  return;
- }
+ if(result.entries.some(row=>row.kind==='furnace')&&Number(setup.smelt.furnaceSpeed)!==2){root.alert('Raw blueprints use 2× steel/electric furnace speed. Set actual smelting to that speed before queueing, or choose bus-fed inputs.');return;}
  $('projectsDialogError').hidden=true;openDialog('create',null,JSON.parse(JSON.stringify(result)),options);
 }
 function refresh(){render()}

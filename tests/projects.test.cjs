@@ -102,10 +102,11 @@ test('built progress cannot go below zero or beyond planned machine counts',()=>
  assert.equal(state.project.tasks[0].built,5);
  assert.throws(()=>applyBuildDelta(state.project,'copper-cable',1,state.rows),/between zero/);
 });
-test('unmodeled raw smelting projects refuse unsafe automatic Factory writes',()=>{
+test('raw smelting projects require an explicit compatible furnace choice',()=>{
  const raw=analyze(90,'raw');
  assert.ok(raw.entries.some(x=>x.kind==='furnace'));
- assert.throws(()=>buildProject('Raw project',raw,'raw-1','2026-11-22'),/Bus-fed inputs/);
+ assert.throws(()=>buildProject('Raw project',raw,'raw-1','2026-11-22'),/explicit steel\/electric/);
+ const p=buildProject('Raw project',raw,'raw-1','2026-11-22','steel-furnace');assert.equal(p.furnaceItem,'steel-furnace');assert.ok(p.tasks.some(x=>x.kind==='furnace'));
 });
 test('zero-target projects and invalid project names are rejected',()=>{
  assert.throws(()=>buildProject('','x','id','2026-11-22'));
@@ -123,7 +124,7 @@ test('the cloud snapshot continues to include plan without new tables or sync co
  assert.match(html,/snapshot\(\)\{return JSON\.parse\(JSON\.stringify\(\{version:7,plan:factory,guide,setup,balancePrefs\}\)\)\}/);
  assert.match(html,/projects:Array\.isArray\(data\.plan\.projects\)\?data\.plan\.projects:\[\]/);
  assert.match(html,/factory\.projects=Array\.isArray\(factory\.projects\)\?factory\.projects:\[\]/);
- assert.match(worker,/nauvis-shell-v051/);
+ assert.match(worker,/nauvis-shell-v052/);
  assert.match(worker,/projects\.js/);
  assert.match(worker,/projects\.css/);
 });
@@ -154,4 +155,31 @@ test('incremental project freezes reduced design and records only additional mac
  assert.deepEqual(next.rows[0],existing[0]);assert.equal(next.rows.length,2);assert.equal(next.rows[1].count,1);
  reduced.entries[0].count=999;assert.notEqual(p.design.analysis.entries[0].count,999);
  assert.throws(()=>buildProject('Bad',{...reduced,reuseClaims:[]},'bad','now'),/Reuse commitments differ/);
+});
+
+test('raw projects own a subset of actual smelting counts, reverse safely, and guard manual edits',()=>{
+ const effects=require('../production-effects.js');
+ const p=buildProject('Raw project',analyze(90,'raw'),'raw-1','now','steel-furnace');
+ const task=p.tasks.find(x=>x.kind==='furnace'),field=effects.SMELT_FIELDS[task.recipe];
+ const initial={furnaceSpeed:2,[field]:12};
+ const a=effects.applySmeltBuildDelta(p,task.recipe,1,initial,[p]);
+ assert.equal(a.smelt[field],13);assert.equal(a.smelt.projectBuilt[0].count,1);
+ assert.equal(effects.smeltOwnership(a.smelt,[a.project])[field],1);
+ assert.equal(initial[field],12);
+ assert.throws(()=>effects.editSmelting(a.smelt,{[field]:0},[a.project]),/cannot be lower/);
+ assert.throws(()=>effects.editSmelting(a.smelt,{furnaceSpeed:1},[a.project]),/2×/);
+ assert.throws(()=>effects.applySmeltBuildDelta(a.project,task.recipe,1,{...a.smelt,projectBuilt:[]},[a.project]),/missing/);
+ const b=effects.applySmeltBuildDelta(a.project,task.recipe,-1,a.smelt,[a.project]);
+ assert.equal(b.smelt[field],12);assert.equal(b.smelt.projectBuilt.length,0);
+});
+test('remaining machine construction ingredient bill uses selected furnace type and remaining tasks',()=>{
+ const {constructionMaterials}=require('../projects.js');
+ const p=buildProject('Raw project',analyze(90,'raw'),'raw-1','now','electric-furnace');
+ const bill=constructionMaterials(p,R);
+ const f=bill.machines.find(x=>x.key==='electric-furnace');
+ assert.ok(f.remaining>0);assert.equal(bill.unknown.length,0);
+ const expected=Object.fromEntries(bill.ingredients.map(x=>[x.key,x.quantity]));
+ for(const [k,q] of Object.entries(R['electric-furnace'][4]))assert.ok(expected[k]>=f.remaining*q);
+ const built={...p,tasks:p.tasks.map(t=>({...t,built:t.planned}))};
+ assert.equal(constructionMaterials(built,R).ingredients.length,0);
 });

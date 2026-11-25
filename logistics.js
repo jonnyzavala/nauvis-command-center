@@ -544,6 +544,19 @@ function eligibleReuse(full){
  const claims=root.NauvisProjects?.reuseClaims?.()||new Map();
  return network.converged&&!Array.from(network.results.values()).some(x=>x.error)?reuseCandidates(setup.machines,R,graph,network.factors,root.NauvisEffects.recordedRates,claims).filter(r=>eligibleItems.has(r.item)):[];
 }
+// Commitments remain visible even when a source is removed, reassigned or reduced.
+function auditReuse(){
+ const network=actualNetwork(),valid=network.converged&&!Array.from(network.results.values()).some(x=>x.error),claims=root.NauvisProjects?.reuseClaims?.()||new Map(),rated=new Map();
+ for(const row of setup.machines){
+  if(row.destination!=='Available for new build'||!R[row.recipe])continue;
+  const k='machine:'+row.recipe+'|'+row.destination;
+  rated.set(k,(rated.get(k)||0)+root.NauvisEffects.recordedRates(row.recipe,R[row.recipe],row).output);
+ }
+ return [...claims].map(([key,required])=>{
+  const capacity=(rated.get(key)||0)*(valid?network.factors.get(key)??1:1);
+  return {key,item:key.slice(8,key.lastIndexOf('|')),required,capacity,short:Math.max(0,required-capacity),verifiedModel:valid};
+ });
+}
 function previewCalculation(){
  if(!blueprintDraft||savedDesignId)throw Error('Open a new build preview.');
  const candidates=eligibleReuse(blueprintDraft),selectedRates={};
@@ -678,8 +691,10 @@ function init(){
  });
  host.addEventListener('pointercancel',()=>{drag=null;render()});
  let lastWidth=root.innerWidth;root.addEventListener('resize',()=>{if(root.innerWidth!==lastWidth){lastWidth=root.innerWidth;if($('logistics')?.classList.contains('active'))render()}},{passive:true});
- root.NauvisLogistics={render,actualNetwork,previewBlueprint,viewSavedDesign,openResource(resource){inspectResource(resource);},invalidate(){blueprintDraft=null;savedDesignId=null;previewMode=false;reuseSelection.clear();undo=null;selected=null;connecting=null;picker=false;drag=null;includeScenario=false;entityPending=null;entityPicker=false;notice='';render()}};
+ root.NauvisLogistics={render,actualNetwork,previewBlueprint,viewSavedDesign,eligibleReuse,auditReuse,openResource(resource){inspectResource(resource);},invalidate(){blueprintDraft=null;savedDesignId=null;previewMode=false;reuseSelection.clear();undo=null;selected=null;connecting=null;picker=false;drag=null;includeScenario=false;entityPending=null;entityPicker=false;notice='';render()}};
  render();
+ if(typeof renderSetupCompare==='function')renderSetupCompare();
+ if(typeof renderBalance==='function')renderBalance();
 }
 init();
 })(typeof window==='undefined'?globalThis:window);
