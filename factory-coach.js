@@ -62,7 +62,7 @@ function menuHTML(){
 function mountMenu(host){
  if(!host)return;
  if(current){host.innerHTML='<p>A walkthrough is already in progress.</p><button type="button" data-coach-action="resume">Resume walkthrough</button><button type="button" data-coach-action="restart-menu">End walkthrough and browse lessons</button>';return}
- menu=true;host.append(card);card.className='nauvis-coach coach-inline coach-help-menu';card.hidden=false;card.innerHTML=menuHTML();
+ menu=true;host.replaceChildren(card);card.className='nauvis-coach coach-inline coach-help-menu';card.hidden=false;card.innerHTML=menuHTML();
 }
 function unmountMenu(){if(menu){clear();}}
 function openMenu(){if(root.NauvisGuide){root.NauvisGuide.open('walkthroughs');return}clear();menu=true;card.hidden=false;card.innerHTML=menuHTML()}
