@@ -91,9 +91,13 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   click(w,'[data-project-plus][data-task-recipe="advanced-circuit"]');
   assert(count(w)===8&&snap(w).setup.machines.find(r=>r.recipe==='advanced-circuit').count===2,'Further Built action uses reconciled profile');
   // Responsive viewports exercise each actual workspace in a real layout engine.
-  for(const width of [1100,390]){
+  for(const width of [1100,390,320]){
    frame.style.width=width+'px';
    await new Promise(r=>setTimeout(r,100));
+   const kicker=w.document.querySelector('.brand-kicker'),ops=kicker.querySelector('.operations-label'),range=w.document.createRange();
+   range.selectNodeContents(ops);
+   const rects=[...range.getClientRects()],kr=kicker.getBoundingClientRect(),hr=w.document.querySelector('.command-top').getBoundingClientRect();
+   assert(rects.length===1&&rects[0].top<kr.top+kr.height/2&&rects[0].right<=hr.right,'Factory Operations fits on a single header line at '+width+'px');
    for(const mode of ['learn','setup','balance','logistics','factory','build']){
     w.activateWorkspace(mode);
     await new Promise(r=>w.requestAnimationFrame(()=>w.requestAnimationFrame(r)));

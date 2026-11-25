@@ -593,6 +593,20 @@ body[data-workspace="build"]{
 <link rel="stylesheet" href="./inventory-v027.css" />
 <link rel="stylesheet" href="./advanced-v028.css" />
  <link rel="stylesheet" href="./sensory-feedback.css" />
+ <style>
+ /* Keep the complete brand kicker on one line above the mobile title and controls. */
+ .command-top .brand-kicker{white-space:nowrap}
+ @media(max-width:780px){
+  .command-top{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,43%);column-gap:9px;row-gap:4px;align-items:center}
+  .command-top .command-identity,.command-top .command-identity .brand{display:contents}
+  .command-top .brand-kicker{grid-column:1/-1;grid-row:1;min-width:0;letter-spacing:.12em}
+  .command-top .brand-kicker .operations-label{letter-spacing:.12em}
+  .command-top .identity-main{grid-column:1;grid-row:2;min-width:0;margin-top:0}
+  .command-top .command-actions{grid-column:2;grid-row:2;max-width:none;min-width:0;gap:5px;justify-content:flex-end}
+  .command-top .command-actions .sensory-label{display:none}
+ }
+ @media(max-width:350px){.command-top .brand-kicker,.command-top .brand-kicker .operations-label{font-size:8px;letter-spacing:.1em}}
+ </style>
  <link rel="stylesheet" href="./factory-coach.css" />
 </head>
 <body data-workspace="balance">
@@ -605,7 +619,7 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button type="button" id="sensoryLaunch" class="sensory-launch" aria-haspopup="dialog" aria-controls="sensoryDialog" title="Sound, motion and tactile feedback"><svg class="sensory-speaker" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4zM15 9a4 4 0 0 1 0 6m3-9a8 8 0 0 1 0 12"/></svg><span class="sensory-label">Feedback</span></button><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v1.0.3 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button type="button" id="sensoryLaunch" class="sensory-launch" aria-haspopup="dialog" aria-controls="sensoryDialog" title="Sound, motion and tactile feedback"><svg class="sensory-speaker" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4zM15 9a4 4 0 0 1 0 6m3-9a8 8 0 0 1 0 12"/></svg><span class="sensory-label">Feedback</span></button><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v1.0.4 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
   <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory &amp; Balance</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Plan &amp; Build</button></div></nav>
  </div>
@@ -865,7 +879,7 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v1.0.3 · Factorio 2.0 / Space Age · Optional cloud sync · Engineer. Build. Optimize. Physical input routing, actual train deliveries, circuit-controlled pumps, fuel/power delivery, beacon geometry and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v1.0.4 · Factorio 2.0 / Space Age · Optional cloud sync · Engineer. Build. Optimize. Physical input routing, actual train deliveries, circuit-controlled pumps, fuel/power delivery, beacon geometry and inserter constraints remain unmodeled.</footer>
 </div>
 <link rel="stylesheet" href="./factory-onboarding.css">
 <link rel="stylesheet" href="./factory-milestones.css">
