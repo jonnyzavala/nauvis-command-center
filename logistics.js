@@ -539,10 +539,14 @@ function previewBlueprint(result){
  blueprintDraft=clone(result);savedDesignId=null;reuseSelection=new Set();previewArray=result.id;previewMode=true;
  selected=null;entityPending=null;connecting=null;activateWorkspace('logistics',true);render();
 }
+function availableProduction(){
+ const network=actualNetwork(),graph=scenarioGraph(data(),false),claims=root.NauvisProjects?.reuseClaims?.()||new Map();
+ const valid=network.converged&&!Array.from(network.results.values()).some(x=>x.error);
+ return {valid,candidates:valid?reuseCandidates(setup.machines,R,graph,network.factors,root.NauvisEffects.recordedRates,claims):[]};
+}
 function eligibleReuse(full){
- const network=actualNetwork(),graph=scenarioGraph(data(),false),eligibleItems=new Set([...full.entries.map(x=>x.key),...full.external.map(x=>x.key)].filter(x=>x!==full.id));
- const claims=root.NauvisProjects?.reuseClaims?.()||new Map();
- return network.converged&&!Array.from(network.results.values()).some(x=>x.error)?reuseCandidates(setup.machines,R,graph,network.factors,root.NauvisEffects.recordedRates,claims).filter(r=>eligibleItems.has(r.item)):[];
+ const eligibleItems=new Set([...full.entries.map(x=>x.key),...full.external.map(x=>x.key)].filter(x=>x!==full.id));
+ return availableProduction().candidates.filter(r=>eligibleItems.has(r.item));
 }
 // Commitments remain visible even when a source is removed, reassigned or reduced.
 function auditReuse(){
@@ -691,7 +695,7 @@ function init(){
  });
  host.addEventListener('pointercancel',()=>{drag=null;render()});
  let lastWidth=root.innerWidth;root.addEventListener('resize',()=>{if(root.innerWidth!==lastWidth){lastWidth=root.innerWidth;if($('logistics')?.classList.contains('active'))render()}},{passive:true});
- root.NauvisLogistics={render,actualNetwork,previewBlueprint,viewSavedDesign,eligibleReuse,auditReuse,openResource(resource){inspectResource(resource);},invalidate(){blueprintDraft=null;savedDesignId=null;previewMode=false;reuseSelection.clear();undo=null;selected=null;connecting=null;picker=false;drag=null;includeScenario=false;entityPending=null;entityPicker=false;notice='';render()}};
+ root.NauvisLogistics={render,actualNetwork,previewBlueprint,viewSavedDesign,eligibleReuse,availableProduction,auditReuse,openResource(resource){inspectResource(resource);},invalidate(){blueprintDraft=null;savedDesignId=null;previewMode=false;reuseSelection.clear();undo=null;selected=null;connecting=null;picker=false;drag=null;includeScenario=false;entityPending=null;entityPicker=false;notice='';render()}};
  render();
  if(typeof renderSetupCompare==='function')renderSetupCompare();
  if(typeof renderBalance==='function')renderBalance();
