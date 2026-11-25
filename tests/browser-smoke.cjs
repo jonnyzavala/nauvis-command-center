@@ -23,6 +23,8 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(!w.NauvisSensory.getPrefs().enabled,'Sound starts muted');
   click(w,'#sensoryEnabled');
   assert(w.NauvisSensory.getPrefs().palette==='industrial','Industrial palette is default');
+  click(w,'#sensoryTestSound');await new Promise(r=>setTimeout(r,30));assert(w.document.querySelector('#sensoryStatus').textContent.includes('Test tone sent'),'Dedicated Test sound schedules a tone');
+  click(w,'#sensoryRestartAudio');await new Promise(r=>setTimeout(r,50));assert(w.document.querySelector('#sensoryStatus').textContent.includes('Test tone sent')&&w.document.querySelector('#sensoryAudioState').textContent.includes('running'),'Restart audio rebuilds and resumes the context');
   await w.NauvisSensory.unlock();
   assert(w.NauvisSensory.state()==='running','Real Chrome Web Audio context runs with test autoplay permission');
   click(w,'[data-sensory-test="achievement"]');
