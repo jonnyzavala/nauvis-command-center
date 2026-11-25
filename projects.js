@@ -465,7 +465,7 @@ function updateBuilt(id,recipe,delta){
    const detail=$('projectsList')?.querySelector('[data-project-card="'+id+'"] .project-task-details');
    if(detail)detail.open=true;
   }
- }catch(err){notice=err.message;render()}
+ }catch(err){notice=err.message;render();root.NauvisSensory?.semantic?.('warning')}
 }
 function navigateToPlan(id){
  const project=selectedProject(id);if(!project)return;
