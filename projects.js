@@ -162,7 +162,7 @@ function recordedForTask(project,task,rows){
  return {count,mismatch};
 }
 function applyBuildDelta(project,recipe,delta,rows){
- if(delta!==1&&delta!==-1)throw Error('Build adjustment must be one machine.');
+ if(!Number.isSafeInteger(delta)||delta===0)throw Error('Build adjustment must be a nonzero whole number.');
  const task=project?.tasks?.find(t=>t.recipe===recipe);
  if(!task)throw Error('Project task not found.');
  if(!['asm','chem'].includes(task.kind))throw Error('This recipe needs a different inventory category. Switch to bus-fed planning.');
@@ -192,6 +192,22 @@ function applyBuildDelta(project,recipe,delta,rows){
  }
  return {project:{...project,tasks:project.tasks.map(t=>t.recipe===recipe?{...t,built:next,entityKey}:t)},rows:nextRows};
 }
+// Prepare all adjustments on copies before touching live inventory, journal or cloud.
+function prepareBuildBatch(project,adjustments,rows,smelt,projects,effects){
+ if(!project||project.status==='archived')throw Error('Archived projects cannot be changed.');
+ if(!Array.isArray(adjustments)||!adjustments.length)throw Error('No construction changes selected.');
+ let next=project,nextRows=rows,nextSmelt=smelt;const changes=[],seen=new Set();
+ for(const a of adjustments){
+  if(seen.has(a.recipe))throw Error('Duplicate task adjustment.');seen.add(a.recipe);
+  const t=next.tasks.find(t=>t.recipe===a.recipe);
+  if(!t||!Number.isSafeInteger(a.delta)||a.delta===0)throw Error('Invalid task adjustment.');
+  if(!Number.isSafeInteger(t.built)||!Number.isSafeInteger(t.planned)||t.built+a.delta<0||t.built+a.delta>t.planned)throw Error('Built count must stay between zero and the planned amount.');
+  const change=t.kind==='furnace'?effects.applySmeltBuildDelta(next,a.recipe,a.delta,nextSmelt,projects.map(p=>p.id===project.id?next:p)):applyBuildDelta(next,a.recipe,a.delta,nextRows);
+  next=change.project;if(t.kind==='furnace')nextSmelt=change.smelt;else nextRows=change.rows;
+  changes.push({recipe:a.recipe,kind:t.kind,delta:a.delta,before:t.built,after:t.built+a.delta});
+ }
+ return {project:next,rows:nextRows,smelt:nextSmelt,changes};
+}
 function normalizeProjects(value){
  if(!Array.isArray(value))return [];
  const seen=new Set();
@@ -201,7 +217,7 @@ function normalizeProjects(value){
  });
 }
 if(typeof module==='object'&&module.exports)
- module.exports={buildProject,projectProgress,recordedForTask,applyBuildDelta,validateProjectName,normalizeProjects,reuseClaims,validateReuseClaims,freezeDesign,constructionMaterials,expandConstructionMaterials,constructionSupply,taskProfile,reconcileTaskProfile};
+ module.exports={buildProject,projectProgress,recordedForTask,applyBuildDelta,prepareBuildBatch,validateProjectName,normalizeProjects,reuseClaims,validateReuseClaims,freezeDesign,constructionMaterials,expandConstructionMaterials,constructionSupply,taskProfile,reconcileTaskProfile};
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id);
 const escape=s=>String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
@@ -213,7 +229,12 @@ const colorFor=(recipe,kind)=>{
 const noun=kind=>kind==='asm'?'assemblers':kind==='chem'?'chemical plants':kind==='asset'?'placed items':'furnaces';
 const fmt=n=>Number(n||0).toLocaleString(undefined,{maximumFractionDigits:1});
 let pending=null,editing=null,showArchived=false,notice='',pendingOptions=null;
-const reviewedOverlaps=new Set();
+const reviewedOverlaps=new Set(),batchAmounts=new Map();
+let feedbackTimer=null,feedbackSequence=0;
+const taskKey=(id,recipe)=>id+'|'+recipe;
+function batchAmount(id,recipe){return batchAmounts.get(taskKey(id,recipe))??5}
+function cardFor(id){return [...document.querySelectorAll('[data-project-card]')].find(x=>x.dataset.projectCard===id)}
+function rowFor(id,recipe){return [...(cardFor(id)?.querySelectorAll('[data-task-row]')||[])].find(x=>x.dataset.taskRow===recipe)}
 function matchingUnlinked(recipe,machine){
  const matches=(setup.machines||[]).filter(row=>!row.projectId&&row.recipe===recipe&&
    (R[recipe]?.[3]!=='asm'||Math.abs(Number(row.tier)-Number(machine))<1e-8));
@@ -330,11 +351,14 @@ function projectHTML(p){
   const mismatch=saved.mismatch||saved.count!==task.built;
   const cannotRecord=task.kind==='furnace'&&Number(setup.smelt.furnaceSpeed)!==2;
   const possibleDuplicates=task.kind==='furnace'?Math.max(0,Number(setup.smelt[root.NauvisEffects.SMELT_FIELDS[task.recipe]])-(setup.smelt.projectBuilt||[]).filter(x=>x.recipe===task.recipe).reduce((n,x)=>n+x.count,0)):isAsset?matchingUnlinkedAssets(task.recipe,p.goal.area):matchingUnlinked(task.recipe,taskProfile(p,task).machine);
-  return '<div class="project-task" style="--project-task-accent:'+color+'">'+
+  const done=task.built>=task.planned&&task.planned>0,plusDisabled=archived||done||mismatch||cannotRecord,minusDisabled=archived||task.built<=0||mismatch;
+  return '<div class="project-task'+(done?' project-task-done':'')+'" data-task-row="'+escape(task.recipe)+'" style="--project-task-accent:'+color+'">'+
    '<div class="project-task-identity"><span class="project-task-led" aria-hidden="true"></span>'+itemGlyph(task.recipe,32)+'<div><strong>'+escape(R[task.recipe]?.[0]||task.recipe)+'</strong><small>'+escape(noun(task.kind))+' · '+task.planned+' planned'+(task.kind==='asm'?' · Assembler '+(taskProfile(p,task).machine===1.25?'3':taskProfile(p,task).machine===.5?'1':'2'):task.kind==='furnace'?' · '+escape(R[p.furnaceItem]?.[0]||'2× furnace'):'')+'</small></div></div>'+
    '<div class="project-task-controls"><button type="button" data-project-minus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" title="Reverse built count · removes one from actual Inventory" aria-label="Mark one fewer '+escape(task.recipe)+' built" '+(archived||task.built<=0||mismatch?'disabled':'')+'>−</button>'+
    '<span class="project-task-counter"><b>'+task.built+'</b><small>/ '+task.planned+(isAsset?' placed':' built')+'</small></span>'+
-   '<button type="button" data-project-plus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" title="Mark one as built · adds one to actual Inventory" aria-label="Mark one more '+escape(task.recipe)+' built" '+(archived||task.built>=task.planned||mismatch||cannotRecord?'disabled':'')+'>+</button></div>'+
+   '<button type="button" data-project-plus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" title="Mark one as built · adds one to actual Inventory" aria-label="Mark one more '+escape(task.recipe)+' built" '+(plusDisabled?'disabled':'')+'>+</button></div>'+
+   '<div class="project-task-progress"><span style="width:'+(task.planned?100*task.built/task.planned:0)+'%"></span></div>'+
+   '<div class="project-batch-controls"><button type="button" data-project-batch-minus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" '+(minusDisabled?'disabled':'')+'>− Batch</button><label class="project-batch-amount"><span>Batch size</span><input type="number" inputmode="numeric" min="1" max="100000" step="1" data-project-batch-size="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Batch size for '+escape(task.recipe)+'" value="'+batchAmount(p.id,task.recipe)+'" '+(archived?'disabled':'')+'></label><button type="button" data-project-batch-plus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" '+(plusDisabled?'disabled':'')+'>+ Batch</button><button type="button" class="project-group-complete" data-project-group-complete="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" '+(plusDisabled?'disabled':'')+'>'+(done?'✓ Complete':'✓ Finish group')+'</button></div>'+
    '<div class="project-task-foot"><span class="project-task-recorded">'+saved.count+(isAsset?' deployed in Factory':' in actual Inventory')+' · linked to this project</span>'+
    (mismatch?'<span class="project-task-warning">Factory and project counts differ. Review the linked line in Factory.</span>':
     cannotRecord?'<span class="project-task-warning">Set actual smelting speed to 2× before recording this furnace.</span>':
@@ -353,13 +377,36 @@ function projectHTML(p){
   '<span class="project-card-status">'+(archived?'ARCHIVED':pct===100?'BUILT':'IN PROGRESS')+'</span></div>'+
   '<div class="focus-project-progress"><div class="focus-ring focus-project-ring focus-only" style="--p:'+pct+'%" role="img" aria-label="'+pct+' percent built"><strong>'+pct+'%</strong></div><div class="project-card-progress"><div class="project-card-progress-top"><strong>'+progress.built+' / '+progress.planned+(p.type==='deployment'?' items placed':' machines built')+'</strong><span>'+pct+'%</span></div>'+
   '<div class="project-progress-track"><span style="width:'+pct+'%"></span></div></div></div>'+
-  designDetails(p)+materialDetails(p)+'<details class="project-task-details"><summary>'+(p.type==='deployment'?'Placement checklist':'Machine checklist')+' <span>'+progress.complete+' / '+progress.tasks+' groups complete</span></summary><div class="project-task-list">'+lineItems+'</div></details>'+
+  '<details class="project-task-details" '+(!archived?'open':'')+'><summary>'+(p.type==='deployment'?'Placement checklist':'Machine checklist')+' <span>'+progress.complete+' / '+progress.tasks+' groups complete</span></summary><div class="project-task-list">'+lineItems+'</div><div class="project-finish-row"><button type="button" data-project-complete="'+escape(p.id)+'" '+(archived||progress.built>=progress.planned?'disabled':'')+'>'+(progress.planned>0&&progress.built===progress.planned?'✓ Project complete':'✓ Finish entire project')+'</button><small>Only mark machines actually built in-game.</small></div></details>'+
+  '<div class="project-reference-heading">Project reference</div>'+designDetails(p)+materialDetails(p)+
   '<div class="project-card-actions"><button type="button" data-project-visit="'+escape(p.id)+'">'+(p.type==='deployment'?'View placed inventory':p.design?'View saved design':'Open in Planner')+'</button>'+
   '<button type="button" data-project-rename="'+escape(p.id)+'">Rename</button>'+
   '<button type="button" data-project-archive="'+escape(p.id)+'">'+(archived?'Restore':'Archive')+'</button>'+(archived&&p.design?.reuseClaims?.length&&!p.reuseReleased&&progress.built===0?'<button type="button" data-project-release="'+escape(p.id)+'">Release reuse commitments</button>':'')+'</div>'+
  '</article>';
 }
+function detailStates(){
+ const states=new Map();
+ for(const card of document.querySelectorAll('[data-project-card]')){
+  const byKey=new Map(),n=new Map();
+  for(const d of card.querySelectorAll('details')){
+   const base=(d.closest('[data-task-row]')?.dataset.taskRow||'card')+'|'+d.className;
+   const i=n.get(base)||0;n.set(base,i+1);byKey.set(base+'|'+i,d.open);
+  }
+  states.set(card.dataset.projectCard,byKey);
+ }
+ return states;
+}
+function restoreDetails(states){
+ for(const card of document.querySelectorAll('[data-project-card]')){
+  const prior=states.get(card.dataset.projectCard);if(!prior)continue;const n=new Map();
+  for(const d of card.querySelectorAll('details')){
+   const base=(d.closest('[data-task-row]')?.dataset.taskRow||'card')+'|'+d.className,i=n.get(base)||0;n.set(base,i+1);
+   if(prior.has(base+'|'+i))d.open=prior.get(base+'|'+i);
+  }
+ }
+}
 function render(){
+ const states=detailStates(),y=root.scrollY;
  factory.projects=normalizeProjects(factory.projects);
  const total=stats(),legacy=legacyStats();
  if($('projectsSummary'))$('projectsSummary').innerHTML=[
@@ -375,8 +422,10 @@ function render(){
   $('projectsArchivedWrapper').hidden=archived.length===0;
   $('projectsArchivedWrapper').open=showArchived;
  }
+ restoreDetails(states);
  if($('projectsNotice')){$('projectsNotice').textContent=notice;$('projectsNotice').hidden=!notice}
  root.NauvisFocus?.refresh?.();
+ if(document.body.dataset.workspace==='factory'&&Math.abs(root.scrollY-y)>1)root.scrollTo({top:y,behavior:'instant'});
 }
 function openDialog(mode,project,result,options=null){
  pendingOptions=mode==='create'?options:null;
@@ -422,51 +471,73 @@ function saveDialog(event){
   $('projectsDialogError').textContent=err.message;$('projectsDialogError').hidden=false;root.NauvisSensory?.semantic?.('warning');
  }
 }
-function updateBuilt(id,recipe,delta){
- const project=selectedProject(id);if(!project)return;
- const task=project.tasks.find(t=>t.recipe===recipe);if(!task)return;
- const isAsset=task.kind==='asset';
+function anchorPosition(id,recipe){
+ const target=recipe?rowFor(id,recipe):cardFor(id);
+ return {y:root.scrollY,top:target?.getBoundingClientRect().top??null};
+}
+function restorePosition(id,recipe,anchor){
+ if(document.body.dataset.workspace!=='factory')return;
+ const el=recipe?rowFor(id,recipe):cardFor(id);
+ const top=el?.getBoundingClientRect().top;
+ const y=top!=null&&anchor.top!=null?root.scrollY+top-anchor.top:anchor.y;
+ root.scrollTo({top:Math.max(0,y),behavior:'instant'});
+}
+function positiveFeedback(id,recipe,delta,groupDone,projectDone){
+ const seq=++feedbackSequence,el=projectDone?cardFor(id):recipe?rowFor(id,recipe):cardFor(id);
+ if(el){el.classList.remove('project-celebrate','project-count-flash');void el.offsetWidth;el.classList.add(groupDone||projectDone?'project-celebrate':'project-count-flash')}
+ let toast=$('projectFeedbackToast');
+ if(!toast){toast=document.createElement('div');toast.id='projectFeedbackToast';toast.setAttribute('role','status');toast.setAttribute('aria-live','polite');document.body.append(toast)}
+ toast.textContent=projectDone?'🏆 Project complete!':groupDone?'✓ Group complete!':(delta>0?'+'+delta+' built':Math.abs(delta)+' reversed');
+ toast.className='project-feedback-toast'+(projectDone?' project-feedback-win':groupDone?' project-feedback-group':'');toast.hidden=false;
+ if(feedbackTimer!==null)clearTimeout(feedbackTimer);
+ feedbackTimer=setTimeout(()=>{if(seq===feedbackSequence)toast.hidden=true;el?.classList.remove('project-celebrate','project-count-flash')},projectDone?2500:groupDone?1800:1000);
+ root.NauvisSensory?.semantic?.(projectDone?'complete':delta>0?'build':'reverse',el);
+}
+function updateBuiltBatch(id,adjustments,recipe=null){
+ const project=selectedProject(id);if(!project||project.status==='archived')return;
+ const anchor=anchorPosition(id,recipe),before=projectProgress(project);
  try{
-  const isFurnace=task.kind==='furnace';
-  const ownership=isFurnace?root.NauvisEffects.smeltOwnership(setup.smelt,allProjects()):{};
-  const field=root.NauvisEffects.SMELT_FIELDS[recipe];
-  const overlap=isFurnace?Math.max(0,Number(setup.smelt[field]||0)-(ownership[field]||0)):isAsset?matchingUnlinkedAssets(recipe,project.goal.area):matchingUnlinked(recipe,taskProfile(project,task).machine);
-  const overlapKey=id+'|'+recipe;
-  if(delta>0&&overlap>0&&!reviewedOverlaps.has(overlapKey)){
-   const msg=overlap+' matching '+(R[recipe]?.[0]||recipe)+' '+(isAsset?'placed structures':'machines')+
-    ' already exist in Factory as manual records.\n\n'+
-    'Are you certain this is a NEW '+(isAsset?'placed structure':'machine')+' that is not already counted?';
-   if(!root.confirm(msg))return;
-   reviewedOverlaps.add(overlapKey);
+  const actual=allProjects(),effects=root.NauvisEffects;
+  // Validate every task first; project completion is all-or-nothing.
+  const change=prepareBuildBatch(project,adjustments,setup.machines,setup.smelt,actual,effects);
+  const overlaps=[];
+  for(const item of change.changes){
+   if(item.delta<=0||reviewedOverlaps.has(taskKey(id,item.recipe)))continue;
+   const task=project.tasks.find(t=>t.recipe===item.recipe),field=effects.SMELT_FIELDS[item.recipe];
+   const overlap=task.kind==='furnace'?Math.max(0,Number(setup.smelt[field]||0)-(effects.smeltOwnership(setup.smelt,actual)[field]||0)):matchingUnlinked(item.recipe,taskProfile(project,task).machine);
+   if(overlap>0)overlaps.push({recipe:item.recipe,count:overlap,delta:item.delta});
   }
-  const change=isFurnace?root.NauvisEffects.applySmeltBuildDelta(project,recipe,delta,setup.smelt,allProjects()):isAsset?root.NauvisAssets?.applyBuildDelta?.(project,recipe,delta,setup.assets):
-   applyBuildDelta(project,recipe,delta,setup.machines);
-  if(!change)throw Error('Infrastructure inventory is not ready.');
-  const expanded=!!$('projectsList')?.querySelector('[data-project-card="'+id+'"] .project-task-details')?.open;
-  // Update the paired project and exactly one actual inventory ledger before syncing.
-  factory.projects=allProjects().map(p=>p.id===id?change.project:p);
-  if(isFurnace)Object.assign(setup.smelt,change.smelt);else if(isAsset)setup.assets=change.rows;else setup.machines=change.rows;
-  const next=change.project.tasks.find(t=>t.recipe===recipe);
-  const name=R[recipe]?.[0]||recipe;
-  root.NauvisJournal?.record?.({
-   type:'construction',source:'Construction Queue',projectId:id,recipe,delta,
-   before:next.built-delta,after:next.built,
-   title:(delta>0?(isAsset?'Placed +1 ':'Built +1 '):(isAsset?'Reversed placement −1 ':'Reversed −1 '))+name,
-   detail:project.name+' · '+(next.built-delta)+' → '+next.built+(isAsset?' deployed':' built')+
-    ' · '+(isFurnace?'Factory smelting inventory':isAsset?'Factory infrastructure ledger':'Factory production-machine inventory')+' updated once.'+
-    (overlap&&delta>0?' Review '+overlap+' existing unlinked '+name+' records for possible duplicate entry.':'')
-  });
+  if(overlaps.length&&!root.confirm(overlaps.map(x=>x.count+' matching '+(R[x.recipe]?.[0]||x.recipe)+' already recorded; adding '+x.delta+' new.').join('\n')+'\n\nConfirm these are physically built machines not already counted.'))return;
+  for(const x of overlaps)reviewedOverlaps.add(taskKey(id,x.recipe));
+  factory.projects=actual.map(p=>p.id===id?change.project:p);
+  setup.machines=change.rows;Object.assign(setup.smelt,change.smelt);
+  const totalDelta=change.changes.reduce((n,x)=>n+x.delta,0),after=projectProgress(change.project);
+  const title=change.changes.length>1?(totalDelta>0?'Completed project · +'+totalDelta+' built':'Reversed project progress'):(totalDelta>0?'Built +'+totalDelta+' ':'Reversed −'+Math.abs(totalDelta)+' ')+(R[change.changes[0].recipe]?.[0]||change.changes[0].recipe);
+  root.NauvisJournal?.record?.({type:'construction',source:'Construction Queue',projectId:id,recipe:recipe||null,delta:totalDelta,before:recipe?change.changes[0].before:before.built,after:recipe?change.changes[0].after:after.built,title,detail:project.name+' · '+change.changes.map(x=>(R[x.recipe]?.[0]||x.recipe)+' '+x.before+' → '+x.after).join('; ')+' · actual Inventory updated once.'});
   saveSetup();save();renderSetup();
-  notice=delta>0?(isAsset?'Recorded one placed '+name+' in infrastructure and the journal.':'Built one '+name+' machine and updated Factory and the journal.'):
-   'Reversed one recorded item in both Factory and the journal.';
-  render();root.NauvisAssets?.render?.();
-  const finished=delta>0&&change.project.tasks.every(t=>t.planned>0&&t.built>=t.planned);
-  root.NauvisSensory?.semantic?.(finished?'complete':delta>0?'build':'reverse',document.querySelector('[data-project-card="'+id+'"]'));
-  if(expanded){
-   const detail=$('projectsList')?.querySelector('[data-project-card="'+id+'"] .project-task-details');
-   if(detail)detail.open=true;
-  }
- }catch(err){notice=err.message;render();root.NauvisSensory?.semantic?.('warning')}
+  notice='';render();root.NauvisAssets?.render?.();
+  restorePosition(id,recipe,anchor);
+  const groupDone=!!recipe&&totalDelta>0&&change.project.tasks.find(t=>t.recipe===recipe).built===change.project.tasks.find(t=>t.recipe===recipe).planned;
+  const projectDone=totalDelta>0&&after.planned>0&&after.built===after.planned;
+  positiveFeedback(id,recipe,totalDelta,groupDone,projectDone);
+ }catch(err){notice=err.message;render();restorePosition(id,recipe,anchor);root.NauvisSensory?.semantic?.('warning')}
+}
+function updateBuilt(id,recipe,delta){updateBuiltBatch(id,[{recipe,delta}],recipe)}
+function batchBuilt(project,recipe,sign){
+ const t=project.tasks.find(t=>t.recipe===recipe);if(!t)return;
+ const input=rowFor(project.id,recipe)?.querySelector('[data-project-batch-size]'),n=Number(input?.value??batchAmount(project.id,recipe));
+ if(!Number.isSafeInteger(n)||n<1||n>100000){input?.reportValidity();return}
+ batchAmounts.set(taskKey(project.id,recipe),n);
+ const delta=sign*Math.min(n,sign>0?t.planned-t.built:t.built);if(delta)updateBuilt(project.id,recipe,delta);
+}
+function completeGroup(project,recipe){
+ const t=project.tasks.find(t=>t.recipe===recipe);if(t&&t.planned>t.built)updateBuilt(project.id,recipe,t.planned-t.built);
+}
+function completeProject(project){
+ const changes=project.tasks.filter(t=>t.planned>t.built).map(t=>({recipe:t.recipe,delta:t.planned-t.built}));
+ if(!changes.length)return;
+ const count=changes.reduce((n,t)=>n+t.delta,0);
+ if(root.confirm('Mark all '+count+' remaining machines in '+project.name+' as physically built? This updates actual Inventory and the journal together.'))updateBuiltBatch(project.id,changes);
 }
 function navigateToPlan(id){
  const project=selectedProject(id);if(!project)return;
@@ -525,10 +596,11 @@ function attachEvents(){
   const d=$('legacyDistrict');if(d){d.open=true;d.scrollIntoView({behavior:'smooth',block:'start'})}
  });
  $('projectsOpenFactory')?.addEventListener('click',()=>activateWorkspace('setup',true));
+ $('factory')?.addEventListener('input',event=>{const b=event.target;if(b.matches('[data-project-batch-size]')){const n=Number(b.value);if(Number.isSafeInteger(n)&&n>=1&&n<=100000)batchAmounts.set(taskKey(b.dataset.projectBatchSize,b.dataset.taskRecipe),n)}});
  $('factory')?.addEventListener('click',event=>{
   const b=event.target.closest('button');if(!b)return;
   if(b.matches('[data-project-go-planner]')){activateWorkspace('build',true);return}
-  const id=b.dataset.projectPlus||b.dataset.projectMinus||b.dataset.projectVisit||b.dataset.projectRename||b.dataset.projectArchive||b.dataset.projectRelease||b.dataset.projectMaterialSupply||b.dataset.projectProfile;
+  const id=b.dataset.projectPlus||b.dataset.projectMinus||b.dataset.projectBatchPlus||b.dataset.projectBatchMinus||b.dataset.projectGroupComplete||b.dataset.projectComplete||b.dataset.projectVisit||b.dataset.projectRename||b.dataset.projectArchive||b.dataset.projectRelease||b.dataset.projectMaterialSupply||b.dataset.projectProfile;
   if(!id)return;
   const project=selectedProject(id);
   if(!project)return;
@@ -541,6 +613,10 @@ function attachEvents(){
   }
   if(b.hasAttribute('data-project-plus'))updateBuilt(id,b.dataset.taskRecipe,1);
   else if(b.hasAttribute('data-project-minus'))updateBuilt(id,b.dataset.taskRecipe,-1);
+  else if(b.hasAttribute('data-project-batch-plus'))batchBuilt(project,b.dataset.taskRecipe,1);
+  else if(b.hasAttribute('data-project-batch-minus'))batchBuilt(project,b.dataset.taskRecipe,-1);
+  else if(b.hasAttribute('data-project-group-complete'))completeGroup(project,b.dataset.taskRecipe);
+  else if(b.hasAttribute('data-project-complete'))completeProject(project);
   else if(b.hasAttribute('data-project-visit'))navigateToPlan(id);
   else if(b.hasAttribute('data-project-rename')){ $('projectsDialogError').hidden=true;openDialog('rename',project)}
   else if(b.hasAttribute('data-project-archive')){
