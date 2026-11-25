@@ -145,7 +145,7 @@ $('focusFlowInputs')?.addEventListener('change',e=>{if(e.target.id==='focusSourc
 $('focusFlowInputs')?.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;
  if(b.dataset.flowAction==='use-machine-supply'){try{const a=machineSupply(R,sourceCalc.recipe,sourceCalc.type,sourceCalc.count,root.NauvisEffects);if(state.branches.length&&state.item!=='Resource'&&state.item.toLowerCase().replace(/s$/,'')!==a.name.toLowerCase().replace(/s$/,'')&&!root.confirm('Change the resource to '+a.name+'? Existing destination rates will be retained.'))return;state.item=a.name;state.supply=a.output}catch(err){$('focusSupplyPreview').textContent=err.message;return}}
- else if(b.dataset.flowAction==='load-plan'){const i=$('focusPlanInput')?.value;if(i===''||!planInputs[Number(i)])return;const x=planInputs[Number(i)];if(state.branches.length&&!root.confirm('Replace this quick check with '+x.name+' demand from the blueprint?'))return;const neededBelts=Math.max(1,Math.ceil(x.needed/TIERS[x.tier]));if(R[x.key]&&['asm','chem','furnace'].includes(R[x.key][3])){sourceCalc.recipe=x.key;sourceCalc.type=machineTypes(x.key)[0][0];sourceCalc.count=0}state=normalize({...DEFAULT,item:x.name,supply:0,tier:x.tier,belts:neededBelts,branches:[{name:x.destination,demand:x.needed,tier:x.tier,belts:Math.max(1,Math.ceil(x.needed/TIERS[x.tier])),lanes:2,weight:1}]})}
+ else if(b.dataset.flowAction==='load-plan'){const i=$('focusPlanInput')?.value;if(i===''||!planInputs[Number(i)])return;const x=planInputs[Number(i)];loadMaterial({...x,belt:TIERS[x.tier]});return}
  else if(b.dataset.flowRemove!==undefined)state.branches.splice(Number(b.dataset.flowRemove),1);
  else if(b.dataset.flowAction==='add'&&state.branches.length<8)state.branches.push({name:'Destination '+(state.branches.length+1),demand:0,tier:state.tier,belts:1,lanes:2,weight:1});
  else if(b.dataset.flowAction==='example')state=normalize(DEFAULT);
@@ -167,7 +167,14 @@ document.querySelectorAll('[data-flow-view]').forEach(b=>b.addEventListener('cli
   if(kind==='add'||kind==='example'){const action=$('focusFlowInputs').querySelector('[data-flow-action="'+kind+'"]');action?.click();if(kind==='add')openEditor('destination',state.branches.length-1);return}
   openEditor(kind,Number(b.dataset.flowIndex));
  });
+ function loadMaterial(x){
+  if(state.branches.length&&!root.confirm('Replace this quick check with '+x.name+' demand?'))return false;
+  const tier=Object.keys(TIERS).find(k=>TIERS[k]===x.belt)||'red',neededBelts=Math.max(1,Math.ceil(x.needed/TIERS[tier]));
+  if(R[x.key]&&['asm','chem','furnace'].includes(R[x.key][3])){sourceCalc.recipe=x.key;sourceCalc.type=R[x.key][3]==='furnace'?'steel':R[x.key][3]==='asm'?'0.75':'1';sourceCalc.count=0}
+  state=normalize({...DEFAULT,item:x.name,supply:0,tier,belts:neededBelts,branches:[{name:x.destination,demand:x.needed,tier,belts:neededBelts,lanes:2,weight:1}]});
+  saveFlow();showFlow('quick');return true
+ }
  function fromPlan(result){refreshPlanInputs(result);flowView='blueprint';root.activateWorkspace('flow',true)}
-root.NauvisFocus={setMode,beforeActivate,onActivate,refresh,fromPlan,getMode:()=>mode,analyze:()=>analyze(state)};
+root.NauvisFocus={setMode,beforeActivate,onActivate,refresh,fromPlan,checkMaterial:loadMaterial,getMode:()=>mode,analyze:()=>analyze(state)};
 renderInputs();renderResults();applyMode(mode,mode==='focus'?'build':'balance');
 })(typeof window==='undefined'?globalThis:window);
