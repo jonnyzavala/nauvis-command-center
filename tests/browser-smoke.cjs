@@ -17,6 +17,20 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   await new Promise(r=>setTimeout(r,50));
   if(w.document.querySelector('#factoryOnboardingDialog').open)click(w,'[data-onboard-action="close"]');
   assert(w.NauvisLocal&&w.NauvisLogistics&&w.NauvisRecipeMath&&w.NauvisSensory,'Application and deferred modules initialized');
+  assert(w.NauvisFocus.getMode()==='focus'&&w.document.querySelector('#build.active'),'Focus is the default and opens Planner');
+  const initial=JSON.stringify(snap(w));
+  click(w,'[data-focus-view="flow"]');
+  click(w,'[data-flow-action="example"]');
+  assert(w.NauvisFocus.analyze().delivered===1800,'Automatic example redistributes spare branch capacity');
+  set(w,'[data-flow-field="policy"]','fixed');
+  assert(w.NauvisFocus.analyze().distributionGap===300,'Fixed allocation identifies distribution-only gap');
+  assert(JSON.stringify(snap(w))===initial,'Flow check does not mutate factory snapshot');
+  click(w,'[data-focus-view="log"]');
+  assert(w.document.querySelector('#focusLogHost #journalPanel')&&w.document.querySelectorAll('#journalPanel').length===1,'Log uses original journal, not a copy');
+  click(w,'#focusModeToggle');
+  assert(w.NauvisFocus.getMode()==='full'&&w.document.querySelector('#factory #journalPanel'),'Full mode restores original journal position');
+  click(w,'#focusModeToggle');
+  assert(w.NauvisFocus.getMode()==='focus'&&JSON.stringify(snap(w))===initial,'Mode switches do not modify factory data');
   const beforeSensory=JSON.stringify(snap(w));
   click(w,'#sensoryLaunch');
   assert(w.document.querySelector('#sensoryDialog').open,'Sensory settings open from header');
@@ -98,6 +112,12 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(snap(w).plan.projects[0].goal.machine===.75,'Historical blueprint remains unchanged');
   click(w,'[data-project-plus][data-task-recipe="advanced-circuit"]');
   assert(count(w)===8&&snap(w).setup.machines.find(r=>r.recipe==='advanced-circuit').count===2,'Further Built action uses reconciled profile');
+  const beforeFocus=JSON.stringify(snap(w));
+  w.NauvisFocus.setMode('focus');w.activateWorkspace('factory');
+  assert(w.document.querySelector('#focusConstructionSummary .focus-ring')&&w.document.querySelector('.focus-project-ring'),'Construction has aggregate and project progress rings');
+  w.activateWorkspace('build');click(w,'#build [data-ratio-focus-flow]');
+  assert(w.document.querySelector('#flow.active')&&w.document.querySelector('#focusPlanInput'),'Planner passes input requirements to Flow');
+  assert(JSON.stringify(snap(w))===beforeFocus,'Planner to Flow preserves actual inventory and projects');
   // Responsive viewports exercise each actual workspace in a real layout engine.
   for(const width of [1100,390,320]){
    frame.style.width=width+'px';
@@ -106,7 +126,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
    range.selectNodeContents(ops);
    const rects=[...range.getClientRects()],kr=kicker.getBoundingClientRect(),hr=w.document.querySelector('.command-top').getBoundingClientRect();
    assert(rects.length===1&&rects[0].top<kr.top+kr.height/2&&rects[0].right<=hr.right,'Factory Operations fits on a single header line at '+width+'px');
-   for(const mode of ['learn','setup','balance','logistics','factory','build']){
+   for(const mode of ['learn','setup','balance','logistics','factory','build','log','flow']){
     w.activateWorkspace(mode);
     await new Promise(r=>w.requestAnimationFrame(()=>w.requestAnimationFrame(r)));
     assert(w.document.querySelector('#'+mode+'.active'),'Workspace '+mode+' visible at '+width+'px');
