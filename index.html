@@ -1457,7 +1457,7 @@ const HELP_MAP={
 };
 const HELP_DEFAULT={logistics:'b0',balance:'b0',setup:'s0',build:'n4',factory:'p0',learn:'g0',log:'focusLog',flow:'focusFlow'};
  HELP_DATA.focusLog=['Engineer’s log','Pick up where you left off','Save short notes about your next objective. Construction changes are recorded automatically.',['The log shares the same saved records in both modes.','Notes do not add actual machines.'],'Save a field note before ending a session.'];
- HELP_DATA.focusFlow=['Flow & Belts','Supply or distribution?','Enter a single resource supply and the destinations that consume it.',['A production gap means the entered supply is below demand.','A trunk gap means the incoming belts limit available supply.','A branch gap means the outgoing belts or fixed shares restrict delivery.'],'These are independent what-if estimates, not actual Inventory.'];
+ HELP_DATA.focusFlow=['Flow & Belts','Supply or distribution?','Enter a known supply or calculate it from a recipe and machine count, then add the destinations that consume it.',['A production gap means the entered supply is below demand.','A trunk gap means the incoming belts limit available supply.','A branch gap means the outgoing belts or fixed shares restrict delivery.'],'These are independent what-if estimates, not actual Inventory.'];
 let guideOpen=false, guideTopic='',guideFocus=null,guideScroll=0;
 function mountGuideTargets(){
  for(const id of ['build','factory','learn']){
@@ -1559,7 +1559,7 @@ function activateWorkspace(view,scrollPage=false){
  if(view==='balance')renderBalance();
  if(view==='logistics')window.NauvisLogistics?.render?.();
  guideFocus=null;guideTopic='';if(document.getElementById('contextHelp'))updateGuideContext();
- const bar=document.querySelector('.nav'),active=document.querySelector('.nav button.active');
+ const bar=document.querySelector('.nav'),active=document.querySelector(document.body.dataset.appMode==='focus'?'.nav button[data-focus-view].active':'.nav button[data-view].active');
  if(bar&&active){const barRect=bar.getBoundingClientRect(),tabRect=active.getBoundingClientRect();const target=bar.scrollLeft+(tabRect.left-barRect.left)-(bar.clientWidth-tabRect.width)/2;bar.scrollLeft=Math.max(0,Math.min(bar.scrollWidth-bar.clientWidth,target))}
  if(scrollPage)window.scrollTo({top:0,behavior:'instant'});
  window.NauvisWorkspace?.onActivate?.(view);window.NauvisFocus?.onActivate?.(view);window.NauvisMilestones?.refresh?.();window.NauvisCoach?.onActivate?.(view);window.NauvisGuide?.refresh?.();
