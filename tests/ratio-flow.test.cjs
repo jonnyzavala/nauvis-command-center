@@ -242,3 +242,15 @@ test('overview has no forced selection, tap again clears, and unrelated paths re
  assert.match(style,/\.ratio-flow-options\{display:flex/);
  assert.match(style,/\.ratio-link\.normal\{stroke-opacity:1/);
 });
+
+test('physical belt strokes count belts, not lanes',()=>{
+ const {beltLines,feederLines}=require('../ratio-flow.js');
+ const lines=s=>(s.match(/data-belt-line=/g)||[]).length;
+ assert.equal(lines(beltLines(4,'red')),4);
+ assert.equal(lines(beltLines(3,'blue',true)),3);
+ assert.equal(lines(beltLines(0,'red')),0);
+ assert.equal(lines(feederLines(1,'red','Copper','Plastic',1800)),1);
+ assert.match(feederLines(1,'red','Copper','Plastic',1800),/900\/min capacity per ingredient/);
+ assert.match(feederLines(1,'red','Copper',null,1800),/one lane/);
+ assert.match(beltLines(100,'red'),/\+84 more belts/);
+});

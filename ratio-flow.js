@@ -348,7 +348,23 @@ function focusBundle(bundle,edges){
  for(const path of bundle.paths)visit(path);
  return {active,points};
 }
-if(typeof module==='object'&&module.exports)module.exports={buildFlowGraph,routeLayout,baseRouteLayout,routingScore,fitLayout,mergeRoutes,roundedPath,focusGraph,focusBundle,toggleSelection,focusTone};
+
+/* One colored stroke represents one physical belt, independent of lane allocation. */
+function beltLines(count,tier,vertical=false){
+ const n=Math.max(0,Math.floor(Number(count)||0)),shown=Math.min(16,n);
+ const color=({yellow:'#e5c35f',red:'#e87572',blue:'#79b5f6',green:'#91d79a'})[tier]||'#91a4b3';
+ if(!n)return '<span class="physical-belt-empty">No belts</span>';
+ const breadth=8+shown*7,w=vertical?breadth:100,h=vertical?100:breadth;
+ const lines=Array.from({length:shown},(_,i)=>{const p=7+i*7;return '<line data-belt-line="'+(i+1)+'" x1="'+(vertical?p:0)+'" y1="'+(vertical?0:p)+'" x2="'+(vertical?p:100)+'" y2="'+(vertical?100:p)+'" stroke="'+color+'" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linecap="round"/>'}).join('');
+ return '<span class="physical-belt-stack'+(vertical?' vertical':'')+'" role="img" aria-label="'+n+' '+escapeHTML(tier)+' physical belt'+(n===1?'':'s')+(n>shown?', '+shown+' lines shown':'')+'"><svg aria-hidden="true" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" style="'+(vertical?'width:'+breadth+'px;height:38px':'width:100%;height:'+breadth+'px')+'">'+lines+'</svg>'+(n>shown?'<small>+'+(n-shown)+' more belts</small>':'')+'</span>';
+}
+function feederLines(count,tier,a,b,capacity){
+ const mixed=a&&b&&a!==b,half=!b;
+ const desc=mixed?escapeHTML(a)+' + '+escapeHTML(b)+' · '+formatted(capacity/2)+'/min capacity per ingredient per belt':half?escapeHTML(a)+' · '+formatted(capacity/2)+'/min usable per belt (one lane)':escapeHTML(a||'Resource')+' · '+formatted(capacity)+'/min per full belt';
+ return '<div class="physical-feeder"><div class="physical-feeder-label"><b>'+count+' × '+escapeHTML(tier)+' belt'+(count===1?'':'s')+'</b><span>'+desc+'</span></div>'+beltLines(count,tier)+'<small>'+formatted(count*capacity)+'/min physical capacity · '+(mixed?'shared ingredients':half?'one lane used':'both lanes')+'</small></div>';
+}
+
+if(typeof module==='object'&&module.exports)module.exports={beltLines,feederLines,buildFlowGraph,routeLayout,baseRouteLayout,routingScore,fitLayout,mergeRoutes,roundedPath,focusGraph,focusBundle,toggleSelection,focusTone};
 if(typeof document==='undefined')return;
 const browserViews=new Map();
 function nodeColor(node){
@@ -564,5 +580,5 @@ function drawLayout(state){
   const chrome=document.querySelector('.command-chrome');if(chrome)state.observer.observe(chrome);
  }
 }
-root.NauvisRatioFlow={mount,buildFlowGraph,routeLayout,roundedPath,focusGraph,focusBundle,modeByCard:new Map(),inputByCard:new Map(),upstreamByCard:new Map()};
+root.NauvisRatioFlow={beltLines,feederLines,mount,buildFlowGraph,routeLayout,roundedPath,focusGraph,focusBundle,modeByCard:new Map(),inputByCard:new Map(),upstreamByCard:new Map()};
 })(typeof window==='undefined'?globalThis:window);
