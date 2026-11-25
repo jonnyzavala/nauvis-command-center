@@ -143,3 +143,6 @@
 .log-reuse-option input{width:18px;height:18px;min-height:0;flex:0 0 18px;accent-color:#efa08e}
 .log-reuse-option>span{display:grid;grid-template-columns:22px minmax(0,1fr);flex:1}.log-reuse-option small{grid-column:2;color:#b6c8da}
 .log-lane-visual>div>span{display:flex;align-items:center;gap:5px;min-width:0}
+
+/* Proposed routing uses the existing violet Logistics visual language. */
+.log-proposal-route{display:grid;gap:8px;padding:12px;margin:8px 0;border:1px solid rgba(182,166,241,.28);border-radius:12px;background:rgba(182,166,241,.045);min-width:0}.log-proposal-route strong,.log-proposal-route small{overflow-wrap:anywhere}.log-proposal-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(130px,100%),1fr));gap:8px;margin:8px 0}.log-proposal-fields label{display:grid;gap:4px;min-width:0;font-size:12px}.log-proposal-fields select,.log-proposal-fields input{width:100%;min-width:0;box-sizing:border-box}.log-proposal-route button{justify-self:start}

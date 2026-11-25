@@ -206,6 +206,17 @@ function prepareBackupImport(input,current,districtDefaults){
  return next;
 }
 // Saved proposals store only a goal and user selections, never actual capacity.
+function normalizeProposalRoutes(value){
+ if(value===undefined)return [];
+ if(!Array.isArray(value)||value.length>300)throw Error('A proposed route plan supports at most 300 connections.');
+ const ids=new Set(),pairs=new Set();
+ return value.map(r=>{
+  if(!r||typeof r.id!=='string'||!r.id||r.id.length>100||ids.has(r.id)||typeof r.from!=='string'||r.from.length>320||!/^(stage:|external:|actual:machine:).+/.test(r.from)||typeof r.to!=='string'||!r.to||r.to.length>100||typeof r.item!=='string'||!r.item||r.item.length>100||!['yellow','red','blue'].includes(r.tier)||!Number.isSafeInteger(r.belts)||r.belts<1||r.belts>10000||![1,2].includes(r.lanes)||!Number.isFinite(r.rate)||r.rate<=0||r.rate>Number.MAX_SAFE_INTEGER)throw Error('Invalid proposed belt connection.');
+  const pair=JSON.stringify([r.from,r.to,r.item]);if(pairs.has(pair))throw Error('Combine duplicate proposed connections into one route.');
+  ids.add(r.id);pairs.add(pair);
+  return {id:r.id,from:r.from,to:r.to,item:r.item,tier:r.tier,belts:r.belts,lanes:r.lanes,rate:r.rate};
+ });
+}
 function normalizeLogisticsDrafts(value){
  if(value===undefined)return [];
  if(!Array.isArray(value)||value.length>30)throw Error('Saved Logistics drafts must be a list of at most 30 designs.');
@@ -218,7 +229,7 @@ function normalizeLogisticsDrafts(value){
   if(!Array.isArray(row.reuseKeys)||row.reuseKeys.length>200||row.reuseKeys.some(k=>typeof k!=='string'||!k.startsWith('machine:')||k.length>300))throw Error('Invalid saved Logistics reuse selections.');
   const focus=typeof row.focus==='string'&&row.focus.length<=100?row.focus:g.id;
   const updatedAt=typeof row.updatedAt==='string'&&row.updatedAt.length<=40?row.updatedAt:'';
-  return {id:row.id,name:row.name.trim(),goal:{id:g.id,rate:g.rate,machine:g.machine,belt:g.belt,source:g.source,...settings(g)},reuseKeys:[...new Set(row.reuseKeys)],focus,updatedAt};
+  return {id:row.id,name:row.name.trim(),goal:{id:g.id,rate:g.rate,machine:g.machine,belt:g.belt,source:g.source,...settings(g)},reuseKeys:[...new Set(row.reuseKeys)],focus,updatedAt,routes:normalizeProposalRoutes(row.routes)};
  });
 }
 function saveLogisticsDraft(list,draft){
@@ -234,6 +245,6 @@ function validateOwnershipSnapshot(data){
  return true;
 }
 if(typeof module==='object'&&module.exports)
- module.exports={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,machineKey,materializeMachineKeys,newMachineKey,machineKeyMatches,supportedRate,SMELT_FIELDS,validateSmeltProfiles,smeltingRates,smeltingCapacity,smeltOwnership,editSmelting,applySmeltBuildDelta,prepareBackupImport,validateOwnershipSnapshot,normalizeLogisticsDrafts,saveLogisticsDraft,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
-root.NauvisEffects={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,machineKey,materializeMachineKeys,newMachineKey,machineKeyMatches,supportedRate,SMELT_FIELDS,validateSmeltProfiles,smeltingRates,smeltingCapacity,smeltOwnership,editSmelting,applySmeltBuildDelta,prepareBackupImport,validateOwnershipSnapshot,normalizeLogisticsDrafts,saveLogisticsDraft,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
+ module.exports={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,machineKey,materializeMachineKeys,newMachineKey,machineKeyMatches,supportedRate,SMELT_FIELDS,validateSmeltProfiles,smeltingRates,smeltingCapacity,smeltOwnership,editSmelting,applySmeltBuildDelta,prepareBackupImport,validateOwnershipSnapshot,normalizeLogisticsDrafts,saveLogisticsDraft,normalizeProposalRoutes,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
+root.NauvisEffects={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,machineKey,materializeMachineKeys,newMachineKey,machineKeyMatches,supportedRate,SMELT_FIELDS,validateSmeltProfiles,smeltingRates,smeltingCapacity,smeltOwnership,editSmelting,applySmeltBuildDelta,prepareBackupImport,validateOwnershipSnapshot,normalizeLogisticsDrafts,saveLogisticsDraft,normalizeProposalRoutes,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
 })(typeof window==='undefined'?globalThis:window);
