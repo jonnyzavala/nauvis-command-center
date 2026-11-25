@@ -16,3 +16,6 @@ jobs:
           node-version: '22'
       - name: Run offline and Quick Change logic tests
         run: node --test tests/*.test.cjs
+
+      - name: Run integrated browser smoke test
+        run: node tests/browser-smoke.cjs
