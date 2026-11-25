@@ -74,6 +74,7 @@ function renderPrompt(view){
 function removePrompt(view){document.getElementById(view)?.querySelector('.coach-first-use')?.remove()}
 function onActivate(view){if(!current&&!menu)renderPrompt(view);else if(current&&lessons[current].steps[index]?.view!==view&&!lessons[current].steps[index]?.expect){/* Keep explicit coaching session available; never hijack ordinary navigation. */}}
 function start(key){
+ if(key==='flow'||key==='log'){root.NauvisGuide?.open?.('tips');return}
  if(!lessons[key])return;
  root.NauvisGuide?.close?.();clear();current=key;index=0;prior=snap();persist(key);removePrompt(key);
  previousWorkspace=document.body.dataset.workspace;show(true);

@@ -593,6 +593,7 @@ body[data-workspace="build"]{
 <link rel="stylesheet" href="./inventory-v027.css" />
 <link rel="stylesheet" href="./advanced-v028.css" />
  <link rel="stylesheet" href="./sensory-feedback.css" />
+ <link rel="stylesheet" href="./focus-mode.css" />
  <style>
  /* Keep the complete brand kicker on one line above the mobile title and controls. */
  .command-top .brand-kicker{white-space:nowrap}
@@ -619,9 +620,9 @@ body[data-workspace="build"]{
     <div class="identity-main"><strong>Command Center</strong><span class="header-welcome">Welcome, Engineer.</span></div>
    </div>
   </div>
-  <div class="command-actions"><button type="button" id="sensoryLaunch" class="sensory-launch" aria-haspopup="dialog" aria-controls="sensoryDialog" title="Sound, motion and tactile feedback"><svg class="sensory-speaker" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4zM15 9a4 4 0 0 1 0 6m3-9a8 8 0 0 1 0 12"/></svg><span class="sensory-label">Feedback</span></button><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v1.0.5 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
+  <div class="command-actions"><button type="button" id="focusModeToggle" aria-pressed="true">Full mode</button><button type="button" id="sensoryLaunch" class="sensory-launch" aria-haspopup="dialog" aria-controls="sensoryDialog" title="Sound, motion and tactile feedback"><svg class="sensory-speaker" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4zM15 9a4 4 0 0 1 0 6m3-9a8 8 0 0 1 0 12"/></svg><span class="sensory-label">Feedback</span></button><button class="cloud-status" id="cloudStatus" type="button" data-state="local" aria-label="Cloud synchronization: Local only. Open settings." aria-haspopup="dialog" aria-controls="cloudDialog"><span class="cloud-indicator" aria-hidden="true"><span class="cloud-led"></span></span><span id="cloudStatusText">Local only</span><span class="cloud-progress-track" aria-hidden="true"><span class="cloud-progress-fill"></span></span></button><div class="version">v1.1 <span class="version-detail">· Switch 2 · Desktop ready</span></div></div>
  </header>
-  <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" class="active" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory &amp; Balance</button><button data-view="build" type="button"><span class="nav-dot" aria-hidden="true"></span>Plan &amp; Build</button></div></nav>
+  <nav class="nav" aria-label="Factory workflow: learn, record, analyze, design, build"><div class="nav-track"><button data-view="learn" class="full-nav-button" type="button"><span class="nav-dot" aria-hidden="true"></span>Quick Guide</button><button data-view="setup" class="active full-nav-button" aria-current="page" type="button"><span class="nav-dot" aria-hidden="true"></span>Factory &amp; Balance</button><button data-view="build" class="full-nav-button" type="button"><span class="nav-dot" aria-hidden="true"></span>Plan &amp; Build</button><button type="button" data-focus-view="build"><span class="nav-dot" aria-hidden="true"></span>Planner</button><button type="button" data-focus-view="factory"><span class="nav-dot" aria-hidden="true"></span>Construction</button><button type="button" data-focus-view="log"><span class="nav-dot" aria-hidden="true"></span>Log</button><button type="button" data-focus-view="flow"><span class="nav-dot" aria-hidden="true"></span>Flow &amp; Belts</button></div></nav>
  </div>
  <main>
  <section class="view" id="build">
@@ -738,6 +739,7 @@ body[data-workspace="build"]{
 
  <section class="view" id="factory">
   <div class="hero"><div class="eyebrow">CONSTRUCTION MODE · TEAL BLUEPRINT</div><h1>Construction Queue</h1><p>Save designs from Blueprint Designer, track machines as you build them, and update actual Factory inventory in the same action. Your original circuit district remains available below.</p></div>
+  <section id="focusConstructionSummary" class="focus-panel focus-only" aria-label="Overall construction progress"></section>
   <section id="projectsOverview" class="section projects-overview">
    <div class="projects-toolbar"><div><h2>Your construction pipeline</h2><p>One built-machine action updates your project and Factory together.</p></div><div class="deployment-actions"><button type="button" id="projectsGoPlanner" class="projects-action">+ Plan another production line</button></div></div>
    <div id="projectsSummary" class="projects-summary" aria-label="Project status summary"></div>
@@ -787,7 +789,10 @@ body[data-workspace="build"]{
   <div class="section panel"><h2>Example: 90 red circuits/min</h2><div class="example"><p>Start with <b>90 red circuits/min</b>. The planner works backward and tells you to place:</p><p><strong style="color:var(--green)">2 green-circuit assemblers</strong>, <strong style="color:var(--gold)">5 cable assemblers</strong> and <strong style="color:var(--red)">12 red-circuit assemblers</strong>.</p><p><b>19 total.</b> Inputs: 180 iron plates, 450 copper plates and 180 plastic bars per minute. All fit individually on yellow belts.</p></div><p class="small">That doesn't mean the assemblers will always run. If storage fills or consumers stop, the machines stop. The listed count is maximum sustained capacity with adequate supplies.</p></div>
   <div class="section panel"><h2>Before upgrading a belt</h2><div style="display:grid;gap:12px"><div><div class="inline"><b>Yellow</b><b>900/min</b></div><div class="track"><div style="width:33.333%;background:#e9bd61"></div></div></div><div><div class="inline"><b>Red</b><b>1,800/min</b></div><div class="track"><div style="width:66.666%;background:#e67b78"></div></div></div><div><div class="inline"><b>Blue</b><b>2,700/min</b></div><div class="track"><div style="width:100%;background:#76b3e2"></div></div></div></div><p class="small">If your furnaces produce only 700 plates/min, any of these belts will still carry only 700. Upgrade when the belt is saturated, not just because you've researched the next color.</p></div>
  </section>
+ <section class="view" id="log"><div class="focus-panel"><div class="focus-heading"><div><h2>Engineer’s log</h2><p>Pick up where you left off, without keeping a second factory.</p></div></div><div id="focusLogStats"></div><p id="focusSessionNote"></p></div><div id="focusLogHost"></div></section>
+ <section class="view" id="flow"><div class="focus-panel"><div class="focus-heading"><div><h2>Flow &amp; Belts</h2><p>Check supply versus distribution for one resource. No Inventory setup needed.</p></div><button type="button" data-focus-jump="logistics">Proposed designs / networks ↗</button></div><div id="focusFlowInputs"></div></div><section class="focus-panel" id="focusFlowResults" aria-label="Belt check results"></section></section>
  <section class="view" id="logistics">
+  <div class="focus-only focus-panel focus-heading"><div><h2>Production network preview</h2><p>Optional detailed routing, saved proposals, and existing network tools.</p></div><button type="button" data-focus-jump="flow">← Quick belt check</button></div>
   <div class="hero"><div class="eyebrow">FACTORY &amp; BALANCE · LOGISTICS</div><h1>Production network</h1><p>Link recorded arrays once, connect their ingredient and product ports, and inspect individual resource routes when needed. Actual Inventory is unchanged by network edits.</p></div>
   <section class="section panel log-panel" id="logisticsEditor" aria-label="Editable resource network"></section>
  </section>
@@ -879,7 +884,7 @@ body[data-workspace="build"]{
   <p class="small" style="margin:0">First-time setup: follow the <a href="https://github.com/jonnyzavala/nauvis-command-center/blob/main/sync/README.md" target="_blank" rel="noopener noreferrer">cloud setup guide</a>. Never enter Supabase service_role or secret API keys here.</p>
  </div>
 </dialog>
- <footer class="footer">Nauvis Command Center v1.0.5 · Factorio 2.0 / Space Age · Optional cloud sync · Engineer. Build. Optimize. Physical input routing, actual train deliveries, circuit-controlled pumps, fuel/power delivery, beacon geometry and inserter constraints remain unmodeled.</footer>
+ <footer class="footer">Nauvis Command Center v1.1 · Factorio 2.0 / Space Age · Optional cloud sync · Engineer. Build. Optimize. Physical input routing, actual train deliveries, circuit-controlled pumps, fuel/power delivery, beacon geometry and inserter constraints remain unmodeled.</footer>
 </div>
 <link rel="stylesheet" href="./factory-onboarding.css">
 <link rel="stylesheet" href="./factory-milestones.css">
@@ -1450,7 +1455,9 @@ const HELP_MAP={
  factory:['> .section','p0','p1','f0','f1','f2','f3','f4','f5'],
  learn:['> .section','g0','g1','g2']
 };
-const HELP_DEFAULT={logistics:'b0',balance:'b0',setup:'s0',build:'n4',factory:'p0',learn:'g0'};
+const HELP_DEFAULT={logistics:'b0',balance:'b0',setup:'s0',build:'n4',factory:'p0',learn:'g0',log:'focusLog',flow:'focusFlow'};
+ HELP_DATA.focusLog=['Engineer’s log','Pick up where you left off','Save short notes about your next objective. Construction changes are recorded automatically.',['The log shares the same saved records in both modes.','Notes do not add actual machines.'],'Save a field note before ending a session.'];
+ HELP_DATA.focusFlow=['Flow & Belts','Supply or distribution?','Enter a single resource supply and the destinations that consume it.',['A production gap means the entered supply is below demand.','A trunk gap means the incoming belts limit available supply.','A branch gap means the outgoing belts or fixed shares restrict delivery.'],'These are independent what-if estimates, not actual Inventory.'];
 let guideOpen=false, guideTopic='',guideFocus=null,guideScroll=0;
 function mountGuideTargets(){
  for(const id of ['build','factory','learn']){
@@ -1536,13 +1543,14 @@ function initStickyCommand(){
 }
 
 function activateWorkspace(view,scrollPage=false){
- const allowed=new Set(['learn','setup','balance','logistics','factory','build']);
+ const allowed=new Set(['learn','setup','balance','logistics','factory','build','log','flow']);
  if(!allowed.has(view))view='balance';
+ window.NauvisFocus?.beforeActivate?.(view);
  document.body.dataset.workspace=view;
- const workspaceNames={learn:'Quick Guide',setup:'Factory & Balance · Inventory',balance:'Factory & Balance · Analysis',logistics:'Factory & Balance · Logistics',factory:'Plan & Build · Construction',build:'Plan & Build · Designer'};
+ const workspaceNames={learn:'Quick Guide',setup:'Factory & Balance · Inventory',balance:'Factory & Balance · Analysis',logistics:'Factory & Balance · Logistics',factory:'Plan & Build · Construction',build:'Plan & Build · Designer',log:'Engineer’s log',flow:'Flow & Belts'};
  const workspaceLabel=document.getElementById('welcomeWorkspace');
  if(workspaceLabel)workspaceLabel.textContent=workspaceNames[view]||'Factory balance';
- document.querySelectorAll('.nav button').forEach(b=>{
+ document.querySelectorAll('.nav button[data-view]').forEach(b=>{
   const yes=b.dataset.view===(view==='factory'?'build':(view==='balance'||view==='logistics')?'setup':view);b.classList.toggle('active',yes);
   if(yes)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
  });
@@ -1554,10 +1562,10 @@ function activateWorkspace(view,scrollPage=false){
  const bar=document.querySelector('.nav'),active=document.querySelector('.nav button.active');
  if(bar&&active){const barRect=bar.getBoundingClientRect(),tabRect=active.getBoundingClientRect();const target=bar.scrollLeft+(tabRect.left-barRect.left)-(bar.clientWidth-tabRect.width)/2;bar.scrollLeft=Math.max(0,Math.min(bar.scrollWidth-bar.clientWidth,target))}
  if(scrollPage)window.scrollTo({top:0,behavior:'instant'});
- window.NauvisWorkspace?.onActivate?.(view);window.NauvisMilestones?.refresh?.();window.NauvisCoach?.onActivate?.(view);window.NauvisGuide?.refresh?.();
+ window.NauvisWorkspace?.onActivate?.(view);window.NauvisFocus?.onActivate?.(view);window.NauvisMilestones?.refresh?.();window.NauvisCoach?.onActivate?.(view);window.NauvisGuide?.refresh?.();
  if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>{const c=document.querySelector('.command-chrome');if(c)document.documentElement.style.setProperty('--chrome-height',Math.ceil(c.getBoundingClientRect().height)+'px')});
 }
-function init(){el('balanceIncludeGoal').addEventListener('change',e=>{balancePrefs.includeGoal=e.target.checked;try{localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs))}catch(_e){}window.NauvisCloud?.changed();renderBalance()});el('balanceEditSetup').addEventListener('click',()=>activateWorkspace('setup',true));el('allRecipes').innerHTML=[...new Set(allOrder.filter(x=>R[x]))].map(k=>`<option value="${k}">${R[k][0]}</option>`).join('');el('allRecipes').addEventListener('change',e=>setGoal(e.target.value));el('goalNumber').addEventListener('change',e=>{guide.rate=Math.min(25000,Math.max(0,Number(e.target.value)||0));renderGuide()});for(const [id,key] of [['assemblyTier','machine'],['sourceMode','source'],['beltTier','belt']])el(id).addEventListener('change',e=>{guide[key]=key==='source'?e.target.value:Number(e.target.value);renderGuide()});document.querySelectorAll('.nav button').forEach(btn=>btn.addEventListener('click',()=>activateWorkspace(btn.dataset.view==='build'?(window.NauvisWorkspace?.lastPlanMode?.()||'build'):btn.dataset.view==='setup'?(window.NauvisWorkspace?.lastFactoryMode?.()||'setup'):btn.dataset.view,true)));
+function init(){el('balanceIncludeGoal').addEventListener('change',e=>{balancePrefs.includeGoal=e.target.checked;try{localStorage.setItem('nauvis-balance-v07',JSON.stringify(balancePrefs))}catch(_e){}window.NauvisCloud?.changed();renderBalance()});el('balanceEditSetup').addEventListener('click',()=>activateWorkspace('setup',true));el('allRecipes').innerHTML=[...new Set(allOrder.filter(x=>R[x]))].map(k=>`<option value="${k}">${R[k][0]}</option>`).join('');el('allRecipes').addEventListener('change',e=>setGoal(e.target.value));el('goalNumber').addEventListener('change',e=>{guide.rate=Math.min(25000,Math.max(0,Number(e.target.value)||0));renderGuide()});for(const [id,key] of [['assemblyTier','machine'],['sourceMode','source'],['beltTier','belt']])el(id).addEventListener('change',e=>{guide[key]=key==='source'?e.target.value:Number(e.target.value);renderGuide()});document.querySelectorAll('.nav button[data-view]').forEach(btn=>btn.addEventListener('click',()=>activateWorkspace(btn.dataset.view==='build'?(window.NauvisWorkspace?.lastPlanMode?.()||'build'):btn.dataset.view==='setup'?(window.NauvisWorkspace?.lastFactoryMode?.()||'setup'):btn.dataset.view,true)));
  el('exportButton').addEventListener('click',()=>{const data=JSON.stringify({version:7,plan:factory,guide,setup,balancePrefs},null,2),u=URL.createObjectURL(new Blob([data],{type:'application/json'})),a=document.createElement('a');a.href=u;a.download='nauvis-plan.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)});el('importButton').addEventListener('click',()=>el('importFile').click());el('importFile').addEventListener('change',async e=>{
  const file=e.target.files?.[0];if(!file)return;
  try{
@@ -1616,6 +1624,7 @@ window.NauvisLocal={
 <script src="./factory-coach.js" defer></script>
 <script src="./workspace-ui.js" defer></script>
 <script src="./logistics.js" defer></script>
+<script src="./focus-mode.js" defer></script>
 <script>if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./service-worker.js").catch(()=>{}));</script>
 </body>
 </html>

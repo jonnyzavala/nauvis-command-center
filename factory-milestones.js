@@ -69,7 +69,7 @@ function refresh(){
  [['build','Plan production']],constructionAwards);
  const awardKeys=[...invAwards,...balanceAwards,...logAwards,...buildAwards,...constructionAwards].map(x=>x[0]);
  for(const r of ledger?.rows||[]){const b=coverageBadge(r);if(b){awardKeys.push('coverage:'+r.id);if(b.buffer)awardKeys.push('buffer:'+r.id)}}
- root.NauvisSensory?.updateAwards?.(awardKeys);
+ root.NauvisSensory?.updateAwards?.(awardKeys);root.NauvisFocus?.refresh?.();
 }
 function schedule(){if(queued)return;queued=true;Promise.resolve().then(()=>{queued=false;refresh()})}
 function updateBalance(result){ledger=result;schedule()}

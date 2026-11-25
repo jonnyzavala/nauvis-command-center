@@ -285,6 +285,7 @@ function buildView(result,card){
  const output=result.outputStream;
  const outputDesc=output.isFluid?'Output uses pipes; pipe throughput not modeled':(output.belts+' × '+(result.belt===900?'yellow':result.belt===1800?'red':'blue')+' belt'+(output.belts===1?'':'s')+' for final output');
  return fieldset+
+  '<div class="focus-only focus-planner-kpis"><div><small>BUILD MACHINES</small><strong>'+result.roundedTotal+'</strong><span>Whole machines</span></div><div><small>OUTPUT TARGET</small><strong>'+number(result.rate)+'</strong><span>items/min</span></div><div><small>EXTERNAL INPUTS</small><strong>'+result.external.length+'</strong><span>Material types</span></div></div>'+
   (advancedOn?'<p class="ratio-effect-status"><strong>Upgrade profile active:</strong> machine counts and upstream ingredients reflect compatible module/quality bonuses. Review per-recipe effects under “Why this ratio?”.</p>':'')+
   '<div data-ratio-flow-root class="ratio-flow-root"></div>'+lanePanel(result)+
   '<div class="ratio-save-strip"><button class="ratio-save-project" data-ratio-logistics-preview type="button">Preview in Logistics <span aria-hidden="true">→</span></button><span>Test proposed production and explicitly available existing supply without changing Inventory.</span></div>'+
