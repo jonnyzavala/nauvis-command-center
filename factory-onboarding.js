@@ -126,7 +126,7 @@ function apply(){
 host.addEventListener('change',e=>{
  if(!e.target.matches('[data-onboard-field]'))return;
  readFields();const field=e.target.dataset.onboardField;
- if(field==='goal'||field.endsWith(':recipe'))render();
+ if(field==='goal'||field.endsWith(':recipe')||field.endsWith(':count'))render();
 });
 host.addEventListener('click',e=>{
  const b=e.target.closest('button');if(!b)return;
