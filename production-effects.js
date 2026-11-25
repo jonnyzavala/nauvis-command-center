@@ -193,14 +193,35 @@ function prepareBackupImport(input,current,districtDefaults){
  validateOwnershipSnapshot(next);
  return next;
 }
+// Saved proposals store only a goal and user selections, never actual capacity.
+function normalizeLogisticsDrafts(value){
+ if(value===undefined)return [];
+ if(!Array.isArray(value)||value.length>30)throw Error('Saved Logistics drafts must be a list of at most 30 designs.');
+ const seen=new Set();
+ return value.map(row=>{
+  if(!row||typeof row.id!=='string'||!row.id||row.id.length>100||seen.has(row.id)||typeof row.name!=='string'||!row.name.trim()||row.name.length>100)throw Error('Invalid saved Logistics draft identity.');
+  seen.add(row.id);
+  const g=row.goal;
+  if(!g||typeof g.id!=='string'||!g.id||g.id.length>100||!Number.isFinite(g.rate)||g.rate<=0||g.rate>25000||![.75,1.25].includes(g.machine)||![900,1800,2700].includes(g.belt)||!['bus','raw'].includes(g.source))throw Error('Invalid saved Logistics goal.');
+  if(!Array.isArray(row.reuseKeys)||row.reuseKeys.length>200||row.reuseKeys.some(k=>typeof k!=='string'||!k.startsWith('machine:')||k.length>300))throw Error('Invalid saved Logistics reuse selections.');
+  const focus=typeof row.focus==='string'&&row.focus.length<=100?row.focus:g.id;
+  const updatedAt=typeof row.updatedAt==='string'&&row.updatedAt.length<=40?row.updatedAt:'';
+  return {id:row.id,name:row.name.trim(),goal:{id:g.id,rate:g.rate,machine:g.machine,belt:g.belt,source:g.source,...settings(g)},reuseKeys:[...new Set(row.reuseKeys)],focus,updatedAt};
+ });
+}
+function saveLogisticsDraft(list,draft){
+ const current=normalizeLogisticsDrafts(list),next=normalizeLogisticsDrafts([draft])[0];
+ return normalizeLogisticsDrafts([...current.filter(x=>x.id!==next.id),next]);
+}
 function validateOwnershipSnapshot(data){
  if(!data||typeof data!=='object'||!data.plan||!data.guide||!data.setup)throw Error('Invalid shared factory snapshot.');
  const projects=data.plan.projects??[];
  if(!Array.isArray(projects))throw Error('Invalid construction project list.');
  smeltOwnership(data.setup.smelt||{},projects);
+ normalizeLogisticsDrafts(data.setup.logisticsDrafts);
  return true;
 }
 if(typeof module==='object'&&module.exports)
- module.exports={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,SMELT_FIELDS,validateSmeltProfiles,smeltingRates,smeltingCapacity,smeltOwnership,editSmelting,applySmeltBuildDelta,prepareBackupImport,validateOwnershipSnapshot,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
-root.NauvisEffects={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,SMELT_FIELDS,validateSmeltProfiles,smeltingRates,smeltingCapacity,smeltOwnership,editSmelting,applySmeltBuildDelta,prepareBackupImport,validateOwnershipSnapshot,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
+ module.exports={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,SMELT_FIELDS,validateSmeltProfiles,smeltingRates,smeltingCapacity,smeltOwnership,editSmelting,applySmeltBuildDelta,prepareBackupImport,validateOwnershipSnapshot,normalizeLogisticsDrafts,saveLogisticsDraft,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
+root.NauvisEffects={forRecipe,settings,effectiveOutputPerCraft,recipeRates,recordedRates,supportedRate,SMELT_FIELDS,validateSmeltProfiles,smeltingRates,smeltingCapacity,smeltOwnership,editSmelting,applySmeltBuildDelta,prepareBackupImport,validateOwnershipSnapshot,normalizeLogisticsDrafts,saveLogisticsDraft,PROD_ALLOWED,QUALITIES,MODULE_TYPES,MODULE_OPTIONS,MODULE_DATA};
 })(typeof window==='undefined'?globalThis:window);
