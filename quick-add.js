@@ -254,8 +254,8 @@ function init(){
      if(change.kind==='belt'&&change.target==='new')target=String(setup.feeds.length-1);
      if(change.kind==='remove-machine'||change.kind==='remove-belt')target='new';
      render();
-     notice(result.label+'. Saved locally; cloud sync will follow when connected.',false);
-   }catch(err){notice(err?.message||'Could not save this change.',true)}
+     notice(result.label+'. Saved locally; cloud sync will follow when connected.',false);root.NauvisSensory?.semantic?.('saved',feedback);
+   }catch(err){notice(err?.message||'Could not save this change.',true);root.NauvisSensory?.semantic?.('warning',feedback)}
  }
  function undo(){
    if(!lastAction)return;

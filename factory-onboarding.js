@@ -121,7 +121,7 @@ function apply(){
  const latest=root.NauvisLocal.snapshot();
  if(JSON.stringify(latest)!==JSON.stringify(baseline))throw Error('Factory data changed while setup was open. Close and reopen the wizard; nothing has been overwritten.');
  const next=prepareOnboarding(latest,config,ctx());
- root.NauvisLocal.apply(next);root.NauvisCloud?.changed?.();step=4;tourIndex=0;notice='';render();
+ root.NauvisLocal.apply(next);root.NauvisCloud?.changed?.();root.NauvisSensory?.semantic?.('saved');step=4;tourIndex=0;notice='';render();
 }
 host.addEventListener('change',e=>{
  if(!e.target.matches('[data-onboard-field]'))return;

@@ -412,12 +412,13 @@ function saveDialog(event){
     detail:project.name+' · '+project.tasks.reduce((n,t)=>n+t.planned,0)+' machines planned · 0 built'
    });
    notice='Queued '+project.name+'. Actual Inventory is unchanged until you mark machines built.';
+   root.NauvisSensory?.semantic?.('queue');
    pendingOptions?.onSaved?.(project);
   }
   $('projectsDialog').close();editing=null;pending=null;pendingOptions=null;render();
   activateWorkspace('factory',true);
  }catch(err){
-  $('projectsDialogError').textContent=err.message;$('projectsDialogError').hidden=false;
+  $('projectsDialogError').textContent=err.message;$('projectsDialogError').hidden=false;root.NauvisSensory?.semantic?.('warning');
  }
 }
 function updateBuilt(id,recipe,delta){
@@ -458,6 +459,8 @@ function updateBuilt(id,recipe,delta){
   notice=delta>0?(isAsset?'Recorded one placed '+name+' in infrastructure and the journal.':'Built one '+name+' machine and updated Factory and the journal.'):
    'Reversed one recorded item in both Factory and the journal.';
   render();root.NauvisAssets?.render?.();
+  const finished=delta>0&&change.project.tasks.every(t=>t.planned>0&&t.built>=t.planned);
+  root.NauvisSensory?.semantic?.(finished?'complete':delta>0?'build':'reverse',document.querySelector('[data-project-card="'+id+'"]'));
   if(expanded){
    const detail=$('projectsList')?.querySelector('[data-project-card="'+id+'"] .project-task-details');
    if(detail)detail.open=true;

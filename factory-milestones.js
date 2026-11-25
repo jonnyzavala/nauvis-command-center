@@ -67,6 +67,9 @@ function refresh(){
  panel('factory',m.projects?(m.complete===m.projects?'All active projects complete!':'Construction in progress'):'Nothing queued. Plan your first build!',
  m.projects?m.built+' / '+m.planned+' project items recorded as built. Only mark equipment placed in-game.':'Create a production chain in Blueprint Designer and queue it when you are ready to build.',
  [['build','Plan production']],constructionAwards);
+ const awardKeys=[...invAwards,...balanceAwards,...logAwards,...buildAwards,...constructionAwards].map(x=>x[0]);
+ for(const r of ledger?.rows||[]){const b=coverageBadge(r);if(b){awardKeys.push('coverage:'+r.id);if(b.buffer)awardKeys.push('buffer:'+r.id)}}
+ root.NauvisSensory?.updateAwards?.(awardKeys);
 }
 function schedule(){if(queued)return;queued=true;Promise.resolve().then(()=>{queued=false;refresh()})}
 function updateBalance(result){ledger=result;schedule()}
