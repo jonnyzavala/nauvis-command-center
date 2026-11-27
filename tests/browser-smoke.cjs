@@ -158,6 +158,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   w.NauvisFocus.setMode('focus');w.activateWorkspace('factory');
   assert(w.document.querySelector('#projectsOverview #focusConstructionSummary .focus-ring')&&w.document.querySelector('#projectsOverview #projectsList .focus-project-ring'),'Construction summary and project cards share one section');
   assert(w.document.querySelector('#focusConstructionSummary').textContent.includes('1 project'),'Summary counts the visible saved project');
+  click(w,'[data-project-visit]');assert(w.document.body.dataset.workspace==='build'&&w.NauvisFocus.getMode()==='focus','Open project returns to blueprint without opening logistics');w.activateWorkspace('factory');
   w.activateWorkspace('build');
   assert(!w.document.querySelector('[data-ratio-focus-flow],.focus-check-material,#focusQuickSplit,#plannerQuickCheck'),'No standalone checker or obsolete links remain');
   assert(w.document.querySelector('#build [data-flow-belt-toggle]'),'Blueprint belt controls remain');
