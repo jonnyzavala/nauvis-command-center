@@ -97,10 +97,10 @@ test('layout stays inside explorer and switches to vertical diagram on iPhone',(
  assert.match(style,/\.ratio-flow-node-label strong\{font-size:11px\}/);
 });
 test('version and offline caching include the visual graph without editing cloud sync',()=>{
- assert.match(html,/Nauvis Command Center v1\.1\.13/);
- assert.match(html,/href="\.\/ratio-flow\.css\?v=1\.1\.13"/);
- assert.match(html,/src="\.\/ratio-flow\.js\?v=1\.1\.13" defer/);
- assert.match(worker,/nauvis-shell-v10113/);
+ assert.match(html,/Nauvis Command Center v1\.1\.14/);
+ assert.match(html,/href="\.\/ratio-flow\.css\?v=1\.1\.14"/);
+ assert.match(html,/src="\.\/ratio-flow\.js\?v=1\.1\.14" defer/);
+ assert.match(worker,/nauvis-shell-v10114/);
  assert.match(worker,/ratio-flow\.css/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(html,/sync\/cloud-sync\.js/);
