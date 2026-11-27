@@ -26,7 +26,7 @@ const ELECTRONIC={
  saved:['construction',[[523,523,.09,0,'sine',.35],[784,784,.13,.08,'triangle',.23]]],
  complete:['construction',[[392,392,.12,0,'triangle',.3],[523,523,.13,.09,'sine',.35],[659,659,.13,.18,'triangle',.28],[784,784,.26,.27,'sine',.32]]],
  achievement:['achievements',[[523,523,.11,0,'triangle',.28],[659,659,.12,.085,'sine',.32],[784,784,.13,.17,'triangle',.26],[1047,1047,.28,.26,'sine',.28]]],
- sync:['sync',[[620,620,.07,0,'sine',.19],[880,880,.11,.07,'sine',.22]]],
+ sync:['sync',[[220,180,.045,0,'sine',.16],[280,230,.065,.075,'sine',.12]]],
  warning:['sync',[[230,170,.11,0,'triangle',.3],[170,130,.14,.12,'sine',.24]]]
 };
 // Industrial transients combine tonal resonances with shaped, filtered noise.
@@ -54,7 +54,7 @@ const SOUNDS={
  route:['construction',[[140,82,.06,0,'triangle',.25],[620,820,.10,.065,'sine',.18]]],
  complete:['construction',[[110,62,.15,0,'triangle',.26],[392,392,.24,.11,'triangle',.23],[523,523,.25,.19,'sine',.26],[659,659,.31,.28,'sine',.24],[784,784,.35,.38,'triangle',.16]]],
  achievement:['achievements',[[523,523,.23,0,'sine',.23],[659,659,.27,.10,'triangle',.21],[784,784,.30,.20,'sine',.23],[1047,1047,.40,.31,'sine',.22],[1568,1568,.27,.36,'sine',.08]]],
- sync:['sync',[[500,500,.065,0,'sine',.14],[750,750,.10,.06,'sine',.17]]],
+ sync:['sync',[[180,125,.045,0,'triangle',.12],[240,170,.055,.075,'sine',.10]]],
  warning:['sync',[[115,103,.14,0,'sawtooth',.13],[165,132,.18,.13,'triangle',.25]]]
 };
 // Longer original reward motifs and distinguishable navigation sounds in both palettes.
@@ -96,6 +96,26 @@ function soundDefinition(p,event){return p.palette==='electronic'?(ELECTRONIC[ev
 function canPlay(p,event){const def=SOUNDS[event];return !!def&&p.enabled&&p.volume>0&&p.categories[def[0]]===true}
 function cloudCue(before,after){if(before===after)return null;if(after==='saved'&&before==='syncing')return 'sync';if(['error','conflict','offline'].includes(after)&&!['error','conflict','offline'].includes(before))return 'warning';return null}
 function gained(before,after){const old=new Set(before||[]);return [...new Set(after||[])].filter(x=>!old.has(x))}
+// Only committed construction actions can generate construction rewards.
+// Legacy milestones are derived, reversible statistics, never completion events.
+const REWARD_CUES=new Set(['phase','complete','achievement']);
+const COMMIT_CUES=new Set(['build','reverse','phase','complete','queue','saved','route','warning']);
+function makeCueGate(clock=()=>Date.now()){
+ let until=0;
+ return {allow:(event,preview=false)=>preview||clock()>=until||COMMIT_CUES.has(event),
+  active:()=>clock()<until,
+  played:(event,p)=>{until=REWARD_CUES.has(event)?clock()+1000*Math.max(...soundDefinition(p,event)[1].map(n=>n[2]+n[3])):0},
+  reset:()=>{until=0}};
+}
+const DURABLE_AWARDS=new Set(['First sparks','Factory online','Black gold','Industrial scale','Connected','Architect','First blueprint queued','First machine placed']);
+function makeAwardTracker(){
+ let baseline=false;const seen=new Set();
+ return {reset:()=>{baseline=false},update(keys,{eligible=false}={}){
+  const fresh=[...new Set(keys||[])].filter(k=>!seen.has(k));for(const k of keys||[])seen.add(k);
+  const earned=baseline&&eligible?fresh.filter(k=>DURABLE_AWARDS.has(k)):[];
+  baseline=true;return earned;
+ }};
+}
 // Render original sounds to standard mono 16-bit PCM WAV, without Web Audio.
 // The media element is reused, and play() is invoked synchronously during user gestures.
 function renderWav(p,event,sr=24000){
@@ -137,7 +157,7 @@ function makeMediaEngine(audio,getPrefs,visible=()=>true,clock=()=>Date.now(),en
  function stop(){serial++;try{audio.pause()}catch{}state='ready';last=-Infinity}
  function play(event,preview=false){
   const p=getPrefs();if(!audio||!visible()||!p.enabled||p.volume<=0||event!=='test'&&!canPlay(p,event))return false;
-  const now=clock();if(!preview&&event!=='test'&&now-last<65)return false;
+  const now=clock();if(!preview&&event!=='test'&&!COMMIT_CUES.has(event)&&!REWARD_CUES.has(event)&&now-last<65)return false;
   const id=++serial;last=now;error='';
   try{
    const key=[p.palette,p.volume,event].join(':');let src=cache.get(key);
@@ -224,7 +244,7 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
  }
  return {unlock,play,stop,reset,testTone,error:()=>lastError,state:()=>context?.state||'locked'};
 }
-if(typeof module==='object'&&module.exports)module.exports={normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine,renderWav,makeMediaEngine};
+if(typeof module==='object'&&module.exports)module.exports={normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine,renderWav,makeMediaEngine,makeCueGate,makeAwardTracker};
 if(typeof document==='undefined')return;
 let prefs=normalize(null);try{prefs=normalize(JSON.parse(localStorage.getItem(KEY)||'null'))}catch{}
 const $=id=>document.getElementById(id),dialog=$('sensoryDialog'),launcher=$('sensoryLaunch');
@@ -233,8 +253,8 @@ const media=makeMediaEngine($('sensoryMediaAudio'),()=>prefs,()=>!document.hidde
 const appleMobile=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const useMedia=()=>prefs.backend==='media'||prefs.backend==='auto'&&(appleMobile||!root.AudioContext&&!root.webkitAudioContext);
 const reduce=root.matchMedia?.('(prefers-reduced-motion: reduce)');
-let lastGesture=-Infinity,lastSemantic=-Infinity,localChange=false,priorAwards=null,lastAward=-Infinity,lastRange=new WeakMap();
-let pendingReward=null;
+let lastGesture=-Infinity,lastSemantic=-Infinity,localChange=null,lastRange=new WeakMap();
+const gate=makeCueGate(()=>performance.now()),awards=makeAwardTracker();
 const status=text=>{const node=$('sensoryStatus');if(node)node.textContent=text};
 function paint(){
  document.body.dataset.sensoryMotion=reduce?.matches?'off':prefs.motion;
@@ -250,7 +270,7 @@ function paint(){
  if($('sensoryMotionNote'))$('sensoryMotionNote').textContent=reduce?.matches?'System reduced motion is active. Animations are disabled.':'Visual feedback is independent of sound.';
  if($('sensoryHapticNote'))$('sensoryHapticNote').textContent=typeof navigator.vibrate==='function'?'Short vibration pulses on supported devices.':'Haptics are unavailable in this browser (including iPhone Safari).';
 }
-function setPrefs(patch){const previousBackend=useMedia();prefs=normalize({...prefs,...patch});if(previousBackend!==useMedia()){engine.stop();media.stop()}try{localStorage.setItem(KEY,JSON.stringify(prefs))}catch{}if(!prefs.enabled||!prefs.volume){engine.stop();media.stop()}paint();return {...prefs,categories:{...prefs.categories}}}
+function setPrefs(patch){const previousBackend=useMedia();prefs=normalize({...prefs,...patch});if(previousBackend!==useMedia()){engine.stop();media.stop();gate.reset()}try{localStorage.setItem(KEY,JSON.stringify(prefs))}catch{}if(!prefs.enabled||!prefs.volume){engine.stop();media.stop();gate.reset()}paint();return {...prefs,categories:{...prefs.categories}}}
 function audioState(){const node=$('sensoryAudioState');if(node)node.textContent=!prefs.enabled?'Sound off':useMedia()?'Media audio: '+media.state():!root.AudioContext&&!root.webkitAudioContext?'Web Audio unavailable':'Audio engine: '+engine.state()}
 function unlock(retry=false){if(useMedia()){audioState();return Promise.resolve(true)}return engine.unlock(retry).then(ok=>{audioState();return ok})}
 async function testAudio(restart=false){
@@ -272,28 +292,34 @@ function pulse(el,cls='sensory-pulse'){
 function vibrate(event){if(!prefs.haptics||document.hidden||!prefs.categories[SOUNDS[event]?.[0]]||typeof navigator.vibrate!=='function')return;
  try{navigator.vibrate(['complete','achievement'].includes(event)?[16,35,20]:event==='build'?12:7)}catch{}}
 function cue(event,el,{semantic=false,haptic=true,preview=false}={}){
- if(!SOUNDS[event])return false;
+ if(!SOUNDS[event]||(!preview&&document.hidden))return false;
  if(semantic)lastSemantic=performance.now();
- const played=useMedia()?media.play(event,preview):engine.play(event,preview);if(haptic)vibrate(event);if(el)pulse(el);
+ if(!gate.allow(event,preview))return false;
+ const played=useMedia()?media.play(event,preview):engine.play(event,preview);if(played)gate.played(event,prefs);if(haptic)vibrate(event);if(el)pulse(el);
  return played;
 }
 function semantic(event,el){if(performance.now()-lastGesture>1500||root.NauvisCloudApplying)return false;return cue(event,el,{semantic:true})}
-function markLocalChange(){if(!root.NauvisCloudApplying&&performance.now()-lastGesture<1500)localChange=true}
-function resetBaseline(){localChange=false;priorAwards=null;if(pendingReward!==null){clearTimeout(pendingReward);pendingReward=null}}
+function markLocalChange(){
+ const workspace=document.body.dataset.workspace;
+ // Focus-mode construction has its own exact completion events. Hidden legacy
+ // milestones, sync, and non-construction edits must not compete with them.
+ if(!root.NauvisCloudApplying&&document.body.dataset.appMode==='full'&&workspace!=='factory'&&performance.now()-lastGesture<1500)localChange=workspace;
+}
+function resetBaseline(){localChange=null;awards.reset();if(gate.active()){engine.stop();media.stop();gate.reset()}}
 function updateAwards(keys){
- const previous=priorAwards;priorAwards=[...new Set(keys||[])];
- const earned=previous===null?[]:gained(previous,priorAwards);
- const local=localChange;localChange=false;
- if(!local||!earned.length||performance.now()-lastGesture>1500||document.hidden)return [];
+ const eligible=!!localChange&&localChange===document.body.dataset.workspace&&document.body.dataset.appMode==='full'&&!root.NauvisCloudApplying&&!document.hidden&&performance.now()-lastGesture<1500;
+ localChange=null;
+ const earned=awards.update(keys,{eligible});
+ if(!earned.length)return [];
  const active=document.querySelector('.view.active .factory-milestones');
  if(active)pulse(active,'sensory-award-flash');
- // One reward sound per burst, never on initial load, cloud restore, or tab switch.
- if(performance.now()-lastAward>1800){lastAward=performance.now();if(pendingReward!==null)clearTimeout(pendingReward);const delay=performance.now()-lastSemantic<250?1850:0;pendingReward=setTimeout(()=>{pendingReward=null;if(!document.hidden&&earned.some(k=>priorAwards?.includes(k)))cue('achievement',null,{semantic:true,haptic:false})},delay)}
+ // No delayed reward queue: a later slider change can never replay an old win.
+ if(performance.now()-lastSemantic>=250)cue('achievement',null,{semantic:true,haptic:false});
  return earned;
 }
 function isUiSetting(el){return !!el.closest('#sensoryDialog,#sensoryLaunch')}
 function interactive(e){return e.target?.closest?.('button,summary,a[href],input,select,textarea,[role="button"]')}
-function gesture(e){if(!e.isTrusted)return;lastGesture=performance.now();if(prefs.enabled&&!useMedia()&&engine.state()!=='running'&&!e.target?.closest?.('#sensoryDialog,#sensoryLaunch'))unlock(true)}
+function gesture(e){if(!e.isTrusted)return;localChange=null;lastGesture=performance.now();if(prefs.enabled&&!useMedia()&&engine.state()!=='running'&&!e.target?.closest?.('#sensoryDialog,#sensoryLaunch'))unlock(true)}
 document.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')gesture(e)},true);
 document.addEventListener('pointerup',e=>{if(e.pointerType!=='mouse')gesture(e)},true);
 document.addEventListener('touchend',gesture,{capture:true,passive:true});
@@ -318,11 +344,12 @@ document.addEventListener('change',e=>{
 },false);
 document.addEventListener('input',e=>{
  const el=e.target;if(!e.isTrusted||!el?.matches?.('input[type="range"],input[type="number"],input[type="text"],input[type="search"],input:not([type]),textarea')||isUiSetting(el)||el.disabled)return;
+ if(el.matches('[data-project-built]')&&gate.active()){engine.stop();media.stop();gate.reset()}
  const now=performance.now(),prev=lastRange.get(el);
  if(prev&&now-prev.time<85)return;lastRange.set(el,{time:now});cue(el.matches('[type="range"]')?'ratchet':el.matches('[type="number"]')?'tick':'key',null,{haptic:false});
 },false);
 document.addEventListener('invalid',e=>{if(e.isTrusted&&!isUiSetting(e.target))semantic('warning',e.target)},true);
-document.addEventListener('visibilitychange',()=>{if(document.hidden){engine.stop();media.stop()}audioState()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){engine.stop();media.stop();gate.reset();localChange=null}audioState()});
 window.addEventListener('pageshow',audioState);
 reduce?.addEventListener?.('change',paint);
 launcher?.addEventListener('click',()=>{paint();status(prefs.enabled?'Tap Test sound to check audio output.':'Sound is off. Enable it when you want tactile feedback.');dialog?.showModal();if(prefs.enabled)unlock(true)});
