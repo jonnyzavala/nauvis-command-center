@@ -26,7 +26,7 @@ const ELECTRONIC={
  saved:['construction',[[523,523,.09,0,'sine',.35],[784,784,.13,.08,'triangle',.23]]],
  complete:['construction',[[392,392,.12,0,'triangle',.3],[523,523,.13,.09,'sine',.35],[659,659,.13,.18,'triangle',.28],[784,784,.26,.27,'sine',.32]]],
  achievement:['achievements',[[523,523,.11,0,'triangle',.28],[659,659,.12,.085,'sine',.32],[784,784,.13,.17,'triangle',.26],[1047,1047,.28,.26,'sine',.28]]],
- sync:['sync',[[620,620,.07,0,'sine',.19],[880,880,.11,.07,'sine',.22]]],
+ sync:['sync',[[220,180,.045,0,'sine',.16],[280,230,.065,.075,'sine',.12]]],
  warning:['sync',[[230,170,.11,0,'triangle',.3],[170,130,.14,.12,'sine',.24]]]
 };
 // Industrial transients combine tonal resonances with shaped, filtered noise.
@@ -54,7 +54,7 @@ const SOUNDS={
  route:['construction',[[140,82,.06,0,'triangle',.25],[620,820,.10,.065,'sine',.18]]],
  complete:['construction',[[110,62,.15,0,'triangle',.26],[392,392,.24,.11,'triangle',.23],[523,523,.25,.19,'sine',.26],[659,659,.31,.28,'sine',.24],[784,784,.35,.38,'triangle',.16]]],
  achievement:['achievements',[[523,523,.23,0,'sine',.23],[659,659,.27,.10,'triangle',.21],[784,784,.30,.20,'sine',.23],[1047,1047,.40,.31,'sine',.22],[1568,1568,.27,.36,'sine',.08]]],
- sync:['sync',[[500,500,.065,0,'sine',.14],[750,750,.10,.06,'sine',.17]]],
+ sync:['sync',[[180,125,.045,0,'triangle',.12],[240,170,.055,.075,'sine',.10]]],
  warning:['sync',[[115,103,.14,0,'sawtooth',.13],[165,132,.18,.13,'triangle',.25]]]
 };
 // Longer original reward motifs and distinguishable navigation sounds in both palettes.
@@ -96,12 +96,41 @@ function soundDefinition(p,event){return p.palette==='electronic'?(ELECTRONIC[ev
 function canPlay(p,event){const def=SOUNDS[event];return !!def&&p.enabled&&p.volume>0&&p.categories[def[0]]===true}
 function cloudCue(before,after){if(before===after)return null;if(after==='saved'&&before==='syncing')return 'sync';if(['error','conflict','offline'].includes(after)&&!['error','conflict','offline'].includes(before))return 'warning';return null}
 function gained(before,after){const old=new Set(before||[]);return [...new Set(after||[])].filter(x=>!old.has(x))}
+// Only committed construction actions can generate construction rewards.
+// Legacy milestones are derived, reversible statistics, never completion events.
+const REWARD_CUES=new Set(['phase','complete','achievement']);
+const COMMIT_CUES=new Set(['build','reverse','phase','complete','queue','saved','route','warning']);
+function makeCueGate(clock=()=>Date.now()){
+ let until=0;
+ return {allow:(event,preview=false)=>preview||clock()>=until||COMMIT_CUES.has(event),
+  active:()=>clock()<until,
+  played:(event,p,delay=0)=>{until=REWARD_CUES.has(event)?clock()+delay+1000*Math.max(...soundDefinition(p,event)[1].map(n=>n[2]+n[3])):0},
+  reset:()=>{until=0}};
+}
+const DURABLE_AWARDS=new Set(['First sparks','Factory online','Black gold','Industrial scale','Connected','Architect','First blueprint queued','First machine placed']);
+function makeAwardTracker(){
+ let baseline=false;const seen=new Set();
+ return {reset:()=>{baseline=false},update(keys,{eligible=false}={}){
+  const fresh=[...new Set(keys||[])].filter(k=>!seen.has(k));for(const k of keys||[])seen.add(k);
+  const earned=baseline&&eligible?fresh.filter(k=>DURABLE_AWARDS.has(k)):[];
+  baseline=true;return earned;
+ }};
+}
 // Render original sounds to standard mono 16-bit PCM WAV, without Web Audio.
 // The media element is reused, and play() is invoked synchronously during user gestures.
-function renderWav(p,event,sr=24000){
+// Each crossed notch has its own pitch. Limit very large jumps to the most
+// recent 48 steps so dragging a 100,000-count range cannot queue minutes of audio.
+function sliderPitches(from,to,min,max,step=1){
+ if(![from,to,min,max,step].every(Number.isFinite)||step<=0||max<=min||from===to)return [];
+ const a=Math.round((clamp(from,min,max)-min)/step),b=Math.round((clamp(to,min,max)-min)/step),dir=Math.sign(b-a),n=Math.min(48,Math.abs(b-a));
+ return Array.from({length:n},(_,i)=>Math.round(240*Math.pow(3,(clamp(min+(b-dir*(n-1-i))*step,min,max)-min)/(max-min))));
+}
+const SLIDER_SPACING=.036;
+function sliderNotes(pitches){return pitches.map((hz,i)=>[hz,hz*.84,.026,i*SLIDER_SPACING,'triangle',.26])}
+function renderWav(p,event,sr=24000,pitches=null){
  const diagnostic=event==='test';
- const notes=diagnostic?[[660,660,.16,0,'sine',.65],[880,880,.24,.18,'sine',.65]]:soundDefinition(p,event)[1];
- const layers=!diagnostic&&p.palette==='industrial'?NOISE[event]||[]:[];
+ const notes=pitches?.length?sliderNotes(pitches):diagnostic?[[660,660,.16,0,'sine',.65],[880,880,.24,.18,'sine',.65]]:soundDefinition(p,event)[1];
+ const layers=!pitches&&!diagnostic&&p.palette==='industrial'?NOISE[event]||[]:[];
  const length=Math.ceil((Math.max(...notes.map(n=>n[2]+n[3]),...layers.map(n=>n[0]+n[1]))+.025)*sr),samples=new Float32Array(length);
  const envelope=(t,d,a)=>Math.min(1,t/a)*Math.pow(Math.max(0,1-t/d),2);
  for(const [from,to,d,offset,wave,gain] of notes){
@@ -133,26 +162,43 @@ function renderWav(p,event,sr=24000){
 function makeMediaEngine(audio,getPrefs,visible=()=>true,clock=()=>Date.now(),encode=bytes=>{
  let s='';for(let i=0;i<bytes.length;i+=4096)s+=String.fromCharCode(...bytes.subarray(i,i+4096));return 'data:audio/wav;base64,'+btoa(s)
 }){
- let state='ready',error='',last=-Infinity,serial=0,cache=new Map(),lastResult=Promise.resolve(false);
- function stop(){serial++;try{audio.pause()}catch{}state='ready';last=-Infinity}
- function play(event,preview=false){
+ let state='ready',error='',last=-Infinity,serial=0,cache=new Map(),lastResult=Promise.resolve(false),ticks=[],tickPlaying=false,queuedReward=null,tickEnd=0;
+ function stop(){serial++;ticks=[];tickPlaying=false;queuedReward=null;tickEnd=0;try{audio.pause()}catch{}state='ready';last=-Infinity}
+ function play(event,preview=false,pitches=null){
   const p=getPrefs();if(!audio||!visible()||!p.enabled||p.volume<=0||event!=='test'&&!canPlay(p,event))return false;
-  const now=clock();if(!preview&&event!=='test'&&now-last<65)return false;
+  const now=clock();if(!pitches&&!preview&&event!=='test'&&!COMMIT_CUES.has(event)&&!REWARD_CUES.has(event)&&now-last<65)return false;
+  if(!pitches&&!preview&&tickPlaying){
+   if(event==='phase'||event==='complete'){queuedReward=event;return true}
+   if(!COMMIT_CUES.has(event))return false;
+  }
+  if(!pitches){ticks=[];tickPlaying=false;queuedReward=null;tickEnd=0}
   const id=++serial;last=now;error='';
   try{
-   const key=[p.palette,p.volume,event].join(':');let src=cache.get(key);
-   if(!src){src=encode(renderWav(p,event));if(cache.size>=64)cache.clear();cache.set(key,src)}
+   const key=[p.palette,p.volume,event,pitches?.join(',')||''].join(':');let src=cache.get(key);
+   if(!src){src=encode(renderWav(p,event,24000,pitches));if(cache.size>=64)cache.clear();cache.set(key,src)}
    audio.pause();if(audio.getAttribute('src')!==src)audio.src=src;try{audio.currentTime=0}catch{}
    state='starting';
    lastResult=Promise.resolve(audio.play()).then(()=>{if(id!==serial)return false;state='playing';return true},err=>{if(id===serial){state='blocked';error=err?.name+': '+(err?.message||'Media playback rejected')}return false});
    return true;
   }catch(err){state='error';error=err?.message||'Media audio error';lastResult=Promise.resolve(false);return false}
  }
- audio.addEventListener?.('ended',()=>{if(state==='playing')state='ready'});
- return {play,testTone:()=>play('test',true),stop,reset:()=>{stop();error=''},state:()=>state,error:()=>error,result:()=>lastResult};
+ function flushTicks(){
+  if(!ticks.length||!visible()||!canPlay(getPrefs(),'ratchet')){ticks=[];tickPlaying=false;return false}
+  const batch=ticks.splice(0,12);tickPlaying=true;tickEnd=clock()+batch.length*SLIDER_SPACING*1000+30;
+  const sent=play('ratchet',false,batch);if(!sent){tickPlaying=false;ticks=[]}
+  else {const id=serial;lastResult.then(ok=>{if(!ok&&id===serial&&tickPlaying){tickPlaying=false;ticks=[];queuedReward=null}})}
+  return sent;
+ }
+ function playSlider(pitches){
+  if(!pitches.length||!visible()||!canPlay(getPrefs(),'ratchet'))return false;
+  ticks.push(...pitches);if(ticks.length>48)ticks.splice(0,ticks.length-48);
+  return tickPlaying||flushTicks();
+ }
+ audio.addEventListener?.('ended',()=>{if(state==='playing')state='ready';if(tickPlaying){tickPlaying=false;if(ticks.length)flushTicks();else if(queuedReward){const reward=queuedReward;queuedReward=null;play(reward)}}});
+ return {play,playSlider,sliderDelay:()=>tickPlaying?Math.max(0,tickEnd-clock())+ticks.length*SLIDER_SPACING*1000+Math.ceil(ticks.length/12)*30:0,testTone:()=>play('test',true),stop,reset:()=>{stop();error=''},state:()=>state,error:()=>error,result:()=>lastResult};
 }
 function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now()){
- let context=null,last=-Infinity,voices=[],pending=null,noiseBuffer=null,lastError='';
+ let context=null,last=-Infinity,voices=[],pending=null,noiseBuffer=null,lastError='',tickTail=0;
  function unlock(retry=false){
   if(!AudioContext||!getPrefs().enabled)return Promise.resolve(false);
   try{
@@ -182,7 +228,7 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
    o.start(t);o.stop(t+.44);lastError='';return true;
   }catch(err){lastError=err?.message||'Could not schedule test tone';stop();return false}
  }
- function stop(){for(const v of voices){try{v.stop()}catch{}}voices=[]}
+ function stop(){for(const v of voices){try{v.stop()}catch{}}voices=[];tickTail=0}
  function buffer(){
   if(noiseBuffer)return noiseBuffer;
   if(!context.createBuffer||!context.createBufferSource||!context.createBiquadFilter)return null;
@@ -204,11 +250,12 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
  function play(event,preview=false){
   const p=getPrefs();if(!canPlay(p,event)||!visible()||context?.state!=='running')return false;
   const now=clock(),special=['phase','complete','achievement','saved','queue','warning','build','reverse','route'].includes(event);
-  if(!preview&&!special&&now-last<55)return false;
-  if(special||preview)stop();
-  if(voices.length>24)stop();
+  if(!preview&&!special&&(now-last<55||tickTail>context.currentTime))return false;
+  const followsTicks=!preview&&(event==='phase'||event==='complete')&&tickTail>context.currentTime;
+  if((special||preview)&&!followsTicks)stop();
+  if(voices.length>24&&!followsTicks)stop();
   last=now;
-  try{const start=context.currentTime+.008;
+  try{const start=followsTicks?tickTail:context.currentTime+.008;
    for(const [from,to,length,offset,wave,level] of soundDefinition(p,event)[1]){
     const o=context.createOscillator(),g=context.createGain(),t=start+offset,end=t+length;
     o.type=wave;o.frequency.setValueAtTime(from,t);o.frequency.exponentialRampToValueAtTime(to,end);
@@ -222,9 +269,25 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
    return true;
   }catch(err){lastError=err?.message||'Sound synthesis failed';stop();return false}
  }
- return {unlock,play,stop,reset,testTone,error:()=>lastError,state:()=>context?.state||'locked'};
+ function playSlider(pitches){
+  const p=getPrefs();if(!pitches.length||!canPlay(p,'ratchet')||!visible()||context?.state!=='running')return false;
+  try{
+   if(tickTail-context.currentTime>1.75)stop();
+   const start=Math.max(context.currentTime+.008,tickTail);
+   for(const [from,to,length,offset,wave,level] of sliderNotes(pitches)){
+    const o=context.createOscillator(),g=context.createGain(),t=start+offset,end=t+length;
+    o.type=wave;o.frequency.setValueAtTime(from,t);o.frequency.exponentialRampToValueAtTime(to,end);
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(.00011,p.volume/100*.24*level),t+.004);g.gain.exponentialRampToValueAtTime(.0001,end);
+    o.connect(g);g.connect(context.destination);voices.push(o);
+    o.onended=()=>{voices=voices.filter(v=>v!==o);try{o.disconnect();g.disconnect()}catch{}};
+    o.start(t);o.stop(end+.003);
+   }
+   tickTail=start+pitches.length*SLIDER_SPACING;last=clock();return true;
+  }catch(err){lastError=err?.message||'Slider audio failed';stop();return false}
+ }
+ return {unlock,play,playSlider,sliderDelay:()=>context?Math.max(0,tickTail-context.currentTime)*1000:0,stop,reset,testTone,error:()=>lastError,state:()=>context?.state||'locked'};
 }
-if(typeof module==='object'&&module.exports)module.exports={normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine,renderWav,makeMediaEngine};
+if(typeof module==='object'&&module.exports)module.exports={normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine,renderWav,makeMediaEngine,makeCueGate,makeAwardTracker,sliderPitches,sliderNotes};
 if(typeof document==='undefined')return;
 let prefs=normalize(null);try{prefs=normalize(JSON.parse(localStorage.getItem(KEY)||'null'))}catch{}
 const $=id=>document.getElementById(id),dialog=$('sensoryDialog'),launcher=$('sensoryLaunch');
@@ -233,8 +296,8 @@ const media=makeMediaEngine($('sensoryMediaAudio'),()=>prefs,()=>!document.hidde
 const appleMobile=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const useMedia=()=>prefs.backend==='media'||prefs.backend==='auto'&&(appleMobile||!root.AudioContext&&!root.webkitAudioContext);
 const reduce=root.matchMedia?.('(prefers-reduced-motion: reduce)');
-let lastGesture=-Infinity,lastSemantic=-Infinity,localChange=false,priorAwards=null,lastAward=-Infinity,lastRange=new WeakMap();
-let pendingReward=null;
+let lastGesture=-Infinity,lastSemantic=-Infinity,localChange=null,lastRange=new WeakMap();
+const gate=makeCueGate(()=>performance.now()),awards=makeAwardTracker();
 const status=text=>{const node=$('sensoryStatus');if(node)node.textContent=text};
 function paint(){
  document.body.dataset.sensoryMotion=reduce?.matches?'off':prefs.motion;
@@ -250,7 +313,7 @@ function paint(){
  if($('sensoryMotionNote'))$('sensoryMotionNote').textContent=reduce?.matches?'System reduced motion is active. Animations are disabled.':'Visual feedback is independent of sound.';
  if($('sensoryHapticNote'))$('sensoryHapticNote').textContent=typeof navigator.vibrate==='function'?'Short vibration pulses on supported devices.':'Haptics are unavailable in this browser (including iPhone Safari).';
 }
-function setPrefs(patch){const previousBackend=useMedia();prefs=normalize({...prefs,...patch});if(previousBackend!==useMedia()){engine.stop();media.stop()}try{localStorage.setItem(KEY,JSON.stringify(prefs))}catch{}if(!prefs.enabled||!prefs.volume){engine.stop();media.stop()}paint();return {...prefs,categories:{...prefs.categories}}}
+function setPrefs(patch){const previousBackend=useMedia();prefs=normalize({...prefs,...patch});if(previousBackend!==useMedia()){engine.stop();media.stop();gate.reset()}try{localStorage.setItem(KEY,JSON.stringify(prefs))}catch{}if(!prefs.enabled||!prefs.volume){engine.stop();media.stop();gate.reset()}paint();return {...prefs,categories:{...prefs.categories}}}
 function audioState(){const node=$('sensoryAudioState');if(node)node.textContent=!prefs.enabled?'Sound off':useMedia()?'Media audio: '+media.state():!root.AudioContext&&!root.webkitAudioContext?'Web Audio unavailable':'Audio engine: '+engine.state()}
 function unlock(retry=false){if(useMedia()){audioState();return Promise.resolve(true)}return engine.unlock(retry).then(ok=>{audioState();return ok})}
 async function testAudio(restart=false){
@@ -272,30 +335,38 @@ function pulse(el,cls='sensory-pulse'){
 function vibrate(event){if(!prefs.haptics||document.hidden||!prefs.categories[SOUNDS[event]?.[0]]||typeof navigator.vibrate!=='function')return;
  try{navigator.vibrate(['complete','achievement'].includes(event)?[16,35,20]:event==='build'?12:7)}catch{}}
 function cue(event,el,{semantic=false,haptic=true,preview=false}={}){
- if(!SOUNDS[event])return false;
+ if(!SOUNDS[event]||(!preview&&document.hidden))return false;
  if(semantic)lastSemantic=performance.now();
- const played=useMedia()?media.play(event,preview):engine.play(event,preview);if(haptic)vibrate(event);if(el)pulse(el);
+ if(!gate.allow(event,preview))return false;
+ const backend=useMedia()?media:engine,delay=backend.sliderDelay();
+ const played=backend.play(event,preview);if(played)gate.played(event,prefs,preview?0:delay);if(haptic)vibrate(event);if(el)pulse(el);
  return played;
 }
 function semantic(event,el){if(performance.now()-lastGesture>1500||root.NauvisCloudApplying)return false;return cue(event,el,{semantic:true})}
-function markLocalChange(){if(!root.NauvisCloudApplying&&performance.now()-lastGesture<1500)localChange=true}
-function resetBaseline(){localChange=false;priorAwards=null;if(pendingReward!==null){clearTimeout(pendingReward);pendingReward=null}}
+function markLocalChange(){
+ const workspace=document.body.dataset.workspace;
+ // Focus-mode construction has its own exact completion events. Hidden legacy
+ // milestones, sync, and non-construction edits must not compete with them.
+ if(!root.NauvisCloudApplying&&document.body.dataset.appMode==='full'&&workspace!=='factory'&&performance.now()-lastGesture<1500)localChange=workspace;
+}
+function resetBaseline(){localChange=null;awards.reset();lastRange=new WeakMap();engine.stop();media.stop();gate.reset()}
 function updateAwards(keys){
- const previous=priorAwards;priorAwards=[...new Set(keys||[])];
- const earned=previous===null?[]:gained(previous,priorAwards);
- const local=localChange;localChange=false;
- if(!local||!earned.length||performance.now()-lastGesture>1500||document.hidden)return [];
+ const eligible=!!localChange&&localChange===document.body.dataset.workspace&&document.body.dataset.appMode==='full'&&!root.NauvisCloudApplying&&!document.hidden&&performance.now()-lastGesture<1500;
+ localChange=null;
+ const earned=awards.update(keys,{eligible});
+ if(!earned.length)return [];
  const active=document.querySelector('.view.active .factory-milestones');
  if(active)pulse(active,'sensory-award-flash');
- // One reward sound per burst, never on initial load, cloud restore, or tab switch.
- if(performance.now()-lastAward>1800){lastAward=performance.now();if(pendingReward!==null)clearTimeout(pendingReward);const delay=performance.now()-lastSemantic<250?1850:0;pendingReward=setTimeout(()=>{pendingReward=null;if(!document.hidden&&earned.some(k=>priorAwards?.includes(k)))cue('achievement',null,{semantic:true,haptic:false})},delay)}
+ // No delayed reward queue: a later slider change can never replay an old win.
+ if(performance.now()-lastSemantic>=250)cue('achievement',null,{semantic:true,haptic:false});
  return earned;
 }
 function isUiSetting(el){return !!el.closest('#sensoryDialog,#sensoryLaunch')}
 function interactive(e){return e.target?.closest?.('button,summary,a[href],input,select,textarea,[role="button"]')}
-function gesture(e){if(!e.isTrusted)return;lastGesture=performance.now();if(prefs.enabled&&!useMedia()&&engine.state()!=='running'&&!e.target?.closest?.('#sensoryDialog,#sensoryLaunch'))unlock(true)}
+function gesture(e){if(!e.isTrusted)return;localChange=null;lastGesture=performance.now();if(prefs.enabled&&!useMedia()&&engine.state()!=='running'&&!e.target?.closest?.('#sensoryDialog,#sensoryLaunch'))unlock(true)}
 document.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')gesture(e)},true);
-document.addEventListener('pointerup',e=>{if(e.pointerType!=='mouse')gesture(e)},true);
+document.addEventListener('pointerup',gesture,true);
+document.addEventListener('change',e=>{if(e.target?.matches?.('[data-project-built],[data-project-check]')){gesture(e);lastRange.delete(e.target)}},true);
 document.addEventListener('touchend',gesture,{capture:true,passive:true});
 document.addEventListener('click',gesture,true);
 document.addEventListener('keydown',e=>{if(!e.repeat)gesture(e)},true);
@@ -318,11 +389,21 @@ document.addEventListener('change',e=>{
 },false);
 document.addEventListener('input',e=>{
  const el=e.target;if(!e.isTrusted||!el?.matches?.('input[type="range"],input[type="number"],input[type="text"],input[type="search"],input:not([type]),textarea')||isUiSetting(el)||el.disabled)return;
+ if(el.matches('[data-project-built]')){
+  if(root.NauvisCloudApplying)return;
+  const prev=lastRange.get(el)?.value??Number(el.dataset.soundValue),value=Number(el.value);
+  lastRange.set(el,{value});
+  const pitches=sliderPitches(prev,value,Number(el.min),Number(el.max),Number(el.step)||1);
+  if(!pitches.length)return;
+  if(gate.active()){engine.stop();media.stop();gate.reset()}
+  if(!document.hidden)(useMedia()?media:engine).playSlider(pitches);
+  return;
+ }
  const now=performance.now(),prev=lastRange.get(el);
  if(prev&&now-prev.time<85)return;lastRange.set(el,{time:now});cue(el.matches('[type="range"]')?'ratchet':el.matches('[type="number"]')?'tick':'key',null,{haptic:false});
 },false);
 document.addEventListener('invalid',e=>{if(e.isTrusted&&!isUiSetting(e.target))semantic('warning',e.target)},true);
-document.addEventListener('visibilitychange',()=>{if(document.hidden){engine.stop();media.stop()}audioState()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){engine.stop();media.stop();gate.reset();localChange=null;lastRange=new WeakMap()}audioState()});
 window.addEventListener('pageshow',audioState);
 reduce?.addEventListener?.('change',paint);
 launcher?.addEventListener('click',()=>{paint();status(prefs.enabled?'Tap Test sound to check audio output.':'Sound is off. Enable it when you want tactile feedback.');dialog?.showModal();if(prefs.enabled)unlock(true)});

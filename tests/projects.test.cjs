@@ -124,7 +124,7 @@ test('the cloud snapshot continues to include plan without new tables or sync co
  assert.match(html,/snapshot\(\)\{return JSON\.parse\(JSON\.stringify\(\{version:7,plan:factory,guide,setup,balancePrefs\}\)\)\}/);
  assert.match(html,/projects:Array\.isArray\(data\.plan\.projects\)\?data\.plan\.projects:\[\]/);
  assert.match(html,/factory\.projects=Array\.isArray\(factory\.projects\)\?factory\.projects:\[\]/);
- assert.match(worker,/nauvis-shell-v10116/);
+ assert.match(worker,/nauvis-shell-v10117/);
  assert.match(worker,/projects\.js/);
  assert.match(worker,/projects\.css/);
 });
@@ -188,3 +188,15 @@ test('batch construction uses the same linked row and reverses partial quantity'
 test('multi-task completion is staged atomically without mutating supplied records',()=>{const {prepareBuildBatch}=require('../projects.js'),effects=require('../production-effects.js'),p=make(),rows=[],smelt={};const before=JSON.stringify({p,rows,smelt});const adjustments=p.tasks.map(t=>({recipe:t.recipe,delta:t.planned}));const a=prepareBuildBatch(p,adjustments,rows,smelt,[p],effects);assert.equal(projectProgress(a.project).built,projectProgress(p).planned);assert.equal(a.rows.reduce((n,r)=>n+r.count,0),projectProgress(p).planned);assert.equal(JSON.stringify({p,rows,smelt}),before);assert.throws(()=>prepareBuildBatch(p,[adjustments[0],{recipe:adjustments[1].recipe,delta:99999}],rows,smelt,[p],effects));assert.equal(JSON.stringify({p,rows,smelt}),before);assert.throws(()=>prepareBuildBatch({...p,status:'archived'},adjustments,rows,smelt,[p],effects),/Archived/);});
 
 test('project retains a detached belt snapshot across serialization and construction edits',()=>{const beltPlan={tier:'blue',counts:{'s:copper-plate':0,'m:copper-cable':3}};const p=buildProject('Saved belts',analyze(),'belts','now',null,beltPlan);beltPlan.counts['s:copper-plate']=8;const loaded=normalizeProjects(JSON.parse(JSON.stringify([p])))[0];assert.equal(loaded.beltPlan.tier,'blue');assert.equal(loaded.beltPlan.counts['s:copper-plate'],0);assert.equal(loaded.beltPlan.counts['m:copper-cable'],3);assert.equal(make().beltPlan,undefined);});
+
+test('completion feedback requires an actual incomplete-to-complete transition, never partial or reverse',()=>{
+ const {constructionFeedback}=require('../projects.js');
+ const p=(a,b)=>({tasks:[{recipe:'a',planned:10,built:a},{recipe:'b',planned:5,built:b}]});
+ const c=(recipe,before,after)=>({recipe,before,after,delta:after-before});
+ assert.equal(constructionFeedback(p(1,0),p(6,0),[c('a',1,6)],'a').event,'build');
+ assert.equal(constructionFeedback(p(6,0),p(0,0),[c('a',6,0)],'a').event,'reverse');
+ assert.equal(constructionFeedback(p(9,0),p(10,0),[c('a',9,10)],'a').event,'phase');
+ assert.equal(constructionFeedback(p(10,4),p(10,5),[c('b',4,5)],'b').event,'complete');
+ assert.equal(constructionFeedback(p(10,5),p(0,5),[c('a',10,0)],'a').event,'reverse');
+ assert.equal(constructionFeedback(p(10,5),p(10,5),[]).event,null);
+});
