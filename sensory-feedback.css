@@ -6,3 +6,6 @@ body:not([data-sensory-motion=off]) button:not(:disabled),body:not([data-sensory
 body[data-sensory-motion=off] *,body[data-sensory-motion=off] *::before,body[data-sensory-motion=off] *::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
 @media(max-width:440px){.sensory-launch{min-height:31px;padding:5px 8px}.sensory-launch .sensory-label{display:none}#sensoryDialog{padding:14px}.sensory-section{padding:10px}.sensory-row{font-size:12px}}
+
+/* Keep modal controls below the status bar / Dynamic Island in standalone iOS. */
+#sensoryDialog{max-height:calc(100dvh - max(12px,calc(var(--nauvis-safe-top,env(safe-area-inset-top,0px)) + 8px)) - max(12px,calc(env(safe-area-inset-bottom,0px) + 8px)));margin-top:max(12px,calc(var(--nauvis-safe-top,env(safe-area-inset-top,0px)) + 8px));margin-bottom:max(12px,calc(env(safe-area-inset-bottom,0px) + 8px));margin-inline:auto;overscroll-behavior:contain}
