@@ -86,7 +86,7 @@ test('blueprint uses one graph and keeps optional technical data below',()=>{
  assert.match(ratioSource,/data-ratio-flow-root/);
  assert.match(ratioSource,/<details class="ratio-explain ratio-technical" data-ratio-legacy-table/);
  assert.match(ratioSource,/NauvisRatioFlow\?\.mount/);
- assert.ok(flowSource.indexOf('<div data-flow-display>')<flowSource.indexOf('<details class="flow-belt-allocation"'));
+ assert.ok(flowSource.indexOf('<div data-flow-display>')<flowSource.indexOf('<section class="flow-belt-allocation"'));
 });
 test('layout stays inside explorer and switches to vertical diagram on iPhone',()=>{
  assert.match(style,/\.ratio-flow-viewport\{/);
@@ -97,10 +97,10 @@ test('layout stays inside explorer and switches to vertical diagram on iPhone',(
  assert.match(style,/\.ratio-flow-node-label strong\{font-size:11px\}/);
 });
 test('version and offline caching include the visual graph without editing cloud sync',()=>{
- assert.match(html,/Nauvis Command Center v1\.1\.8/);
+ assert.match(html,/Nauvis Command Center v1\.1\.9/);
  assert.match(html,/href="\.\/ratio-flow\.css"/);
  assert.match(html,/src="\.\/ratio-flow\.js" defer/);
- assert.match(worker,/nauvis-shell-v1018/);
+ assert.match(worker,/nauvis-shell-v1019/);
  assert.match(worker,/ratio-flow\.css/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(html,/sync\/cloud-sync\.js/);
@@ -262,3 +262,5 @@ test('belt requirements distinguish fractional throughput and whole physical bel
 });
 
 test('fixed belt allocations distinguish shortage, exact match and spare capacity as tier changes',()=>{const {beltCapacityStatus}=require('../ratio-flow.js');assert.deepEqual(beltCapacityStatus(1800,'yellow',1),{demand:1800,required:2,assigned:1,capacity:900,delta:-900,utilization:200,status:'starving'});assert.equal(beltCapacityStatus(1800,'red',1).status,'meeting');assert.equal(beltCapacityStatus(1800,'blue',1).status,'excess');assert.equal(beltCapacityStatus(324,'red',1).utilization,18);assert.equal(beltCapacityStatus(100,'red',0).status,'starving');assert.equal(beltCapacityStatus(100,'red',0).utilization,null);assert.equal(beltCapacityStatus(0,'red',0).status,'meeting');});
+
+test('incremental graph models reused inputs without adding construction machines',()=>{const {incrementalPlan}=require('../recipe-ratios.js');const full=calc(),partial=incrementalPlan(full,{'copper-cable':450,'electronic-circuit':180});const graph=buildFlowGraph(partial);assert.equal(graph.nodes.filter(n=>n.type==='machine').reduce((sum,n)=>sum+n.count,0),partial.roundedTotal);for(const r of partial.reused){const node=graph.nodes.find(n=>n.key==='r:'+r.key);assert.ok(node);assert.ok(Math.abs(graph.edges.filter(e=>e.from===node.key).reduce((s,e)=>s+e.rate,0)-r.rate)<1e-6)}for(const e of partial.entries)for(const ing of e.ingredients)assert.ok(Math.abs(graph.edges.filter(x=>x.to==='m:'+e.key&&x.item===ing.id).reduce((s,x)=>s+x.rate,0)-ing.needed)<1e-6)});

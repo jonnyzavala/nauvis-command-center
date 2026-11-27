@@ -354,11 +354,8 @@ function projectHTML(p){
   const done=task.built>=task.planned&&task.planned>0,plusDisabled=archived||done||mismatch||cannotRecord,minusDisabled=archived||task.built<=0||mismatch;
   return '<div class="project-task'+(done?' project-task-done':'')+'" data-task-row="'+escape(task.recipe)+'" style="--project-task-accent:'+color+'">'+
    '<div class="project-task-identity"><span class="project-task-led" aria-hidden="true"></span>'+itemGlyph(task.recipe,32)+'<div><strong>'+escape(R[task.recipe]?.[0]||task.recipe)+'</strong><small>'+escape(noun(task.kind))+' · '+task.planned+' planned'+(task.kind==='asm'?' · Assembler '+(taskProfile(p,task).machine===1.25?'3':taskProfile(p,task).machine===.5?'1':'2'):task.kind==='furnace'?' · '+escape(R[p.furnaceItem]?.[0]||'2× furnace'):'')+'</small></div></div>'+
-   '<div class="project-task-controls"><button type="button" data-project-minus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" title="Reverse built count · removes one from actual Inventory" aria-label="Mark one fewer '+escape(task.recipe)+' built" '+(archived||task.built<=0||mismatch?'disabled':'')+'>−</button>'+
-   '<span class="project-task-counter"><b>'+task.built+'</b><small>/ '+task.planned+(isAsset?' placed':' built')+'</small></span>'+
-   '<button type="button" data-project-plus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" title="Mark one as built · adds one to actual Inventory" aria-label="Mark one more '+escape(task.recipe)+' built" '+(plusDisabled?'disabled':'')+'>+</button></div>'+
+   '<div class="project-task-controls project-slider-controls"><label class="project-built-slider"><span class="project-task-counter"><b data-built-preview>'+task.built+'</b><small>/ '+task.planned+' built</small></span><input type="range" min="0" max="'+task.planned+'" step="1" value="'+task.built+'" data-project-built="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Built '+escape(task.recipe)+'" '+(archived||mismatch||cannotRecord?'disabled':'')+'></label><label class="project-check"><input type="checkbox" data-project-check="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" '+(done?'checked ':'')+(archived||mismatch||cannotRecord?'disabled':'')+'> Done</label></div>'+
    '<div class="project-task-progress"><span style="width:'+(task.planned?100*task.built/task.planned:0)+'%"></span></div>'+
-   '<div class="project-batch-controls"><button type="button" data-project-batch-minus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" '+(minusDisabled?'disabled':'')+'>− Batch</button><label class="project-batch-amount"><span>Batch size</span><input type="number" inputmode="numeric" min="1" max="100000" step="1" data-project-batch-size="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Batch size for '+escape(task.recipe)+'" value="'+batchAmount(p.id,task.recipe)+'" '+(archived?'disabled':'')+'></label><button type="button" data-project-batch-plus="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" '+(plusDisabled?'disabled':'')+'>+ Batch</button><button type="button" class="project-group-complete" data-project-group-complete="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" '+(plusDisabled?'disabled':'')+'>'+(done?'✓ Complete':'✓ Finish group')+'</button></div>'+
    '<div class="project-task-foot"><span class="project-task-recorded">'+saved.count+(isAsset?' deployed in Factory':' in actual Inventory')+' · linked to this project</span>'+
    (mismatch?'<span class="project-task-warning">Factory and project counts differ. Review the linked line in Factory.</span>':
     cannotRecord?'<span class="project-task-warning">Set actual smelting speed to 2× before recording this furnace.</span>':
@@ -377,6 +374,7 @@ function projectHTML(p){
   '<span class="project-card-status">'+(archived?'ARCHIVED':pct===100?'COMPLETE':progress.built===0?'NOT STARTED':'IN PROGRESS')+'</span></div>'+
   '<div class="focus-project-progress"><div class="focus-ring focus-project-ring focus-only" style="--p:'+pct+'%" role="img" aria-label="'+pct+' percent built"><strong>'+pct+'%</strong></div><div class="project-card-progress"><div class="project-card-progress-top"><strong>'+progress.built+' / '+progress.planned+(p.type==='deployment'?' items placed':' machines built')+'</strong><span>'+pct+'%</span></div>'+
   '<div class="project-progress-track"><span style="width:'+pct+'%"></span></div></div></div>'+
+  '<details class="project-flow-panel" '+(!archived?'open':'')+'><summary>Construction flow <small>Built / planned</small></summary><div data-ratio-flow-root></div></details>'+
   '<details class="project-task-details" '+(!archived?'open':'')+'><summary>'+(p.type==='deployment'?'Placement checklist':'Machine checklist')+' <span>'+progress.complete+' / '+progress.tasks+' groups complete</span></summary><div class="project-task-list">'+lineItems+'</div><div class="project-finish-row"><button type="button" data-project-complete="'+escape(p.id)+'" '+(archived||progress.built>=progress.planned?'disabled':'')+'>'+(progress.planned>0&&progress.built===progress.planned?'✓ Project complete':'✓ Finish entire project')+'</button><small>Only mark machines actually built in-game.</small></div></details>'+
   '<details class="project-reference"><summary>Project reference <span>Materials, design &amp; installed profiles</span></summary><div class="project-reference-body">'+designDetails(p)+materialDetails(p)+p.tasks.map(task=>{const saved=task.kind==='furnace'?furnaceRecorded(p,task):recordedForTask(p,task,setup.machines);const controls=taskProfileControls(p,task,saved.mismatch||saved.count!==task.built);return controls?'<div class="project-profile-reference" data-task-row="'+escape(task.recipe)+'"><small>'+escape(R[task.recipe]?.[0]||task.recipe)+'</small>'+controls+'</div>':''}).join('')+'</div></details>'+
   '<div class="project-card-actions"><button type="button" data-project-visit="'+escape(p.id)+'">'+(p.type==='deployment'?'View placed inventory':p.design?(root.NauvisFocus?.getMode?.()==='full'?'View saved design':'Recalculate in Planner'):'Open in Planner')+'</button>'+
@@ -405,7 +403,9 @@ function restoreDetails(states){
   }
  }
 }
+const projectFlowKeys=new Set();
 function render(){
+ for(const key of projectFlowKeys)root.NauvisRatioFlow?.unmount?.(key);projectFlowKeys.clear();
  const states=detailStates(),y=root.scrollY;
  factory.projects=normalizeProjects(factory.projects);
  const legacy=legacyStats();
@@ -420,6 +420,8 @@ function render(){
   $('projectsArchivedWrapper').open=showArchived;
  }
  restoreDetails(states);
+ for(const p of active){const card=cardFor(p.id),panel=card?.querySelector('.project-flow-panel');if(!panel)continue;const show=()=>{if(!panel.open||projectFlowKeys.has('project:'+p.id))return;try{const analysis=p.design?.analysis||root.NauvisRecipeMath(R,p.goal,{stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names});if(analysis.entries.length!==p.tasks.length||analysis.entries.some(e=>!p.tasks.some(t=>t.recipe===e.key&&t.planned===e.count)))throw Error('Historical recipe differs from current model');const key='project:'+p.id;root.NauvisRatioFlow.mount(panel,analysis,key,{progress:Object.fromEntries(p.tasks.map(t=>[t.recipe,t.built]))});projectFlowKeys.add(key)}catch(err){panel.querySelector('[data-ratio-flow-root]').textContent='Saved checklist preserved; a matching historical flowchart is unavailable.';console.warn('Construction flow:',err.message)}};panel.addEventListener('toggle',show);show()}
+
  if($('projectsNotice')){$('projectsNotice').textContent=notice;$('projectsNotice').hidden=!notice}
  root.NauvisFocus?.refresh?.();
  if(document.body.dataset.workspace==='factory'&&Math.abs(root.scrollY-y)>1)root.scrollTo({top:y,behavior:'instant'});
@@ -593,7 +595,8 @@ function attachEvents(){
   const d=$('legacyDistrict');if(d){d.open=true;d.scrollIntoView({behavior:'smooth',block:'start'})}
  });
  $('projectsOpenFactory')?.addEventListener('click',()=>activateWorkspace('setup',true));
- $('factory')?.addEventListener('input',event=>{const b=event.target;if(b.matches('[data-project-batch-size]')){const n=Number(b.value);if(Number.isSafeInteger(n)&&n>=1&&n<=100000)batchAmounts.set(taskKey(b.dataset.projectBatchSize,b.dataset.taskRecipe),n)}});
+ $('factory')?.addEventListener('input',event=>{const b=event.target;if(b.matches('[data-project-built]')){const row=b.closest('.project-task');row.querySelector('[data-built-preview]').textContent=b.value;row.querySelector('.project-task-progress span').style.width=100*Number(b.value)/Math.max(1,Number(b.max))+'%'}});
+ $('factory')?.addEventListener('change',event=>{const b=event.target;if(!b.matches('[data-project-built],[data-project-check]'))return;const p=selectedProject(b.dataset.projectBuilt||b.dataset.projectCheck),t=p?.tasks.find(t=>t.recipe===b.dataset.taskRecipe);if(!t)return;const next=b.matches('[data-project-check]')?(b.checked?t.planned:0):Number(b.value);if(!Number.isSafeInteger(next)||next<0||next>t.planned)return;if(next!==t.built){updateBuilt(p.id,t.recipe,next-t.built);const current=selectedProject(p.id)?.tasks.find(x=>x.recipe===t.recipe);if(current?.built!==next)render()}});
  $('factory')?.addEventListener('click',event=>{
   const b=event.target.closest('button');if(!b)return;
   if(b.matches('[data-project-go-planner]')){activateWorkspace('build',true);return}

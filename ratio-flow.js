@@ -26,14 +26,25 @@ function buildFlowGraph(result){
  }
  result.entries.forEach(machineNode);
  result.external.forEach(inputNode);
+ // Reused rates are separate existing supplies, not machines to construct.
+ const reused=new Map((result.reused||[]).filter(r=>r.rate>1e-9).map(r=>[r.key,r]));
+ const gross=new Map(),fluids=new Map();
+ for(const c of result.entries)for(const ing of c.ingredients){gross.set(ing.id,(gross.get(ing.id)||0)+ing.needed);fluids.set(ing.id,ing.fluid)}
+ for(const r of reused.values()){
+  const key='r:'+r.key;existing.add(key);
+  nodes.push({key,recipe:r.key,label:r.name+' (existing)',type:'supply',kind:fluids.get(r.key)?'fluid':'solid',count:null,needed:r.rate,final:false,level:0});
+ }
  const edges=[];
  for(const consumer of result.entries){
   for(const ingredient of consumer.ingredients){
    if(!(ingredient.needed>1e-9))continue;
    const from=machineMap.has(ingredient.id)?'m:'+ingredient.id:'s:'+ingredient.id;
    const to='m:'+consumer.key;
-   if(!existing.has(from)||!existing.has(to))throw Error('Missing upstream node: '+ingredient.id);
-   edges.push({from,to,rate:ingredient.needed,item:ingredient.id,fluid:ingredient.fluid});
+   const reusedRate=Math.min(ingredient.needed,ingredient.needed*(reused.get(ingredient.id)?.rate||0)/Math.max(1e-9,gross.get(ingredient.id)||ingredient.needed));
+   const newRate=ingredient.needed-reusedRate;
+   if(!existing.has(to)||newRate>1e-8&&!existing.has(from))throw Error('Missing upstream node: '+ingredient.id);
+   if(newRate>1e-8)edges.push({from,to,rate:newRate,item:ingredient.id,fluid:ingredient.fluid});
+   if(reusedRate>1e-8)edges.push({from:'r:'+ingredient.id,to,rate:reusedRate,item:ingredient.id,fluid:ingredient.fluid});
   }
  }
  const byKey=new Map(nodes.map(node=>[node.key,node]));
@@ -392,26 +403,27 @@ function nodeMarkup(node){
  const color=nodeColor(node),label=escapeHTML(node.label);
  return '<button class="ratio-flow-node'+(node.final?' ratio-flow-final':'')+
     (node.type==='supply'?' ratio-flow-supply':'')+'" type="button" data-flow-node="'+escapeHTML(node.key)+
-    '" style="--node-color:'+color+'" aria-pressed="false">'+
+    '" style="--node-color:'+color+(node.built!==undefined?';--built-pct:'+Math.min(100,node.built/Math.max(1,node.count)*100)+'%':'')+'"'+(node.built!==undefined?' data-built-state="'+(node.built>=node.count?'done':node.built>0?'partial':'waiting')+'"':'')+' aria-pressed="false">'+
    '<span class="ratio-flow-node-dot" aria-hidden="true"></span>'+
    (node.type==='machine'?
-     itemGlyph(node.recipe,40)+'<span class="ratio-flow-count">'+formatted(node.count)+'</span>'+
+     itemGlyph(node.recipe,40)+'<span class="ratio-flow-count">'+(node.built!==undefined?formatted(node.built)+'/'+formatted(node.count):formatted(node.count))+'</span>'+
      '<span class="ratio-flow-node-label"><strong>'+label+'</strong><b>'+machineNoun(node.kind)+'</b><small>Needs '+formatted(node.needed)+'/min output</small></span>':
      itemGlyph(node.recipe,34)+
      '<span class="ratio-flow-node-label"><strong>'+label+'</strong><b>Input supply</b><small>'+formatted(node.needed)+'/min</small></span>')+
    '</button>';
 }
-function mount(target,result,cardKey){
+function unmount(cardKey){const s=browserViews.get(cardKey);s?.observer?.disconnect();s?.cancel?.();s?.cleanup?.();browserViews.delete(cardKey)}
+function mount(target,result,cardKey,options={}){
  const holder=target.querySelector('[data-ratio-flow-root]');if(!holder)return;
  const graph=buildFlowGraph(result);
+ if(options.progress)for(const node of graph.nodes)if(node.type==='machine')node.built=options.progress[node.recipe]??0;
  const older=browserViews.get(cardKey);
- const allocationOpen=older?.holder?.querySelector('[data-flow-belt-allocation]')?.open||older?.allocationOpen||false;
  older?.observer?.disconnect();
  older?.cancel?.();
  older?.cleanup?.();
  const inputVisible=root.NauvisRatioFlow?.inputByCard?.get(cardKey)??true;
  const upstream=root.NauvisRatioFlow?.upstreamByCard?.get(cardKey)??false;
- const beltMode=root.NauvisRatioFlow.beltModeByCard.get(cardKey)??false;
+ const beltMode=options.progress?false:(root.NauvisRatioFlow.beltModeByCard.get(cardKey)??false);
  const tierList=Object.keys(BELT_CAPACITY),beltTier=root.NauvisRatioFlow.beltTierByCard.get(cardKey)||tierList.find(k=>BELT_CAPACITY[k]===result.belt)||'red';
  const totals=solidTotals(graph);
  const allocationKey=cardKey+'|'+result.id;
@@ -423,17 +435,16 @@ function mount(target,result,cardKey){
   '<div class="ratio-flow-controls"><div class="ratio-flow-options" data-flow-options>'+
   '<label class="ratio-flow-input-toggle"><input data-flow-input-toggle type="checkbox"'+(inputVisible?' checked':'')+'><span>Inputs</span></label>'+
   '<label class="ratio-flow-input-toggle"><input data-flow-upstream-toggle type="checkbox"'+(upstream?' checked':'')+'><span>Upstream tree</span></label><label class="ratio-flow-input-toggle"><input data-flow-belt-toggle type="checkbox"'+(beltMode?' checked':'')+'><span>Show belts</span></label></div></div>'+
-  '<div class="flow-belt-controls flow-belt-slider" data-flow-belt-controls><label>Belt tier <strong data-flow-belt-tier-label></strong><input type="range" min="0" max="3" step="1" value="'+tierList.indexOf(beltTier)+'" data-flow-belt-tier aria-label="Belt tier"></label><div class="flow-belt-tier-labels"><span>Yellow</span><span>Red</span><span>Blue</span><span>Green</span></div><p class="flow-capacity-overall" data-flow-belt-overall></p></div>'+
   '<div data-flow-display></div>'+
-  '<details class="flow-belt-allocation" data-flow-belt-allocation hidden><summary>Adjust assigned belts <small>Capacity by material</small></summary><p class="flow-capacity-help">Assigned counts stay fixed when tiers change. Diagram lines show required belts.</p><button type="button" class="flow-capacity-reset" data-flow-belt-reset>Size all belts to demand</button><div data-flow-belt-summary></div></details>';
+  '<section class="flow-belt-allocation" data-flow-belt-allocation hidden><div class="flow-belt-controls flow-belt-slider" data-flow-belt-controls><label>Belt tier <strong data-flow-belt-tier-label></strong><input type="range" min="0" max="3" step="1" value="'+tierList.indexOf(beltTier)+'" data-flow-belt-tier aria-label="Belt tier"></label><div class="flow-belt-tier-labels"><span>Yellow</span><span>Red</span><span>Blue</span><span>Green</span></div><button type="button" class="flow-capacity-reset" data-flow-belt-reset>Fit belts to demand</button></div><div data-flow-belt-summary></div></section>'+
+  (options.progress?'':'<div class="flow-machine-review"><h4>Machine review</h4><div class="flow-machine-grid">'+graph.nodes.filter(n=>n.type==='machine').map(n=>'<div class="flow-machine-chip" style="--node-color:'+nodeColor(n)+'">'+itemGlyph(n.recipe,27)+'<strong>'+formatted(n.count)+'</strong><span>'+escapeHTML(n.label)+'</span></div>').join('')+'</div></div>');
  const display=holder.querySelector('[data-flow-display]');
- const allocationPanel=holder.querySelector('[data-flow-belt-allocation]');allocationPanel.open=allocationOpen;
  const checkbox=holder.querySelector('[data-flow-input-toggle]');
  const upstreamToggle=holder.querySelector('[data-flow-upstream-toggle]');
  const state={graph,display,holder,result,cardKey,inputVisible,upstream,beltMode,beltTier,totals,allocation,selected:older?.result?.id===result.id?(older.selected||null):null,observer:null,
   cancel:null,redraw:null};
  browserViews.set(cardKey,state);
- allocationPanel.addEventListener('toggle',()=>{state.allocationOpen=allocationPanel.open});
+ if(options.progress){holder.classList.add('construction-flow');holder.querySelector('[data-flow-options]').hidden=true;}
  function update(){
   updateBeltControls();
   state.observer?.disconnect();
@@ -444,33 +455,36 @@ function mount(target,result,cardKey){
  }
  const beltToggle=holder.querySelector('[data-flow-belt-toggle]'),slider=holder.querySelector('[data-flow-belt-tier]'),beltControls=holder.querySelector('[data-flow-belt-controls]');
  function updateBeltControls(){
-  beltControls.hidden=!state.beltMode;
+  beltControls.hidden=!state.beltMode||!!options.progress;
   holder.querySelector('[data-flow-belt-allocation]').hidden=!state.beltMode;
   if(beltControls.hidden)return;
   const tier=state.beltTier,cap=BELT_CAPACITY[tier];
   for(const [key,rate] of totals)if(!allocation.has(key))allocation.set(key,beltRequirement(rate,tier).count);
   holder.querySelector('[data-flow-belt-tier-label]').textContent=tier.toUpperCase()+' · '+formatted(cap)+'/min per belt';
   const summary=holder.querySelector('[data-flow-belt-summary]');
-  const opened=summary.querySelector('details')?.open||false;
   const row=([key,rate])=>{
-   const node=graph.nodes.find(n=>n.key===key),r=beltCapacityStatus(rate,tier,allocation.get(key)),pct=r.utilization===null?(rate?'No transport capacity':'0% used'):formatted(r.utilization)+'% utilized';
-   const delta=r.status==='starving'?formatted(-r.delta)+'/min short':r.status==='excess'?formatted(r.delta)+'/min spare':'Demand matched';
-   return '<div class="flow-belt-resource" data-capacity-status="'+r.status+'"><b>'+escapeHTML(node.label)+'</b><div class="flow-capacity-status">'+capacityLabel(r.status)+'</div><strong>'+r.required+' '+tier+' belt'+(r.required===1?'':'s')+' required</strong><small>'+formatted(rate)+'/min demand · '+formatted(r.capacity)+'/min capacity</small><small>'+pct+' · '+delta+'</small><div class="flow-capacity-meter" aria-hidden="true"><span style="width:'+Math.min(100,r.utilization??(rate?100:0))+'%"></span></div><div class="flow-capacity-assign"><button type="button" data-flow-belt-change="-1" data-flow-material="'+escapeHTML(key)+'" aria-label="Remove one belt for '+escapeHTML(node.label)+'"'+(r.assigned===0?' disabled':'')+'>−</button><span><b>'+r.assigned+'</b> assigned</span><button type="button" data-flow-belt-change="1" data-flow-material="'+escapeHTML(key)+'" aria-label="Add one belt for '+escapeHTML(node.label)+'">+</button></div>'+beltLines(r.assigned,tier)+'</div>';
+   const node=graph.nodes.find(n=>n.key===key);
+   return '<div class="flow-belt-resource" data-flow-resource="'+escapeHTML(key)+'"><div class="flow-resource-ring" aria-label="Capacity utilization"><b data-flow-util></b></div><div class="flow-resource-main"><b>'+itemGlyph(node.recipe,20)+escapeHTML(node.label)+'</b><small data-flow-rates></small><small data-flow-status></small><label class="flow-resource-slider"><input type="range" min="0" step="1" data-flow-belt-count data-flow-material="'+escapeHTML(key)+'" aria-label="Assigned belts for '+escapeHTML(node.label)+'"><span><b data-flow-assigned></b> belts</span></label></div></div>';
   };
-  const entries=[...totals],external=entries.filter(([key])=>key.startsWith('s:')),internal=entries.filter(([key])=>!key.startsWith('s:'));
-  summary.innerHTML='<div class="flow-capacity-grid">'+external.map(row).join('')+'</div>'+(internal.length?'<details class="flow-capacity-internal"'+(opened?' open':'')+'><summary>Intermediate belts ('+internal.length+')</summary><div class="flow-capacity-grid">'+internal.map(row).join('')+'</div></details>':'')+(!entries.length?'<p class="ratio-muted">No solid material connections.</p>':'');
-  const statuses=entries.map(([key,rate])=>beltCapacityStatus(rate,tier,allocation.get(key)).status);
-  const shortages=statuses.filter(x=>x==='starving').length;
-  const overall=holder.querySelector('[data-flow-belt-overall]');overall.dataset.capacityStatus=shortages?'starving':'meeting';overall.textContent=shortages?shortages+' material route'+(shortages===1?'':'s')+' short of transport capacity':'All solid material routes meet demand';
+  const entries=[...totals];
+  if(!summary.children.length)summary.innerHTML='<div class="flow-capacity-grid">'+entries.map(row).join('')+'</div>';
+  for(const el of summary.querySelectorAll('[data-flow-resource]')){
+   const key=el.dataset.flowResource,rate=totals.get(key),r=beltCapacityStatus(rate,tier,allocation.get(key)),pct=r.utilization;
+   el.dataset.capacityStatus=r.status;
+   el.querySelector('[data-flow-util]').textContent=pct===null?'—':formatted(Math.round(pct))+'%';
+   el.querySelector('.flow-resource-ring').style.setProperty('--ring-p',Math.min(100,pct??(rate?100:0))+'%');
+   el.querySelector('[data-flow-rates]').textContent=formatted(rate)+' / '+formatted(r.capacity)+'/min · '+r.required+' required';
+   el.querySelector('[data-flow-status]').textContent=capacityLabel(r.status)+' · '+(r.status==='starving'?formatted(-r.delta)+'/min short':r.status==='excess'?formatted(r.delta)+'/min spare':'Demand matched');
+   el.querySelector('[data-flow-assigned]').textContent=r.assigned;
+   const input=el.querySelector('[data-flow-belt-count]');input.max=String(Math.max(4,r.required*2,r.assigned));input.value=String(r.assigned);input.setAttribute('aria-valuetext',r.assigned+' '+tier+' belts');
+  }
  }
  function refreshCapacity(){updateBeltControls();state.refreshDetails?.();state.redraw?.()}
  holder.querySelector('[data-flow-belt-reset]').addEventListener('click',()=>{for(const [key,rate] of totals)allocation.set(key,beltRequirement(rate,state.beltTier).count);refreshCapacity()});
- holder.querySelector('[data-flow-belt-summary]').addEventListener('click',event=>{
-  const button=event.target.closest('[data-flow-belt-change]');if(!button)return;
-  const key=button.dataset.flowMaterial,change=Number(button.dataset.flowBeltChange);
-  if(!totals.has(key))return;
-  allocation.set(key,Math.max(0,(allocation.get(key)||0)+change));refreshCapacity();
-  [...holder.querySelectorAll('[data-flow-belt-change]')].find(b=>b.dataset.flowMaterial===key&&Number(b.dataset.flowBeltChange)===change)?.focus({preventScroll:true});
+ holder.querySelector('[data-flow-belt-summary]').addEventListener('input',event=>{
+  const input=event.target.closest('[data-flow-belt-count]');if(!input)return;
+  const key=input.dataset.flowMaterial;if(!totals.has(key))return;
+  allocation.set(key,Math.max(0,Math.floor(Number(input.value)||0)));refreshCapacity();
  });
  beltToggle.addEventListener('change',()=>{state.beltMode=beltToggle.checked;root.NauvisRatioFlow.beltModeByCard.set(cardKey,state.beltMode);update()});
  slider.addEventListener('input',()=>{state.beltTier=tierList[Number(slider.value)];root.NauvisRatioFlow.beltTierByCard.set(cardKey,state.beltTier);updateBeltControls();state.refreshDetails?.();state.redraw?.()});
@@ -527,7 +541,7 @@ function drawLayout(state){
  function showDetails(){
   refreshFocus();
   const node=nodeByKey.get(state.selected);
-  if(!node){summary.innerHTML='<p class="ratio-muted ratio-flow-overview">Full chain visible. Select an item to inspect its connections and exact rates.</p>';return}
+  if(!node){summary.innerHTML='';return}
   const inputs=graph.edges.filter(e=>e.to===node.key);
   const outputs=graph.edges.filter(e=>e.from===node.key);
   const toText=(edge,direction)=>{
@@ -623,5 +637,5 @@ function drawLayout(state){
   const chrome=document.querySelector('.command-chrome');if(chrome)state.observer.observe(chrome);
  }
 }
-root.NauvisRatioFlow={beltCapacityStatus,beltAllocationByCard:new Map(),beltRequirement,beltLines,feederLines,beltModeByCard:new Map(),beltTierByCard:new Map(),mount,buildFlowGraph,routeLayout,roundedPath,focusGraph,focusBundle,inputByCard:new Map(),upstreamByCard:new Map()};
+root.NauvisRatioFlow={beltCapacityStatus,beltAllocationByCard:new Map(),beltRequirement,beltLines,feederLines,beltModeByCard:new Map(),beltTierByCard:new Map(),mount,unmount,buildFlowGraph,routeLayout,roundedPath,focusGraph,focusBundle,inputByCard:new Map(),upstreamByCard:new Map()};
 })(typeof window==='undefined'?globalThis:window);
