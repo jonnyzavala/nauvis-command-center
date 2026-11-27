@@ -532,7 +532,7 @@ function mount(target,result,cardKey,options={}){
    el.dataset.capacityStatus=r.status;
    el.querySelector('[data-flow-util]').textContent=pct===null?'—':formatted(Math.round(pct))+'%';
    el.querySelector('.flow-resource-ring').style.setProperty('--ring-p',Math.min(100,pct??(rate?100:0))+'%');
-   el.querySelector('[data-flow-rates]').textContent=formatted(rate)+' / '+formatted(r.capacity)+'/min · '+r.required+' required';
+   el.querySelector('[data-flow-rates]').textContent=task?'Required '+formatted(rate)+'/min · capacity '+formatted(r.capacity)+'/min · '+r.required+' belts required':formatted(rate)+' / '+formatted(r.capacity)+'/min · '+r.required+' required';
    el.querySelector('[data-flow-status]').textContent=capacityLabel(r.status)+' · '+(r.status==='starving'?formatted(-r.delta)+'/min short':r.status==='excess'?formatted(r.delta)+'/min spare':'Demand matched');
    if(task)continue;
    el.querySelector('[data-flow-assigned]').textContent=r.assigned;
