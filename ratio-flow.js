@@ -369,6 +369,16 @@ function beltCapacityStatus(rate,tier,count){
  return {demand,required:required.count,assigned,capacity,delta,utilization:capacity?demand/capacity*100:null,status};
 }
 function capacityLabel(status){return {starving:'Starving',meeting:'Meeting demand',excess:'Excess capacity'}[status]}
+// Freeze the Planner's transport choices without changing production math.
+function makeBeltPlan(result,tier,allocation={}){
+ const selected=Object.keys(BELT_CAPACITY).includes(tier)?tier:Object.keys(BELT_CAPACITY).find(k=>BELT_CAPACITY[k]===result.belt)||'red';
+ const counts={};
+ for(const [key,rate] of solidTotals(buildFlowGraph(result))){
+  const value=allocation instanceof Map?allocation.get(key):allocation?.[key];
+  counts[key]=Number.isSafeInteger(value)&&value>=0?value:beltRequirement(rate,selected).count;
+ }
+ return {tier:selected,counts};
+}
 function solidTotals(graph){const totals=new Map();for(const e of graph.edges){if(!e.fluid)totals.set(e.from,(totals.get(e.from)||0)+e.rate)}return totals}
 function downstreamRate(bundle,path){
  const same=(a,b)=>a.x===b.x&&a.y===b.y;
@@ -392,7 +402,7 @@ function feederLines(count,tier,a,b,capacity){
  return '<div class="physical-feeder"><div class="physical-feeder-label"><b>'+count+' × '+escapeHTML(tier)+' belt'+(count===1?'':'s')+'</b><span>'+desc+'</span></div>'+beltLines(count,tier)+'<small>'+formatted(count*capacity)+'/min physical capacity · '+(mixed?'shared ingredients':half?'one lane used':'both lanes')+'</small></div>';
 }
 
-if(typeof module==='object'&&module.exports)module.exports={beltCapacityStatus,solidTotals,beltRequirement,downstreamRate,parallelPoints,beltLines,feederLines,buildFlowGraph,routeLayout,baseRouteLayout,routingScore,fitLayout,mergeRoutes,roundedPath,focusGraph,focusBundle,toggleSelection,focusTone};
+if(typeof module==='object'&&module.exports)module.exports={makeBeltPlan,beltCapacityStatus,solidTotals,beltRequirement,downstreamRate,parallelPoints,beltLines,feederLines,buildFlowGraph,routeLayout,baseRouteLayout,routingScore,fitLayout,mergeRoutes,roundedPath,focusGraph,focusBundle,toggleSelection,focusTone};
 if(typeof document==='undefined')return;
 const browserViews=new Map();
 function nodeColor(node){
@@ -412,6 +422,7 @@ function nodeMarkup(node){
      '<span class="ratio-flow-node-label"><strong>'+label+'</strong><b>Input supply</b><small>'+formatted(node.needed)+'/min</small></span>')+
    '</button>';
 }
+function captureBeltPlan(cardKey,result){const state=browserViews.get(cardKey);return makeBeltPlan(result,state?.beltTier,state?.allocation)}
 function unmount(cardKey){const s=browserViews.get(cardKey);s?.observer?.disconnect();s?.cancel?.();s?.cleanup?.();browserViews.delete(cardKey)}
 function mount(target,result,cardKey,options={}){
  const holder=target.querySelector('[data-ratio-flow-root]');if(!holder)return;
@@ -423,12 +434,13 @@ function mount(target,result,cardKey,options={}){
  older?.cleanup?.();
  const inputVisible=root.NauvisRatioFlow?.inputByCard?.get(cardKey)??true;
  const upstream=root.NauvisRatioFlow?.upstreamByCard?.get(cardKey)??false;
- const beltMode=options.progress?false:(root.NauvisRatioFlow.beltModeByCard.get(cardKey)??false);
- const tierList=Object.keys(BELT_CAPACITY),beltTier=root.NauvisRatioFlow.beltTierByCard.get(cardKey)||tierList.find(k=>BELT_CAPACITY[k]===result.belt)||'red';
+ const beltMode=root.NauvisRatioFlow.beltModeByCard.get(cardKey)??false;
+ const savedPlan=options.progress?makeBeltPlan(result,options.beltPlan?.tier,options.beltPlan?.counts):null;
+ const tierList=Object.keys(BELT_CAPACITY),beltTier=savedPlan?.tier||root.NauvisRatioFlow.beltTierByCard.get(cardKey)||tierList.find(k=>BELT_CAPACITY[k]===result.belt)||'red';
  const totals=solidTotals(graph);
  const allocationKey=cardKey+'|'+result.id;
- const allocation=root.NauvisRatioFlow.beltAllocationByCard.get(allocationKey)||new Map();
- root.NauvisRatioFlow.beltAllocationByCard.set(allocationKey,allocation);
+ const allocation=savedPlan?new Map(Object.entries(savedPlan.counts)):(root.NauvisRatioFlow.beltAllocationByCard.get(allocationKey)||new Map());
+ if(!savedPlan)root.NauvisRatioFlow.beltAllocationByCard.set(allocationKey,allocation);
  holder.innerHTML=
   '<div class="ratio-flow-top"><h3>Production flow</h3>'+
   '<div class="ratio-flow-total">'+result.roundedTotal+'<small>machines total</small></div></div>'+
@@ -444,7 +456,7 @@ function mount(target,result,cardKey,options={}){
  const state={graph,display,holder,result,cardKey,inputVisible,upstream,beltMode,beltTier,totals,allocation,selected:older?.result?.id===result.id?(older.selected||null):null,observer:null,
   cancel:null,redraw:null};
  browserViews.set(cardKey,state);
- if(options.progress){holder.classList.add('construction-flow');holder.querySelector('[data-flow-options]').hidden=true;}
+ if(options.progress){holder.classList.add('construction-flow');checkbox.closest('label').hidden=true;upstreamToggle.closest('label').hidden=true;holder.querySelector('[data-flow-belt-tier]').disabled=true;holder.querySelector('[data-flow-belt-reset]').hidden=true;holder.querySelector('[data-flow-belt-toggle]').nextElementSibling.textContent=options.beltPlan?'Show saved belts':'Show estimated belts';}
  function update(){
   updateBeltControls();
   state.observer?.disconnect();
@@ -455,12 +467,13 @@ function mount(target,result,cardKey,options={}){
  }
  const beltToggle=holder.querySelector('[data-flow-belt-toggle]'),slider=holder.querySelector('[data-flow-belt-tier]'),beltControls=holder.querySelector('[data-flow-belt-controls]');
  function updateBeltControls(){
-  beltControls.hidden=!state.beltMode||!!options.progress;
+  beltControls.hidden=!state.beltMode;
   holder.querySelector('[data-flow-belt-allocation]').hidden=!state.beltMode;
   if(beltControls.hidden)return;
   const tier=state.beltTier,cap=BELT_CAPACITY[tier];
   for(const [key,rate] of totals)if(!allocation.has(key))allocation.set(key,beltRequirement(rate,tier).count);
   holder.querySelector('[data-flow-belt-tier-label]').textContent=tier.toUpperCase()+' · '+formatted(cap)+'/min per belt';
+  if(options.progress){const label=beltControls.querySelector('label');label.firstChild.textContent=options.beltPlan?'Saved belt tier ':'Estimated belt tier ';slider.hidden=true;beltControls.querySelector('.flow-belt-tier-labels').hidden=true;}
   const summary=holder.querySelector('[data-flow-belt-summary]');
   const row=([key,rate])=>{
    const node=graph.nodes.find(n=>n.key===key);
@@ -476,13 +489,13 @@ function mount(target,result,cardKey,options={}){
    el.querySelector('[data-flow-rates]').textContent=formatted(rate)+' / '+formatted(r.capacity)+'/min · '+r.required+' required';
    el.querySelector('[data-flow-status]').textContent=capacityLabel(r.status)+' · '+(r.status==='starving'?formatted(-r.delta)+'/min short':r.status==='excess'?formatted(r.delta)+'/min spare':'Demand matched');
    el.querySelector('[data-flow-assigned]').textContent=r.assigned;
-   const input=el.querySelector('[data-flow-belt-count]');input.max=String(Math.max(4,r.required*2,r.assigned));input.value=String(r.assigned);input.setAttribute('aria-valuetext',r.assigned+' '+tier+' belts');
+   const input=el.querySelector('[data-flow-belt-count]');input.max=String(Math.max(4,r.required*2,r.assigned));input.value=String(r.assigned);if(options.progress){input.hidden=true;input.disabled=true;}input.setAttribute('aria-valuetext',r.assigned+' '+tier+' belts');
   }
  }
  function refreshCapacity(){updateBeltControls();state.refreshDetails?.();state.redraw?.()}
  holder.querySelector('[data-flow-belt-reset]').addEventListener('click',()=>{for(const [key,rate] of totals)allocation.set(key,beltRequirement(rate,state.beltTier).count);refreshCapacity()});
  holder.querySelector('[data-flow-belt-summary]').addEventListener('input',event=>{
-  const input=event.target.closest('[data-flow-belt-count]');if(!input)return;
+  const input=event.target.closest('[data-flow-belt-count]');if(!input||options.progress)return;
   const key=input.dataset.flowMaterial;if(!totals.has(key))return;
   allocation.set(key,Math.max(0,Math.floor(Number(input.value)||0)));refreshCapacity();
  });
@@ -637,5 +650,5 @@ function drawLayout(state){
   const chrome=document.querySelector('.command-chrome');if(chrome)state.observer.observe(chrome);
  }
 }
-root.NauvisRatioFlow={beltCapacityStatus,beltAllocationByCard:new Map(),beltRequirement,beltLines,feederLines,beltModeByCard:new Map(),beltTierByCard:new Map(),mount,unmount,buildFlowGraph,routeLayout,roundedPath,focusGraph,focusBundle,inputByCard:new Map(),upstreamByCard:new Map()};
+root.NauvisRatioFlow={captureBeltPlan,beltCapacityStatus,beltAllocationByCard:new Map(),beltRequirement,beltLines,feederLines,beltModeByCard:new Map(),beltTierByCard:new Map(),mount,unmount,buildFlowGraph,routeLayout,roundedPath,focusGraph,focusBundle,inputByCard:new Map(),upstreamByCard:new Map()};
 })(typeof window==='undefined'?globalThis:window);
