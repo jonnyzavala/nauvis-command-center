@@ -1,8 +1,9 @@
 /* NAUVIS Command Center offline shell. Does not cache private cloud API responses. */
-const VERSION='nauvis-shell-v10112';
+const VERSION='nauvis-shell-v10113';
+const RELEASE='1.1.13';
 const STATIC=['./','./index.html','./release-updates.js','./startup-intro.js','./release.json','./sync/cloud-sync.js','./quick-add.js','./quick-add.css','./recipe-ratios.js','./recipe-ratios.css','./ratio-flow.js','./ratio-flow.css','./projects.js','./projects.css','./item-icons.js','./item-icons.css','./journal.js','./workspace-ui.js','./workspace-v025.css','./production-presets.js','./preset-v026.css','./inventory-v027.css','./factory-reset.js','./factory-onboarding.js','./factory-onboarding.css','./factory-milestones.js','./factory-milestones.css','./sensory-feedback.js','./sensory-feedback.css','./factory-coach.js','./factory-coach.css','./focus-mode.js','./focus-mode.css','./header-polish.css','./production-effects.js','./machine-upgrades.js','./advanced-v028.css','./logistics.js','./logistics.css'];
 self.addEventListener('install',event=>{
- event.waitUntil(caches.open(VERSION).then(cache=>cache.addAll(STATIC)).then(()=>self.skipWaiting()));
+ event.waitUntil(caches.open(VERSION).then(cache=>cache.addAll(STATIC.map(path=>new Request(new URL(/\.(js|css)$/.test(path)?path+'?v='+RELEASE:path,self.registration.scope),{cache:'reload'})))).then(()=>self.skipWaiting()));
 });
 self.addEventListener('activate',event=>{
  event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('nauvis-shell-')&&k!==VERSION).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
@@ -16,13 +17,16 @@ self.addEventListener('fetch',event=>{
  if(!url.pathname.startsWith(scope.pathname))return;
  if(url.pathname===new URL('./release.json',scope).pathname){event.respondWith(fetch(req,{cache:'no-store'}));return;}
  if(req.mode==='navigate'){
-  event.respondWith(fetch(req).then(res=>{
+  event.respondWith(fetch(req,{cache:'no-store'}).then(res=>{
    if(res.ok){const copy=res.clone();event.waitUntil(caches.open(VERSION).then(cache=>cache.put('./index.html',copy)));}
    return res;
   }).catch(()=>caches.match('./index.html').then(x=>x||Response.error())));
  }else{
-  // Network first for code and manifest: users must not be stuck with old JS.
-  event.respondWith(fetch(req).then(res=>{
+  // Versioned assets are immutable within a release; never fall back to a different URL.
+  if(url.searchParams.get('v')===RELEASE&&/\.(js|css)$/.test(url.pathname)){
+   event.respondWith(caches.open(VERSION).then(async cache=>{const hit=await cache.match(req);if(hit)return hit;const res=await fetch(req,{cache:'no-store'});if(res.ok)await cache.put(req,res.clone());return res}));return;
+  }
+  event.respondWith(fetch(req,{cache:'no-store'}).then(res=>{
    if(res.ok){const copy=res.clone();event.waitUntil(caches.open(VERSION).then(cache=>cache.put(req,copy)));}
    return res;
   }).catch(()=>caches.match(req).then(hit=>hit||Response.error())));

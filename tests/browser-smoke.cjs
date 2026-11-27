@@ -6,7 +6,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
 (async()=>{
  const checks=[],frame=document.getElementById('app');
  const assert=(v,label)=>{if(!v)throw Error(label);checks.push(label)};
- const load=()=>new Promise((resolve,reject)=>{frame.onload=()=>resolve(frame.contentWindow);frame.onerror=reject;frame.src='/index.html?smoke='+Date.now()});
+ const load=(extra='')=>new Promise((resolve,reject)=>{frame.onload=()=>resolve(frame.contentWindow);frame.onerror=reject;frame.src='/index.html?smoke='+Date.now()+extra});
  const prep=w=>{if(w.document.querySelector('#nauvisIntro')?.open)w.document.querySelector('#skipIntro').click();w.confirm=()=>true;w.prompt=()=> 'Smoke draft';w.alert=msg=>{throw Error(String(msg))};return w};
  const click=(w,sel)=>{const node=w.document.querySelector(sel);if(!node)throw Error('Missing control: '+sel);node.click()};
  const set=(w,sel,value,event='change')=>{const node=w.document.querySelector(sel);if(!node)throw Error('Missing field: '+sel);node.value=value;node.dispatchEvent(new w.Event(event,{bubbles:true}))};
@@ -17,6 +17,10 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,25));const d=frame.contentDocument;if(d?.documentElement?.hasAttribute('data-intro-boot')&&d.querySelector('.shell')){sawCurtain=frame.contentWindow.getComputedStyle(d.querySelector('.shell')).visibility==='hidden';break}}
   let w=prep(await loading);
   assert(sawCurtain,'First paint hides app shell while intro script is still loading');
+  w=await load('&nauvis-update=1.1.13');
+  assert(!w.NauvisIntro.active()&&!w.document.documentElement.hasAttribute('data-intro-boot'),'Update navigation skips intro and leaves no curtain');prep(w);
+  w=await load('&recover=1');
+  assert(!w.NauvisIntro.active()&&!w.document.documentElement.hasAttribute('data-intro-boot'),'Recovery navigation skips intro and leaves no curtain');prep(w);
   await new Promise(r=>setTimeout(r,50));
   if(w.document.querySelector('#factoryOnboardingDialog').open)click(w,'[data-onboard-action="close"]');
   assert(w.NauvisLocal&&w.NauvisLogistics&&w.NauvisRecipeMath&&w.NauvisSensory,'Application and deferred modules initialized');
