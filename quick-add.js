@@ -302,7 +302,6 @@ function init(){
  saveButton.addEventListener('click',()=>commit(currentChange()));
  removeButton.addEventListener('click',()=>{
    if(target==='new')return;
-   if(!confirm('Remove this saved line? You can undo right afterward.'))return;
    commit({kind:mode==='machine'?'remove-machine':'remove-belt',target});
  });
  undoButton.addEventListener('click',undo);

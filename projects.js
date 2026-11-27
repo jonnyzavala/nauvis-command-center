@@ -327,7 +327,6 @@ function updateTaskProfile(p,recipe,button){
   const fields=button.closest('.project-task-profile').querySelectorAll('[data-task-profile-field]'),patch={};
   for(const input of fields){const k=input.dataset.taskProfileField;patch[k]=['machine','moduleCount','moduleCount2','beaconSpeed'].includes(k)?Number(input.value):input.value}
   const change=reconcileTaskProfile(p,recipe,patch,setup.machines,R);
-  if(!root.confirm('Record this installed machine profile for the entire linked array? Actual machine count and the original blueprint remain unchanged.'))return;
   factory.projects=allProjects().map(x=>x.id===p.id?change.project:x);setup.machines=change.rows;
   root.NauvisJournal?.record?.({type:'machine-settings',source:'Construction Queue',projectId:p.id,recipe,title:'Updated installed '+(R[recipe]?.[0]||recipe)+' profile',detail:p.name+' · existing linked array; counts and original blueprint unchanged.'});
   saveSetup();save();renderSetup();notice='Installed profile reconciled. Blueprint retained; actual production rates updated.';render();
@@ -347,7 +346,6 @@ function projectHTML(p){
   return '<div class="project-task'+(done?' project-task-done':'')+'" data-task-row="'+escape(task.recipe)+'" style="--project-task-accent:'+color+'">'+
    '<div class="project-task-identity"><span class="project-task-led" aria-hidden="true"></span>'+itemGlyph(task.recipe,32)+'<div><strong>'+escape(R[task.recipe]?.[0]||task.recipe)+'</strong><small>'+escape(noun(task.kind))+' · '+task.planned+' planned'+(task.kind==='asm'?' · Assembler '+(taskProfile(p,task).machine===1.25?'3':taskProfile(p,task).machine===.5?'1':'2'):task.kind==='furnace'?' · '+escape(R[p.furnaceItem]?.[0]||'2× furnace'):'')+'</small></div></div>'+
    '<div class="project-task-controls project-slider-controls"><label class="project-built-slider"><span class="project-task-counter"><b data-built-preview>'+task.built+'</b><small>/ '+task.planned+' built</small></span><input type="range" min="0" max="'+task.planned+'" step="1" value="'+task.built+'" data-project-built="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Built '+escape(task.recipe)+'" '+(archived||mismatch||cannotRecord?'disabled':'')+'></label><label class="project-check"><input type="checkbox" data-project-check="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" '+(done?'checked ':'')+(archived||mismatch||cannotRecord?'disabled':'')+'> Done</label></div>'+
-   '<div class="project-task-progress"><span style="width:'+(task.planned?100*task.built/task.planned:0)+'%"></span></div>'+
    (mismatch?'<div class="project-task-foot"><span class="project-task-warning">Recorded counts differ from the checklist. Review the installed record before editing.</span></div>':
     cannotRecord?'<div class="project-task-foot"><span class="project-task-warning">Set actual smelting speed to 2× before recording this furnace.</span></div>':'')+
    '</div>';
@@ -380,8 +378,6 @@ function removeProjectRecord(p){
  const hasLedger=(setup.machines||[]).some(x=>x.projectId===p.id)||(setup.smelt.projectBuilt||[]).some(x=>x.projectId===p.id)||(setup.assets||[]).some(x=>x.projectId===p.id);
  const preserve=built>0||hasLedger;
  const archived=p.status==='archived';
- const message=archived?'Delete '+p.name+' from project history?': 'Cancel '+p.name+'?';
- if(!root.confirm(message+(preserve?' Already recorded machines remain in your factory. Internal ownership records are retained.':' No machines have been built; its plan and reserved supply will be removed.')))return;
  const projects=allProjects();
  const next=preserve?projects.map(x=>x.id===p.id?{...x,status:'archived',cancelled:!archived||x.cancelled,historyHidden:archived}:x):projects.filter(x=>x.id!==p.id);
  notice=archived?'Project removed from history.':preserve?'Project cancelled. Built machines preserved.':'Unbuilt project cancelled.';
@@ -527,7 +523,6 @@ function updateProjectProgress(project){
   slider.value=String(task.built);slider.disabled=newRow.querySelector('[data-project-built]').disabled;
   check.checked=task.planned>0&&task.built>=task.planned;check.disabled=newRow.querySelector('[data-project-check]').disabled;
   row.querySelector('[data-built-preview]').textContent=String(task.built);
-  row.querySelector('.project-task-progress span').style.width=100*task.built/Math.max(1,task.planned)+'%';
   const foot=row.querySelector('.project-task-foot'),newFoot=newRow.querySelector('.project-task-foot');
   if(foot)foot.remove();if(newFoot)row.append(newFoot);
  }
@@ -573,8 +568,7 @@ function completeGroup(project,recipe){
 function completeProject(project){
  const changes=project.tasks.filter(t=>t.planned>t.built).map(t=>({recipe:t.recipe,delta:t.planned-t.built}));
  if(!changes.length)return;
- const count=changes.reduce((n,t)=>n+t.delta,0);
- if(root.confirm('Mark all '+count+' remaining machines in '+project.name+' as physically built? This updates the checklist and journal together.'))updateBuiltBatch(project.id,changes);
+ updateBuiltBatch(project.id,changes);
 }
 function navigateToPlan(id){
  const project=selectedProject(id);if(!project)return;
@@ -641,7 +635,7 @@ function attachEvents(){
   const d=$('legacyDistrict');if(d){d.open=true;d.scrollIntoView({behavior:'smooth',block:'start'})}
  });
  $('projectsOpenFactory')?.addEventListener('click',()=>activateWorkspace('setup',true));
- $('factory')?.addEventListener('input',event=>{const b=event.target;if(b.matches('[data-project-built]')){const row=b.closest('.project-task');row.querySelector('[data-built-preview]').textContent=b.value;row.querySelector('.project-task-progress span').style.width=100*Number(b.value)/Math.max(1,Number(b.max))+'%';root.NauvisRatioFlow?.updateProgress?.('project:'+b.dataset.projectBuilt,{[b.dataset.taskRecipe]:Number(b.value)})}});
+ $('factory')?.addEventListener('input',event=>{const b=event.target;if(b.matches('[data-project-built]')){const row=b.closest('.project-task');row.querySelector('[data-built-preview]').textContent=b.value;root.NauvisRatioFlow?.updateProgress?.('project:'+b.dataset.projectBuilt,{[b.dataset.taskRecipe]:Number(b.value)})}});
  $('factory')?.addEventListener('change',event=>{const b=event.target;if(!b.matches('[data-project-built],[data-project-check]'))return;const p=selectedProject(b.dataset.projectBuilt||b.dataset.projectCheck),t=p?.tasks.find(t=>t.recipe===b.dataset.taskRecipe);if(!t)return;const next=b.matches('[data-project-check]')?(b.checked?t.planned:0):Number(b.value);if(!Number.isSafeInteger(next)||next<0||next>t.planned)return;if(next!==t.built){updateBuilt(p.id,t.recipe,next-t.built);const current=selectedProject(p.id)?.tasks.find(x=>x.recipe===t.recipe);if(current?.built!==next)render()}else root.NauvisRatioFlow?.updateProgress?.('project:'+p.id,{[t.recipe]:t.built})});
  $('factory')?.addEventListener('click',event=>{
   const b=event.target.closest('button');if(!b)return;
@@ -656,7 +650,6 @@ function attachEvents(){
   if(b.hasAttribute('data-project-material-supply')){checkMaterialSupply(project,b);return}
   if(b.hasAttribute('data-project-release')){
    if(project.status!=='archived'||projectProgress(project).built!==0||project.reuseReleased||!project.design?.reuseClaims?.length)return;
-   if(!root.confirm('Release this cancelled, unbuilt project’s planned supply commitments? Its saved design remains historical and cannot be restored.'))return;
    setProjects(allProjects().map(p=>p.id===id?{...p,reuseReleased:true}:p),{type:'project',source:'Construction Queue',projectId:id,title:'Released reuse commitments',detail:project.name+' · cancelled unbuilt plan'});return;
   }
   if(b.hasAttribute('data-project-plus'))updateBuilt(id,b.dataset.taskRecipe,1);

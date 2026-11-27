@@ -623,7 +623,7 @@ function openDraft(key){
 }
 function deleteDraft(key){
  try{
-  const row=drafts().find(x=>x.id===key);if(!row||!root.confirm('Delete proposed draft "'+row.name+'"? Actual Inventory and Construction are unchanged.'))return;
+  const row=drafts().find(x=>x.id===key);if(!row)return;
   setup.logisticsDrafts=drafts().filter(x=>x.id!==key);
   if(savedDraftId===key)savedDraftId=null;
   saveSetup();notice='Draft deleted. No actual records changed.';render();
@@ -677,7 +677,6 @@ function previewCalculation(){
 function queuePreview(){
  try{
   const {result}=previewCalculation();
-  if(result.proposedRoutes?.length){const report=evaluateProposalRoutes(result,result.proposedRoutes);if((report.stale.length||report.short.length)&&!root.confirm('The proposed routing has unresolved solid inputs or outdated connections. Queue the machine design anyway, with this incomplete routing plan?'))return}
   root.NauvisProjects?.createFromRatio?.(result,{
    validate(pending){
     const latest=previewCalculation().result;
@@ -730,8 +729,8 @@ function handleProposalAction(action,host){
  if(!blueprintDraft||savedDesignId)return;
  try{
   const result=previewCalculation().result,ports=proposalPorts(result),tier=Object.keys(TIERS).find(k=>TIERS[k]===result.belt)||'red';
-  if(action==='recommend'){if(proposedRoutes.length&&!root.confirm('Replace your proposed connections with fresh recommendations?'))return;changeProposedRoutes(proposeRoutes(result,tier,id));return}
-  if(action==='clear'){if(root.confirm('Clear only this proposed route plan?'))changeProposedRoutes([]);return}
+  if(action==='recommend'){changeProposedRoutes(proposeRoutes(result,tier,id));return}
+  if(action==='clear'){changeProposedRoutes([]);return}
   if(action==='add'){
    const target=host.querySelector('[data-proposal-target]')?.value,from=host.querySelector('[data-proposal-source]')?.value;
    if(!target||!from)throw Error('Choose a compatible source and destination.');
@@ -799,7 +798,7 @@ function init(){
   const ea=ev.target.closest('[data-log-entity-add]');if(ea){addEntity(ea.dataset.logEntityAdd);return}
   const ep=ev.target.closest('[data-log-entity-port]');if(ep){const target={key:ep.dataset.logEntityPort,index:Number(ep.dataset.portIndex)},p=entityPort(target.key,target.index);if(!p)return;if(p.port.kind==='source'){entityPending=target;render()}else if(entityPending)connectEntity(entityPending,target);else if(p.port.nodeId)inspectResource(p.port.item,p.port.nodeId);return}
   const focus=ev.target.closest('[data-log-entity-focus]');if(focus){[...host.querySelectorAll('[data-entity-card]')].find(x=>x.dataset.entityCard===focus.dataset.logEntityFocus)?.scrollIntoView({block:'center',behavior:'smooth'});return}
-  const remove=ev.target.closest('[data-log-entity-remove]');if(remove){const e=entityView?.entities.find(x=>x.key===remove.dataset.logEntityRemove);if(!e||!root.confirm('Remove this entity and its attached routes from the network? Actual Inventory is unchanged.'))return;const ids=new Set(e.nodes.map(n=>n.id)),g=data();g.nodes=g.nodes.filter(n=>!ids.has(n.id));g.edges=g.edges.filter(x=>!ids.has(x.from)&&!ids.has(x.to));entityPending=null;commit(g,'Removed network reference only.');return}
+  const remove=ev.target.closest('[data-log-entity-remove]');if(remove){const e=entityView?.entities.find(x=>x.key===remove.dataset.logEntityRemove);if(!e)return;const ids=new Set(e.nodes.map(n=>n.id)),g=data();g.nodes=g.nodes.filter(n=>!ids.has(n.id));g.edges=g.edges.filter(x=>!ids.has(x.from)&&!ids.has(x.to));entityPending=null;commit(g,'Removed network reference only.');return}
   const resource=ev.target.closest('[data-log-resource-open]');if(resource){inspectResource(resource.dataset.logResourceOpen,resource.dataset.portNode||null);return}
   const entityAction=ev.target.closest('[data-log-entity-action]')?.dataset.logEntityAction;
   if(entityAction){if(entityAction==='picker')entityPicker=!entityPicker;else if(entityAction==='cancel')entityPending=null;else if(entityAction==='manual'){entityMode=false;picker=true;entityPending=null}render();return}
@@ -820,7 +819,7 @@ function init(){
   if(action==='cancel'||action==='clear'){connecting=null;if(action==='clear')selected=null;render();return}
   if(action==='undo'&&undo){const next=undo;undo=null;entityPending=null;setup.logistics=normalize(next);saveSetup();if(typeof renderBalance==='function')renderBalance();selected=null;connecting=null;notice='Last logistics edit undone.';root.NauvisWorkspace?.refresh?.('logistics');render();return}
   if(action==='delete'){const g=data();g.nodes=g.nodes.filter(n=>n.id!==selected);g.edges=g.edges.filter(e=>e.id!==selected&&e.from!==selected&&e.to!==selected);selected=null;connecting=null;commit(g,'Removed. Undo is available.');return}
-  if(action==='clear-graph'&&root.confirm('Clear only this resource network?')){const g=data(),ids=new Set(g.nodes.filter(n=>n.item===item).map(n=>n.id));g.nodes=g.nodes.filter(n=>!ids.has(n.id));g.edges=g.edges.filter(e=>!ids.has(e.from)&&!ids.has(e.to));commit(g,'Resource diagram cleared.');}
+  if(action==='clear-graph'){const g=data(),ids=new Set(g.nodes.filter(n=>n.item===item).map(n=>n.id));g.nodes=g.nodes.filter(n=>!ids.has(n.id));g.edges=g.edges.filter(e=>!ids.has(e.from)&&!ids.has(e.to));commit(g,'Resource diagram cleared.');}
  });
  host.addEventListener('change',ev=>{
   const input=ev.target;if(input.matches('[data-proposal-target]')){try{updateProposalSourcePicker(host,proposalPorts(previewCalculation().result))}catch(err){root.alert(err.message)}return}if(input.matches('[data-proposal-field]')&&!savedDesignId){try{const field=input.dataset.proposalField,value=field==='tier'?input.value:Number(input.value);changeProposedRoutes(proposedRoutes.map(r=>r.id===input.dataset.proposalId?{...r,[field]:value}:r))}catch(err){root.alert(err.message);render()}return}if(input.matches('[data-log-reuse]')){if(input.checked)reuseSelection.add(input.dataset.logReuse);else reuseSelection.delete(input.dataset.logReuse);render();return}if(input.matches('[data-log-pair]')){if(input.value)try{commit(pairLanes(data(),input.dataset.logPair,input.value,id()),'Mixed feeder paired. Both resources reserve one lane. Inventory unchanged.')}catch(err){notice=err.message;render()}return}if(input.matches('[data-log-scenario]')){includeScenario=input.checked;selected=null;connecting=null;render();return}if(input.matches('[data-log-split]')){const g=data(),visible=scenarioGraph(g,includeScenario),ids=new Set(visible.edges.map(e=>e.id)),edges=g.edges.filter(e=>e.from===input.dataset.logSplit&&ids.has(e.id)),v=Number(input.value);if(edges.length===2&&Number.isFinite(v)&&v>=0&&v<=100){edges[0].weight=v;edges[1].weight=100-v;commit(g,'Branch allocation updated.')}return}if(input.matches('[data-log-slider],[data-log-exact]')){const v=Number(input.value);if(Number.isSafeInteger(v)&&v>=1&&v<=100)applyBrush({belts:v});else render();return}if(input.matches('[data-log-resource]')){item=input.value;selected=null;connecting=null;picker=false;notice='';render();return}

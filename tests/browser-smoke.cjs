@@ -17,7 +17,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,25));const d=frame.contentDocument;if(d?.documentElement?.hasAttribute('data-intro-boot')&&d.querySelector('.shell')){sawCurtain=frame.contentWindow.getComputedStyle(d.querySelector('.shell')).visibility==='hidden';break}}
   let w=prep(await loading);
   assert(sawCurtain,'First paint hides app shell while intro script is still loading');
-  w=await load('&nauvis-update=1.1.15');
+  w=await load('&nauvis-update=1.1.16');
   assert(!w.NauvisIntro.active()&&!w.document.documentElement.hasAttribute('data-intro-boot'),'Update navigation skips intro and leaves no curtain');prep(w);
   w=await load('&recover=1');
   assert(!w.NauvisIntro.active()&&!w.document.documentElement.hasAttribute('data-intro-boot'),'Recovery navigation skips intro and leaves no curtain');prep(w);
@@ -194,9 +194,10 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(stableGraph.querySelector('.flow-machine-grid'),'Construction inherits compact machine review');
   const oldConfirm=w.confirm;w.confirm=msg=>{throw Error('Unexpected confirmation: '+msg)};
   set(w,slider,'0');assert(snap(w).plan.projects[0].tasks.find(t=>t.recipe==='advanced-circuit').built===0,'Reset is an absolute built count');
-  set(w,slider,String(initialBuilt));assert(count(w)===8,'Rebuild restores original count without a prompt');w.confirm=oldConfirm;
+  set(w,slider,String(initialBuilt));assert(count(w)===8,'Rebuild restores original count without a prompt');
   assert(w.document.querySelector(slider)===stableSlider&&w.document.querySelector('.project-flow-panel [data-ratio-flow-root]')===stableGraph,'Progress preserves slider and graph DOM');
   assert(!w.document.querySelector('.project-task-recorded'),'Redundant inventory labels removed');
+  assert(!w.document.querySelector('.project-task-progress'),'No duplicate progress bar below the machine slider');
   w.document.querySelector(slider).scrollIntoView({block:'center'});const rowTop=w.document.querySelector(slider).closest('.project-task').getBoundingClientRect().top;
   set(w,slider,String(initialBuilt+1),'input');
   assert(count(w)===8,'Dragging built slider does not save partial movement');
@@ -219,7 +220,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   w.activateWorkspace('factory');const savedInventory=JSON.stringify(snap(w).setup);
   click(w,'[data-project-remove]');assert(snap(w).plan.projects[0].cancelled&&snap(w).plan.projects[0].status==='archived'&&JSON.stringify(snap(w).setup)===savedInventory,'Cancelling a partially built project preserves all inventory');
   w.document.querySelector('#projectsArchivedWrapper').open=true;click(w,'#projectsArchived [data-project-remove]');assert(!w.document.querySelector('#projectsArchived [data-project-card]')&&JSON.stringify(snap(w).setup)===savedInventory,'Deleting archived history preserves ownership and inventory');
-  w.activateWorkspace('log');const journalCount=snap(w).plan.journal.length;click(w,'[data-journal-delete]');assert(snap(w).plan.journal.length===journalCount-1&&JSON.stringify(snap(w).setup)===savedInventory,'Deleting log entry changes history only');
+  w.activateWorkspace('log');const journalCount=snap(w).plan.journal.length;click(w,'[data-journal-delete]');assert(snap(w).plan.journal.length===journalCount-1&&JSON.stringify(snap(w).setup)===savedInventory,'Deleting log entry changes history only');w.confirm=oldConfirm;
   w.NauvisLocal.apply(baseline);
   const beforeFocus=JSON.stringify(snap(w));
   w.NauvisFocus.setMode('focus');w.activateWorkspace('factory');
