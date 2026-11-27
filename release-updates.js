@@ -1,13 +1,13 @@
 /* Version manifest is network-only. Updates never clear storage or pairing. */
 (function(root){
 'use strict';
-const APP_RELEASE='1.1.8';
+const APP_RELEASE='1.1.9';
 function releaseNewer(a,b){const valid=v=>/^\d+\.\d+\.\d+$/.test(v);if(!valid(a)||!valid(b))return false;const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if(x[i]!==y[i])return x[i]>y[i]}return false}
 if(typeof module==='object'&&module.exports)module.exports={releaseNewer};
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id);let pending='',checking=false,lastCheck=0,dirty=false,timer=null;
 const editable=el=>el?.matches?.('input:not([readonly]),select,textarea,[contenteditable="true"]');
-function safe(){return !dirty&&!document.hidden&&!document.querySelector('dialog[open]')&&!editable(document.activeElement)&&!root.NauvisCloud?.isBusy?.()&&!document.querySelector('#quickAddPanel:not([hidden])')}
+function safe(){return !dirty&&!root.NauvisIntro?.active?.()&&!document.hidden&&!document.querySelector('dialog[open]')&&!editable(document.activeElement)&&!root.NauvisCloud?.isBusy?.()&&!document.querySelector('#quickAddPanel:not([hidden])')}
 function render(message=''){const b=$('versionHistory');b.textContent='v'+APP_RELEASE+(pending?' ↑':'');b.classList.toggle('update-ready',!!pending);b.title=pending?'Update available: v'+pending:'Version history and updates';$('releaseMessage').textContent=message;$('installRelease').hidden=!pending;$('installRelease').textContent='Update to v'+pending}
 function install(manual=false){if(!pending||navigator.onLine===false)return;if(root.NauvisCloud?.isBusy?.()){render('Synchronization or unsynced edits need attention first.');return}if(!manual&&!safe())return;if(manual&&(dirty||document.querySelector('#quickAddPanel:not([hidden])'))&&!root.confirm('Reload now? Uncommitted planner settings or form edits may be lost. Saved factory records and pairing stay intact.'))return;try{const stamp=JSON.parse(sessionStorage.getItem('nauvis-release-attempt')||'null');if(!manual&&stamp?.version===pending&&Date.now()-stamp.at<60000)return;sessionStorage.setItem('nauvis-release-attempt',JSON.stringify({version:pending,at:Date.now()}))}catch{}const url=new URL(location.href);url.searchParams.set('nauvis-update',pending);url.searchParams.set('_',String(Date.now()));location.replace(url.href)}
 function maybeInstall(){if(!pending||!safe())return;clearTimeout(timer);timer=setTimeout(()=>install(),200)}

@@ -192,9 +192,9 @@ function groupedOptions(){
   }).join('');
 }
 function recipeResults(){
- if(!recipeFilter&&recipeCategory==='all')return '';
- const matches=matchingRecipes(),shown=matches.slice(0,12);
- return '<div class="recipe-result-count">'+matches.length+' matching recipe'+(matches.length===1?'':'s')+(matches.length>shown.length?' · first '+shown.length+' shown; refine search or open the list':'')+'</div>'+
+
+ const matches=matchingRecipes(),shown=matches;
+ return '<div class="recipe-result-count">'+matches.length+' matching recipe'+(matches.length===1?'':'s')++'</div>'+
   (shown.length?'<div class="recipe-result-grid">'+shown.map(id=>'<button type="button" data-recipe-pick="'+escape(id)+'" aria-pressed="'+(id===state.id)+'">'+itemGlyph(id,25)+'<span>'+escape(recipes[id][0])+'</span></button>').join('')+'</div>':'<p class="ratio-muted">No matches in this category. Try another category or search.</p>');
 }
 function descriptionForRate(r){
@@ -238,12 +238,8 @@ function buildView(result,card){
   '<div class="ratio-field"><label for="'+id('beaconSpeed')+'">Effective beacon speed bonus (%)</label><input data-ratio-field="beaconSpeed" id="'+id('beaconSpeed')+'" type="number" inputmode="decimal" min="0" max="300" step="1" value="'+state.beaconSpeed+'"></div></div>'+
   '<p class="ratio-advanced-note">Use the actual additive speed bonus contributed by beacons, not the number of beacons. Factorio 2.0 beacon transmission has diminishing returns. Machine quality changes crafting speed, not the quality of products. Generic furnaces are held at 2× speed without module assumptions.</p></div></details>';
  const fieldset='<div class="ratio-picker ratio-primary-controls"><div class="ratio-fields ratio-primary-fields">'+
-    '<div class="ratio-field"><label for="'+id('id')+'">Recipe</label><select id="'+id('id')+'" data-ratio-field="id">'+groupedOptions()+'</select></div>'+
-    '<div class="ratio-field"><label for="'+id('rate')+'">Output / min</label><input id="'+id('rate')+'" data-ratio-field="rate" type="number" inputmode="decimal" min="0" max="25000" step="0.1" value="'+state.rate+'"></div></div>'+
-    '<details class="ratio-recipe-search"'+(recipeFilter||recipeCategory!=='all'?' open':'')+'><summary>Search or browse recipes</summary><div class="ratio-search-fields"><label for="'+id('search')+'">Find a recipe</label>'+
-    '<input id="'+id('search')+'" data-ratio-search type="search" placeholder="Search recipes…" value="'+escape(recipeFilter)+'" autocomplete="off">'+
-    '<label for="'+id('category')+'">Category</label><select id="'+id('category')+'" data-recipe-category>'+select([['all','All recipes'],...RECIPE_GROUPS.map(g=>[g,g])],recipeCategory)+'</select>'+
-    '<div data-recipe-results>'+recipeResults()+'</div></div></details></div>'+
+    '<div class="ratio-field ratio-recipe-field"><label>Recipe</label><details class="ratio-recipe-search"><summary>'+itemGlyph(state.id,25)+'<span>'+escape(recipes[state.id][0])+'</span><span aria-hidden="true">⌄</span></summary><div class="ratio-search-fields"><input id="'+id('search')+'" data-ratio-search type="search" aria-label="Find recipe" placeholder="Search recipes…" value="'+escape(recipeFilter)+'" autocomplete="off"><div data-recipe-results>'+recipeResults()+'</div></div></details><select hidden id="'+id('id')+'" data-ratio-field="id" aria-label="Selected recipe">'+groupedOptions()+'</select></div>'+
+    '<div class="ratio-field"><label for="'+id('rate')+'">Output / min</label><input id="'+id('rate')+'" data-ratio-field="rate" type="number" inputmode="decimal" min="0" max="25000" step="0.1" value="'+state.rate+'"></div></div></div>'+
     '<section class="ratio-preset-panel ratio-compact-presets" aria-label="Output target recommendation"><div class="ratio-preset-options">'+presetButtons+'</div></section>';
  const settings='<details class="ratio-planning-settings" data-ratio-settings><summary>Production settings <small>'+escape(state.machine===1.25?'Assembler 3':'Assembler 2')+' · '+(state.source==='bus'?'Bus-fed':'Raw inputs')+(advancedOn?' · Upgrades active':'')+'</small></summary><div class="ratio-settings-body"><div class="ratio-fields">'+
     selectField('machine','Assembler tier',tiers,state.machine)+
@@ -300,6 +296,7 @@ function renderCard(card){
    if(pick){pick.innerHTML=groupedOptions();pick.value=state.id}
    const results=target.querySelector('[data-recipe-results]');if(results)results.innerHTML=recipeResults();
   };
+  target.querySelector('.ratio-recipe-search')?.addEventListener('toggle',e=>{if(e.target.open)search?.focus({preventScroll:true})});
   search?.addEventListener('input',event=>{recipeFilter=event.target.value.trim().toLowerCase();updatePicker()});
   target.querySelector('[data-recipe-category]')?.addEventListener('change',event=>{recipeCategory=event.target.value;updatePicker()});
   target.querySelector('[data-recipe-results]')?.addEventListener('click',event=>{
