@@ -229,9 +229,6 @@ body[data-workspace="factory"]{--workspace-accent:var(--nauvis-projects)}
 .project-task{gap:8px;position:relative}
 .project-task-done{background:linear-gradient(90deg,#28594738,transparent);border-radius:8px}
 .project-task-done .project-task-counter b{color:#8be4bb}
-.project-task-progress{height:5px;border-radius:6px;background:#30495b;overflow:hidden}
-.project-task-progress>span{display:block;height:100%;background:var(--project-task-accent);border-radius:inherit;transition:width .22s ease}
-.project-task-done .project-task-progress>span{background:#79d0ad}
 .project-batch-controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(54px,.7fr) minmax(0,1fr);gap:6px;align-items:end}
 .project-batch-controls button,.project-finish-row button{min-height:36px;border:1px solid #537186;background:#294359;color:#e9f6fb;border-radius:8px;font-size:11px;font-weight:800;padding:5px 6px}
 .project-batch-controls button:disabled,.project-finish-row button:disabled{opacity:.5;cursor:not-allowed}
@@ -252,7 +249,7 @@ body[data-sensory-motion=full] .project-celebrate{animation:project-win .85s eas
 body[data-sensory-motion=subtle] .project-celebrate,body[data-sensory-motion=subtle] .project-count-flash{animation:project-tick .18s ease-out}
 @keyframes project-win{0%,100%{box-shadow:none}30%{box-shadow:0 0 20px #9ee5be66,inset 0 0 16px #b8f7d533}}
 @keyframes project-tick{0%{filter:brightness(1.65)}100%{filter:none}}
-@media(prefers-reduced-motion:reduce){.project-celebrate,.project-count-flash,.project-task-progress>span{animation:none!important;transition:none!important}}
+@media(prefers-reduced-motion:reduce){.project-celebrate,.project-count-flash{animation:none!important;transition:none!important}}
 
 .project-reference{margin-top:14px;border-top:1px solid #395367;color:#a7bdca;padding-top:10px}.project-reference>summary{font-size:11px;font-weight:750;cursor:pointer;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap}.project-reference>summary span{font-size:10px;font-weight:500;color:#98b0bf}.project-reference-body{margin-top:8px;display:grid;gap:7px}.project-reference .project-design,.project-reference .project-task-profile{margin:0;border-color:#385367;background:#1a3040}.project-profile-reference>small{display:block;margin:6px 0;color:#9eb5c4;font-size:10px}.project-reference .project-task-profile>summary{font-size:11px;color:#b9ceda}
 
