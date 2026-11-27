@@ -3,11 +3,11 @@
 'use strict';
 const MODE='nauvis-focus-mode-v1';
 const cap=(n,max=1000000)=>Math.min(max,Math.max(0,Number.isFinite(Number(n))?Number(n):0));
-function progress(projects){
+function progress(projects,logisticsFor=p=>p.logisticsTasks||[]){
  const active=(Array.isArray(projects)?projects:[]).filter(p=>p.status!=='archived'&&!p.historyHidden&&p.type!=='deployment'&&!(p.tasks||[]).some(t=>t.kind==='asset'));
- const items=active.flatMap(p=>Array.isArray(p.tasks)?p.tasks:[]);
+ const machines=active.flatMap(p=>Array.isArray(p.tasks)?p.tasks:[]),logistics=active.flatMap(logisticsFor),items=[...machines,...logistics];
  const planned=items.reduce((n,t)=>n+cap(t.planned),0),built=items.reduce((n,t)=>n+Math.min(cap(t.planned),cap(t.built)),0);
- return {active:active.length,planned,built,remaining:planned-built,pct:planned?built/planned*100:0,complete:active.filter(p=>p.tasks?.length&&p.tasks.every(t=>cap(t.planned)>0&&cap(t.built)>=cap(t.planned))).length};
+ return {active:active.length,planned,built,remaining:planned-built,pct:planned?built/planned*100:0,complete:active.filter(p=>p.tasks?.length&&[...p.tasks,...logisticsFor(p)].every(t=>cap(t.planned)>0&&cap(t.built)>=cap(t.planned))).length};
 }
 if(typeof module==='object'&&module.exports)module.exports={progress};
 if(typeof document==='undefined')return;
@@ -47,9 +47,9 @@ function onActivate(view){
 }
 function refresh(){
  const snap=root.NauvisLocal?.snapshot?.();if(!snap)return;
- const p=progress(snap.plan.projects),pct=Math.round(p.pct),last=(snap.plan.journal||[]).at(-1);
+ const p=progress(snap.plan.projects,p=>root.NauvisProjects?.logisticsFor(p)||p.logisticsTasks||[]),pct=Math.floor(p.pct),last=(snap.plan.journal||[]).at(-1);
  const ring='<div class="focus-ring" style="--p:'+pct+'%" role="img" aria-label="'+pct+' percent built"><strong>'+pct+'%</strong><small>BUILT</small></div>';
- const html='<div class="focus-summary-top">'+ring+'<div class="focus-summary-copy"><small>CONSTRUCTION PROGRESS</small><strong>'+fmt(p.built)+' <span>/ '+fmt(p.planned)+'</span></strong><span>'+p.remaining+' machines left · '+p.active+' project'+(p.active===1?'':'s')+'</span></div></div><div class="focus-bar"><span style="width:'+pct+'%"></span></div>'+(p.complete>0?'<div class="focus-complete">🏆 '+p.complete+' project'+(p.complete===1?'':'s')+' complete</div>':'');
+ const html='<div class="focus-summary-top">'+ring+'<div class="focus-summary-copy"><small>CONSTRUCTION PROGRESS</small><strong>'+fmt(p.built)+' <span>/ '+fmt(p.planned)+'</span></strong><span>'+p.remaining+' machines / supply connections left · '+p.active+' project'+(p.active===1?'':'s')+'</span></div></div><div class="focus-bar"><span style="width:'+pct+'%"></span></div>'+(p.complete>0?'<div class="focus-complete">🏆 '+p.complete+' project'+(p.complete===1?'':'s')+' complete</div>':'');
  if($('focusConstructionSummary'))$('focusConstructionSummary').innerHTML=html;
  if($('focusLogStats'))$('focusLogStats').innerHTML='<div><small>JOURNAL ENTRIES</small><strong>'+fmt((snap.plan.journal||[]).length)+'</strong></div><div><small>PROJECTS COMPLETE</small><strong>'+p.complete+' / '+p.active+'</strong></div>';
  if($('focusSessionNote'))$('focusSessionNote').textContent=last?last.title+' · '+last.detail:'No session notes yet. Save a short note when you finish playing.';

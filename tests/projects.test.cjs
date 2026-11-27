@@ -124,7 +124,7 @@ test('the cloud snapshot continues to include plan without new tables or sync co
  assert.match(html,/snapshot\(\)\{return JSON\.parse\(JSON\.stringify\(\{version:7,plan:factory,guide,setup,balancePrefs\}\)\)\}/);
  assert.match(html,/projects:Array\.isArray\(data\.plan\.projects\)\?data\.plan\.projects:\[\]/);
  assert.match(html,/factory\.projects=Array\.isArray\(factory\.projects\)\?factory\.projects:\[\]/);
- assert.match(worker,/nauvis-shell-v10119/);
+ assert.match(worker,/nauvis-shell-v10120/);
  assert.match(worker,/projects\.js/);
  assert.match(worker,/projects\.css/);
 });
@@ -199,4 +199,21 @@ test('completion feedback requires an actual incomplete-to-complete transition, 
  assert.equal(constructionFeedback(p(10,4),p(10,5),[c('b',4,5)],'b').event,'complete');
  assert.equal(constructionFeedback(p(10,5),p(0,5),[c('a',10,0)],'a').event,'reverse');
  assert.equal(constructionFeedback(p(10,5),p(10,5),[]).event,null);
+});
+
+test('incoming progress is separate, bounded, reversible and participates in project completion',()=>{
+ const {overallProgress,changeLogistics,constructionFeedback}=require('../projects.js');
+ const p=make(),t=p.logisticsTasks[0];assert.ok(t);
+ const completeMachines={...p,tasks:p.tasks.map(t=>({...t,built:t.planned}))};
+ assert.equal(overallProgress(completeMachines).complete,false);
+ const all=changeLogistics(completeMachines,p.logisticsTasks.map(t=>({key:t.key,built:t.planned})));
+ assert.equal(overallProgress(all).complete,true);
+ assert.equal(overallProgress(changeLogistics(all,[{key:t.key,built:0}])).complete,false);
+ assert.equal(projectProgress(all).built,projectProgress(completeMachines).built);
+ assert.equal(p.logisticsTasks[0].built,0);
+ assert.throws(()=>changeLogistics(p,[{key:t.key,built:t.planned+1}]));
+ assert.throws(()=>changeLogistics(p,[{key:'m:internal',built:1}]));
+ assert.throws(()=>changeLogistics({...p,status:'archived'},[{key:t.key,built:1}]));
+ const before={...completeMachines,tasks:completeMachines.tasks.map((x,i)=>i?x:{...x,built:x.planned-1})};
+ assert.equal(constructionFeedback(before,completeMachines,[{recipe:before.tasks[0].recipe,delta:1,before:before.tasks[0].built,after:completeMachines.tasks[0].built}],before.tasks[0].recipe).projectDone,false);
 });

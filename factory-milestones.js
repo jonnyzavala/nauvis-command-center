@@ -9,7 +9,7 @@ function milestones(s){
  const total=machines+furnaces+refineries+crackers;
  const lines=(q.machines||[]).filter(r=>Number(r.count)>0).length;
  const planned=tasks.reduce((n,t)=>n+Math.max(0,Number(t.planned)||0),0),built=tasks.reduce((n,t)=>n+Math.max(0,Number(t.built)||0),0);
- const complete=active.filter(x=>x.tasks?.length&&x.tasks.every(t=>t.planned>0&&t.built===t.planned)).length;
+ const complete=active.filter(x=>x.tasks?.length&&[...x.tasks,...(root.NauvisProjects?.logisticsFor?.(x)||x.logisticsTasks||[])].every(t=>t.planned>0&&t.built===t.planned)).length;
  return {total,machines,furnaces,refineries,crackers,lines,assets:count(q.assets),feeds:count(q.feeds),routes:(q.logistics?.edges||[]).length,drafts:(q.logisticsDrafts||[]).length,projects:active.length,planned,built,complete};
 }
 function coverage(rows){

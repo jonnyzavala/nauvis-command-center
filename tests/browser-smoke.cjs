@@ -17,7 +17,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,25));const d=frame.contentDocument;if(d?.documentElement?.hasAttribute('data-intro-boot')&&d.querySelector('.shell')){sawCurtain=frame.contentWindow.getComputedStyle(d.querySelector('.shell')).visibility==='hidden';break}}
   let w=prep(await loading);
   assert(sawCurtain,'First paint hides app shell while intro script is still loading');
-  w=await load('&nauvis-update=1.1.19');
+  w=await load('&nauvis-update=1.1.20');
   assert(!w.NauvisIntro.active()&&!w.document.documentElement.hasAttribute('data-intro-boot'),'Update navigation skips intro and leaves no curtain');prep(w);
   w=await load('&recover=1');
   assert(!w.NauvisIntro.active()&&!w.document.documentElement.hasAttribute('data-intro-boot'),'Recovery navigation skips intro and leaves no curtain');prep(w);
@@ -92,6 +92,25 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(w.document.querySelector(savedRoot+' [data-flow-belt-count]').disabled,'Saved construction belt controls are read-only');
   w.NauvisProjects.refresh();
   assert(w.document.querySelector(savedRoot+' [data-flow-belt-toggle]').checked,'Construction belt overlay survives checklist rerender');
+  const incoming=snap(w).plan.projects[0].logisticsTasks;
+  assert(incoming.length>0&&incoming.every(t=>/^[sr]:/.test(t.key)),'Only incoming supply nodes have logistics checklists');
+  const beltTask=incoming.find(t=>t.kind==='belt');
+  assert(!!beltTask,'Incoming solid checklist exists');
+  const ls=savedRoot+' [data-project-logistics-built][data-logistics-key="'+beltTask.key+'"]',ln=savedRoot+' [data-flow-node="'+beltTask.key+'"]';
+  const logisticsSlider=w.document.querySelector(ls),inventoryBefore=JSON.stringify(snap(w).setup);
+  assert(logisticsSlider.max===String(beltTask.planned)&&logisticsSlider.step==='1'&&logisticsSlider.closest('.project-task'),'Supply controls inherit machine checklist design and use whole belts');
+  set(w,ls,String(beltTask.planned),'input');
+  assert(snap(w).plan.projects[0].logisticsTasks.find(t=>t.key===beltTask.key).built===0&&w.document.querySelector(ln).dataset.builtState==='done','Supply drag previews the node without saving');
+  set(w,ls,String(beltTask.planned));
+  assert(snap(w).plan.projects[0].logisticsTasks.find(t=>t.key===beltTask.key).built===beltTask.planned&&w.document.querySelector(ls)===logisticsSlider&&JSON.stringify(snap(w).setup)===inventoryBefore,'Supply commit preserves slider and never changes machine inventory');
+  set(w,ls,'0');assert(w.document.querySelector(ln).dataset.builtState==='waiting','Supply reversal clears graph fill');
+  for(const t of snap(w).plan.projects[0].tasks)set(w,'[data-project-built][data-task-recipe="'+t.recipe+'"]',String(t.planned));
+  assert(w.document.querySelector('.project-card-status').textContent!=='COMPLETE','Machine completion alone is not project completion');
+  click(w,'[data-project-complete]');
+  assert(snap(w).plan.projects[0].logisticsTasks.every(t=>t.built===t.planned)&&w.document.querySelector('.project-card-status').textContent==='COMPLETE','Finish entire project includes logistics');
+  const finished=snap(w);w.NauvisLocal.apply(finished);
+  assert(snap(w).plan.projects[0].logisticsTasks.every(t=>t.built===t.planned),'Logistics progress survives snapshot restoration');
+
   w.activateWorkspace('build');set(w,beltRoot+' [data-flow-belt-tier]','3','input');
   assert(JSON.stringify(snap(w).plan.projects[0].beltPlan)===JSON.stringify(frozen),'Planner changes cannot modify saved construction belts');
   w.NauvisLocal.apply(JSON.parse(initial));w.activateWorkspace('build');

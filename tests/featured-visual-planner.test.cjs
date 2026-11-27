@@ -33,8 +33,8 @@ test('the older calculator is available one click away with all existing IDs',()
  }
 });
 test('open-on-load explorer renders its graph with the dependency module available',()=>{
- const graphScript=html.indexOf('src="./ratio-flow.js?v=1.1.19" defer');
- const ratioScript=html.indexOf('src="./recipe-ratios.js?v=1.1.19" defer');
+ const graphScript=html.indexOf('src="./ratio-flow.js?v=1.1.20" defer');
+ const ratioScript=html.indexOf('src="./recipe-ratios.js?v=1.1.20" defer');
  assert.ok(graphScript>0&&ratioScript>graphScript,'Graph must be loaded before initial explorer render');
  assert.match(ratios,/cards\.filter\(card=>card\.open\)\.forEach\(renderCard\)/);
  assert.match(ratios,/root\.NauvisRatioFlow\?\.mount\(target,result,card\.dataset\.ratioExplorer\)/);
@@ -58,9 +58,9 @@ test('the featured visuals keep current mobile layout and offline support',()=>{
  assert.match(css,/#build \.build-classic/);
  assert.match(css,/scroll-margin-top:calc\(var\(--chrome-height/);
  assert.match(css,/@media\(max-width:650px\)/);
- assert.match(worker,/nauvis-shell-v10119/);
+ assert.match(worker,/nauvis-shell-v10120/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(worker,/recipe-ratios\.js/);
- assert.match(html,/Nauvis Command Center v1\.1\.19/);
+ assert.match(html,/Nauvis Command Center v1\.1\.20/);
  assert.match(html,/sync\/cloud-sync\.js/);
 });
