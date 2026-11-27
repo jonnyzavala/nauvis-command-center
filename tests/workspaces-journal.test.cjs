@@ -135,14 +135,14 @@ test('manual field notes cannot implicitly alter Factory counts',()=>{
  assert.doesNotMatch(journal,/setup\.machines\.push\(/);
 });
 test('new module assets and theme survive offline on iPhone',()=>{
- assert.match(sw,/nauvis-shell-v10116/);
+ assert.match(sw,/nauvis-shell-v10117/);
  for(const file of ['journal.js','workspace-ui.js','workspace-v025.css'])assert.ok(sw.includes("'./"+file+"'"),file);
- assert.match(html,/src="\.\/journal\.js\?v=1\.1\.16"/);
- assert.match(html,/src="\.\/workspace-ui\.js\?v=1\.1\.16"/);
- assert.match(html,/href="\.\/workspace-v025\.css\?v=1\.1\.16"/);
+ assert.match(html,/src="\.\/journal\.js\?v=1\.1\.17"/);
+ assert.match(html,/src="\.\/workspace-ui\.js\?v=1\.1\.17"/);
+ assert.match(html,/href="\.\/workspace-v025\.css\?v=1\.1\.17"/);
  assert.match(style,/@media\(max-width:760px\)/);
  assert.match(style,/@media\(max-width:430px\)/);
- assert.match(html,/Nauvis Command Center v1\.1\.16/);
+ assert.match(html,/Nauvis Command Center v1\.1\.17/);
 });
 
 test('six-mode spectrum retains blue and teal anchors and a continuous stable rail',()=>{
