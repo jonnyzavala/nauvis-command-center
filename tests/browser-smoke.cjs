@@ -14,7 +14,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
  const count=w=>snap(w).setup.machines.reduce((n,r)=>n+Number(r.count),0);
  try{
   const loading=load();let sawCurtain=false;
-  for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,25));const d=frame.contentDocument;if(d?.documentElement.hasAttribute('data-intro-boot')&&d.querySelector('.shell')){sawCurtain=frame.contentWindow.getComputedStyle(d.querySelector('.shell')).visibility==='hidden';break}}
+  for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,25));const d=frame.contentDocument;if(d?.documentElement?.hasAttribute('data-intro-boot')&&d.querySelector('.shell')){sawCurtain=frame.contentWindow.getComputedStyle(d.querySelector('.shell')).visibility==='hidden';break}}
   let w=prep(await loading);
   assert(sawCurtain,'First paint hides app shell while intro script is still loading');
   await new Promise(r=>setTimeout(r,50));
