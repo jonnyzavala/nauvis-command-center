@@ -1,6 +1,6 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const {normalize,SOUNDS,ELECTRONIC,NOISE,soundDefinition,CATEGORIES,canPlay,cloudCue,gained,makeEngine,renderWav,makeMediaEngine}=require('../sensory-feedback.js');
+const {normalize,SOUNDS,ELECTRONIC,NOISE,soundDefinition,CATEGORIES,canPlay,cloudCue,gained,makeEngine,renderWav,makeMediaEngine,makeCueGate,makeAwardTracker,sliderPitches,sliderNotes}=require('../sensory-feedback.js');
 test('sensory preferences default to silent and clamp unsafe values',()=>{const p=normalize({volume:900,motion:'weird',haptics:'true',categories:{sync:false}});assert.equal(p.enabled,false);assert.equal(p.volume,100);assert.equal(p.motion,'full');assert.equal(p.haptics,false);assert.equal(p.categories.sync,false);assert.equal(p.categories.controls,true);assert.equal(normalize({volume:NaN}).volume,35)});
 test('every original cue has a category and finite bounded synthesis parameters',()=>{assert.equal(Object.keys(SOUNDS).length,30);for(const [category,notes] of Object.values(SOUNDS)){assert.ok(CATEGORIES.includes(category));assert.ok(notes.length>0);for(const [from,to,length,offset,wave,gain] of notes){assert.ok(from>0&&to>0&&length>0&&length<1&&offset>=0&&offset<2);assert.ok(['sine','triangle','sawtooth'].includes(wave));assert.ok(gain>0&&gain<=1)}}});
 test('muted master, volume and category gates prevent playback',()=>{assert.equal(canPlay(normalize(null),'click'),false);assert.equal(canPlay(normalize({enabled:true,volume:0}),'click'),false);assert.equal(canPlay(normalize({enabled:true,categories:{achievements:false}}),'achievement'),false);assert.equal(canPlay(normalize({enabled:true}),'achievement'),true);assert.equal(canPlay(normalize({enabled:true}),'unknown'),false)});
@@ -19,3 +19,43 @@ test('independent media renderer produces non-silent valid PCM WAV and respects 
 test('media playback invokes play synchronously and reports rejection; respects mute and category',async()=>{let p=normalize({enabled:true,volume:70}),now=0,calls=0,blocked=false;const audio={src:'',pause(){},getAttribute(){return this.src},play(){calls++;return blocked?Promise.reject(new Error('blocked')):Promise.resolve()},addEventListener(){}};const e=makeMediaEngine(audio,()=>p,()=>true,()=>now,bytes=>'wav:'+bytes.length);assert.ok(e.testTone());assert.equal(calls,1);assert.ok(await e.result());blocked=true;now+=100;assert.ok(e.play('click'));assert.equal(await e.result(),false);assert.equal(e.state(),'blocked');p=normalize({enabled:true,categories:{controls:false}});assert.equal(e.play('click',true),false);p=normalize({enabled:false});assert.equal(e.testTone(),false);e.reset();assert.equal(e.state(),'ready')});
 
 test('reward cues have distinct durations and tabs have distinct motifs',()=>{for(const palette of [SOUNDS,ELECTRONIC]){const duration=k=>Math.max(...palette[k][1].map(n=>n[2]+n[3]));assert.ok(duration('complete')>1.5);assert.ok(duration('achievement')>1.5);assert.ok(duration('phase')>.5);assert.notDeepEqual(palette.navPlanner,palette.navConstruction);assert.notDeepEqual(palette.navConstruction,palette.navLog)}});
+
+test('each crossed notch plays in pitch order, including zero reversal and five-step jumps',()=>{
+ const up=sliderPitches(2,7,0,10),down=sliderPitches(7,2,0,10);
+ assert.equal(up.length,5);assert.equal(down.length,5);
+ assert.ok(up.every((v,i)=>!i||v>up[i-1]));
+ assert.ok(down.every((v,i)=>!i||v<down[i-1]));
+ assert.equal(sliderPitches(1,0,0,10)[0],240);
+ assert.equal(sliderPitches(9,10,0,10)[0],720);
+ assert.deepEqual(sliderPitches(3,3,0,10),[]);
+ assert.equal(sliderPitches(0,100000,0,100000).length,48);
+ assert.equal(sliderNotes(up).length,5);
+ assert.ok(renderWav(normalize({enabled:true}),'ratchet',24000,up).length>renderWav(normalize({enabled:true}),'ratchet',24000,[up[0]]).length);
+});
+test('reversible coverage and restored milestones never trigger reward sounds',()=>{
+ const t=makeAwardTracker();assert.deepEqual(t.update([]),[]);
+ assert.deepEqual(t.update(['First machine placed','Supply matched','coverage:iron'],{eligible:false}),[]);
+ assert.deepEqual(t.update([],{eligible:true}),[]);
+ assert.deepEqual(t.update(['First machine placed','Supply matched','coverage:iron'],{eligible:true}),[]);
+ assert.deepEqual(t.update(['Industrial scale','Construction complete'],{eligible:true}),['Industrial scale']);
+ t.reset();assert.deepEqual(t.update(['Black gold'],{eligible:true}),[]);
+});
+test('reward gate blocks sync and generic controls, permits committed change',()=>{
+ let now=0;const p=normalize({enabled:true}),g=makeCueGate(()=>now);
+ g.played('complete',p,180);assert.equal(g.allow('sync'),false);assert.equal(g.allow('ratchet'),false);assert.equal(g.allow('reverse'),true);
+ now=2000;assert.equal(g.allow('sync'),true);g.played('phase',p);g.reset();assert.equal(g.active(),false);
+});
+test('media queues one sequence of five ticks then actual completion, not sync; reset discards queued reward',async()=>{
+ let now=0,ends,played=[];const audio={src:'',pause(){},getAttribute(){return this.src},play(){played.push(this.src);return Promise.resolve()},addEventListener(event,fn){if(event==='ended')ends=fn}};
+ const e=makeMediaEngine(audio,()=>normalize({enabled:true}),()=>true,()=>now,bytes=>'wav:'+bytes.length);
+ assert.ok(e.playSlider(sliderPitches(0,5,0,10)));await e.result();
+ assert.equal(played.length,1);assert.equal(e.play('sync'),false);assert.ok(e.play('phase'));assert.equal(played.length,1);
+ ends();await e.result();assert.equal(played.length,2);
+ e.stop();assert.ok(e.playSlider([300]));await e.result();assert.ok(e.play('complete'));e.stop();ends();assert.equal(played.length,3);
+});
+test('Web Audio schedules five separate rising ticks and the committed completion afterward',async()=>{
+ let times=[],hz=[];const param=()=>({setValueAtTime(){},exponentialRampToValueAtTime(){}});class Audio{constructor(){this.state='running';this.currentTime=0;this.destination={}}createOscillator(){return{frequency:{setValueAtTime(v){hz.push(v)},exponentialRampToValueAtTime(){}},connect(){},disconnect(){},start(t){times.push(t)},stop(){}}}createGain(){return{gain:param(),connect(){},disconnect(){}}}}
+ const e=makeEngine(Audio,()=>normalize({enabled:true,palette:'electronic'}),()=>true,()=>0);await e.unlock();
+ const pitches=sliderPitches(0,5,0,10);assert.ok(e.playSlider(pitches));assert.deepEqual(hz,pitches);assert.equal(times.length,5);
+ assert.equal(e.play('sync'),false);assert.ok(e.play('phase'));assert.ok(times[5]>times[4]);e.stop();
+});
