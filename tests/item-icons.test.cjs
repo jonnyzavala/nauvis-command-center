@@ -64,19 +64,15 @@ test('icons are local, copyright-safe vector drawings, not copied game art or ne
  assert.doesNotMatch(svg,/<img\b|<script\b/i);
 });
 
-test('item icons remain in the production flow, the big Build these machines list and detail',()=>{
+test('item icons remain in the production flow and selected detail',()=>{
  assert.match(flow,/itemGlyph\(node\.recipe,40\)/);
  assert.match(flow,/itemGlyph\(node\.recipe,34\)/);
- assert.match(flow,/itemGlyph\(n\.recipe,35\)/);
  assert.match(flow,/itemGlyph\(node\.recipe,27\)/);
- assert.match(flow,/Build these machines/);
+ assert.match(flow,/Production flow/);
 });
 
-test('ratio inspector and supply cards use the same icon API',()=>{
- assert.match(ratios,/itemGlyph\(x\.key,34\)/);
- assert.match(ratios,/itemGlyph\(x\.key,25\)/);
+test('technical reference uses the same icon API',()=>{
  assert.match(ratios,/itemGlyph\(x\.key,30\)/);
- assert.match(ratios,/itemGlyph\(x\.key,31\)/);
  assert.match(ratios,/itemGlyph\(x\.key,27\)/);
 });
 
