@@ -9,10 +9,8 @@ const lessons={
  {view:'build',target:'#build [data-ratio-field="rate"]',title:'Set an output target',body:'Enter 60 items/min for a simple example, or your own target. The planner works backward from that rate.',events:['#build [data-ratio-field="rate"]'],next:'Target selected'},
  {view:'build',target:'#build .ratio-preset-panel',title:'Try a production preset',body:'Starter, Balanced and More suggest different scales. Pick one to recalculate, or keep your custom target.',events:['#build [data-ratio-preset]'],next:'Keep my target'},
  {view:'build',target:'#build [data-ratio-flow-root]',title:'Inspect your production chain',body:'Follow the arrows from ingredients to output. Show belts to compare assigned capacity with demand, and adjust the tier or counts. The rounded machine counts tell you what to build; this is still a plan.',next:'I see the chain'},
- {view:'build',target:'#build [data-ratio-logistics-preview]',title:'Preview the network',body:'Click Advanced network preview to inspect proposed arrays and routing. It will not add actual production machines.',events:['#build [data-ratio-logistics-preview]'],expect:'logistics'},
- {view:'logistics',target:'#logisticsEditor [data-proposal-action="recommend"]',fallback:'#logisticsEditor',title:'Generate proposed belt connections',body:'Use the recommended connections control if available. Review capacity and any unresolved inputs. These are hypothetical routes, not actual Inventory.',events:['[data-proposal-action="recommend"]'],next:'Review proposal'},
- {view:'logistics',target:'#logisticsEditor [data-log-preview-action="queue"]',fallback:'#logisticsEditor',title:'Decide whether to queue it',body:'If this is a plan you genuinely want to build, click Queue and name it. Otherwise finish the exercise without saving. Queuing creates a real plan, never actual machines.',events:['[data-log-preview-action="queue"]'],next:'Finish without queuing',finish:true,modal:true},
- {view:'logistics',target:'#projectsName',modal:'#projectsDialog',title:'Name your real construction plan',body:'Enter a useful name and explicitly queue the project only if you intend to build it. Cancel if this was just practice.',events:['#projectsDialogSubmit'],success:'project',next:null},
+ {view:'build',target:'#build [data-ratio-project-save]',title:'Add your plan to Construction',body:'Add to Construction opens a name dialog. Save only if you intend to build this project; otherwise finish the walkthrough without saving.',events:['#build [data-ratio-project-save]'],next:'Finish without saving',finish:true,modal:true},
+ {view:'build',target:'#projectsName',modal:'#projectsDialog',title:'Name your construction project',body:'Add the project to see its checklist. No machines are recorded until you mark them built.',events:['#projectsDialogSubmit'],success:'project',next:null},
  {view:'factory',target:'#projectsList',title:'Your construction checklist',body:'Your plan is now queued. Mark Built only when a machine is physically placed in Factorio. This updates actual Inventory once.',next:'Finish walkthrough'}
  ]},
  setup:{name:'Record an existing production array',intro:'Use your real factory counts. This exercise guides you through Quick Change without creating sample inventory.',steps:[
@@ -57,8 +55,8 @@ function clear(){clearHighlight();if(wait!==null){clearTimeout(wait);wait=null}c
 function close(){clear()}
 function header(kicker,title,body){return '<div class="coach-head"><div><small>'+esc(kicker)+'</small><strong>'+esc(title)+'</strong></div><button type="button" data-coach-action="close" aria-label="Close walkthrough">×</button></div><p>'+esc(body)+'</p>'}
 function menuHTML(){
- const here=document.body.dataset.workspace,keys=root.NauvisFocus?.getMode?.()==='focus'?['build','factory','log','logistics','setup','balance','learn']:lessonKeys(),order=[here,...keys.filter(k=>k!==here)].filter(k=>lessons[k]);
- return '<div class="help-training-intro"><strong>Hands-on walkthroughs</strong><p>Follow real controls at your own pace. No sample inventory is added.</p></div><div class="coach-menu">'+order.map(k=>'<button type="button" data-coach-lesson="'+k+'" '+(k===here?'class="coach-current"':'')+'><strong>'+esc(lessons[k].name)+'</strong><small>'+esc(k===here?'Current workspace':root.NauvisFocus?.getMode?.()==='focus'&&['setup','balance','learn'].includes(k)?'Full mode · advanced':seen[k]?'Replay walkthrough':'Guided example')+'</small></button>').join('')+'</div>';
+ const here=document.body.dataset.workspace,keys=root.NauvisFocus?.getMode?.()==='focus'?['build','factory','log','setup','balance','learn','logistics']:lessonKeys(),order=[here,...keys.filter(k=>k!==here)].filter(k=>lessons[k]);
+ return '<div class="help-training-intro"><strong>Hands-on walkthroughs</strong><p>Follow real controls at your own pace. No sample inventory is added.</p></div><div class="coach-menu">'+order.map(k=>'<button type="button" data-coach-lesson="'+k+'" '+(k===here?'class="coach-current"':'')+'><strong>'+esc(lessons[k].name)+'</strong><small>'+esc(k===here?'Current workspace':root.NauvisFocus?.getMode?.()==='focus'&&['setup','balance','learn','logistics'].includes(k)?'Full mode · advanced':seen[k]?'Replay walkthrough':'Guided example')+'</small></button>').join('')+'</div>';
 }
 function mountMenu(host){
  if(!host)return;
@@ -97,7 +95,7 @@ function focusTarget(step,scroll){
 function show(scroll=false){
  if(!current)return;
  const lesson=lessons[current],step=lesson.steps[index];if(!step){clear();return}
- if(!(step.view==='logistics'&&root.NauvisFocus?.getMode?.()==='focus'&&document.body.dataset.workspace==='build'&&$('#plannerNetwork')?.open)&&document.body.dataset.workspace!==step.view&&!(typeof step.modal==='string'&&$(step.modal)?.open))root.activateWorkspace(step.view,false);
+ if(document.body.dataset.workspace!==step.view&&!(typeof step.modal==='string'&&$(step.modal)?.open))root.activateWorkspace(step.view,false);
  if(step.panel&&$('#quickAddPanel')?.hidden){root.NauvisQuick?.openInventory?.('machine')}
  // Native project dialogs stay functional. Put instructions inside the actual dialog.
  if(typeof step.modal==='string'&&!$(step.modal)?.open){clear();return}
@@ -109,7 +107,7 @@ function show(scroll=false){
 function advance(){if(!current)return;index++;if(index>=lessons[current].steps.length){clear();return}prior=snap();show(true)}
 function afterAction(step){
  if(!current||lessons[current].steps[index]!==step)return;
- if(step.expect&&document.body.dataset.workspace!==step.expect&&!(step.expect==='logistics'&&root.NauvisFocus?.getMode?.()==='focus'&&$('#plannerNetwork')?.open))return;
+ if(step.expect&&document.body.dataset.workspace!==step.expect)return;
  if(step.expectPanel&&$('#quickAddPanel')?.hidden)return;
  if(step.success==='project'&&(snap()?.plan.projects.length||0)<=(prior?.plan.projects.length||0))return;
  if(step.success==='inventory'&&(snap()?.setup.machines.length||0)<=(prior?.setup.machines.length||0))return;

@@ -374,12 +374,12 @@ function projectHTML(p){
  (p.goal.moduleType2&&p.goal.moduleType2!=='none'?' · '+escape(p.goal.moduleType2)+' ×'+Number(p.goal.moduleCount2||0):'')+
   (p.goal.machineQuality&&p.goal.machineQuality!=='normal'?' · '+escape(p.goal.machineQuality)+' machines':'')+
  (p.goal.beaconSpeed?' · +'+Number(p.goal.beaconSpeed)+'% effective beacon speed':''))+'</p></div>'+
-  '<span class="project-card-status">'+(archived?'ARCHIVED':pct===100?'BUILT':'IN PROGRESS')+'</span></div>'+
+  '<span class="project-card-status">'+(archived?'ARCHIVED':pct===100?'COMPLETE':progress.built===0?'NOT STARTED':'IN PROGRESS')+'</span></div>'+
   '<div class="focus-project-progress"><div class="focus-ring focus-project-ring focus-only" style="--p:'+pct+'%" role="img" aria-label="'+pct+' percent built"><strong>'+pct+'%</strong></div><div class="project-card-progress"><div class="project-card-progress-top"><strong>'+progress.built+' / '+progress.planned+(p.type==='deployment'?' items placed':' machines built')+'</strong><span>'+pct+'%</span></div>'+
   '<div class="project-progress-track"><span style="width:'+pct+'%"></span></div></div></div>'+
   '<details class="project-task-details" '+(!archived?'open':'')+'><summary>'+(p.type==='deployment'?'Placement checklist':'Machine checklist')+' <span>'+progress.complete+' / '+progress.tasks+' groups complete</span></summary><div class="project-task-list">'+lineItems+'</div><div class="project-finish-row"><button type="button" data-project-complete="'+escape(p.id)+'" '+(archived||progress.built>=progress.planned?'disabled':'')+'>'+(progress.planned>0&&progress.built===progress.planned?'✓ Project complete':'✓ Finish entire project')+'</button><small>Only mark machines actually built in-game.</small></div></details>'+
   '<details class="project-reference"><summary>Project reference <span>Materials, design &amp; installed profiles</span></summary><div class="project-reference-body">'+designDetails(p)+materialDetails(p)+p.tasks.map(task=>{const saved=task.kind==='furnace'?furnaceRecorded(p,task):recordedForTask(p,task,setup.machines);const controls=taskProfileControls(p,task,saved.mismatch||saved.count!==task.built);return controls?'<div class="project-profile-reference" data-task-row="'+escape(task.recipe)+'"><small>'+escape(R[task.recipe]?.[0]||task.recipe)+'</small>'+controls+'</div>':''}).join('')+'</div></details>'+
-  '<div class="project-card-actions"><button type="button" data-project-visit="'+escape(p.id)+'">'+(p.type==='deployment'?'View placed inventory':p.design?'View saved design':'Open in Planner')+'</button>'+
+  '<div class="project-card-actions"><button type="button" data-project-visit="'+escape(p.id)+'">'+(p.type==='deployment'?'View placed inventory':p.design?(root.NauvisFocus?.getMode?.()==='full'?'View saved design':'Recalculate in Planner'):'Open in Planner')+'</button>'+
   '<button type="button" data-project-rename="'+escape(p.id)+'">Rename</button>'+
   '<button type="button" data-project-archive="'+escape(p.id)+'">'+(archived?'Restore':'Archive')+'</button>'+(archived&&p.design?.reuseClaims?.length&&!p.reuseReleased&&progress.built===0?'<button type="button" data-project-release="'+escape(p.id)+'">Release reuse commitments</button>':'')+'</div>'+
  '</article>';
@@ -408,15 +408,12 @@ function restoreDetails(states){
 function render(){
  const states=detailStates(),y=root.scrollY;
  factory.projects=normalizeProjects(factory.projects);
- const total=stats(),legacy=legacyStats();
- if($('projectsSummary'))$('projectsSummary').innerHTML=[
-  [total.active,'ACTIVE PROJECTS'],[total.planned,'QUANTITY PLANNED'],[total.built,'MACHINES BUILT'],[total.archived,'ARCHIVED']
- ].map(([n,label])=>'<div class="project-stat"><strong>'+fmt(n)+'</strong><small>'+label+'</small></div>').join('');
+ const legacy=legacyStats();
  if($('projectsLegacyStatus'))$('projectsLegacyStatus').textContent=legacy.done+'/'+legacy.total+' construction milestones complete';
  if($('projectsLegacyFill'))$('projectsLegacyFill').style.width=(legacy.total?Math.min(100,legacy.done/legacy.total*100):0)+'%';
  const active=visibleProjects().filter(p=>p.status!=='archived'),archived=visibleProjects().filter(p=>p.status==='archived');
  if($('projectsList'))$('projectsList').innerHTML=active.length?active.map(projectHTML).join(''):
-  '<div class="project-empty"><strong>No saved builds yet</strong><p>Start in Blueprint Designer, pick an item and a production rate, then choose Queue construction. The optional circuit district is available below.</p><button type="button" data-project-go-planner>Open Visual Planner</button></div>';
+  '<div class="project-empty"><strong>No construction projects yet</strong><p>Choose a recipe in Planner and tap Add to Construction. Your checklist appears right here.</p><button type="button" data-project-go-planner>Open Planner</button></div>';
  if($('projectsArchived'))$('projectsArchived').innerHTML=archived.map(projectHTML).join('')||'<p class="small">No archived projects.</p>';
  if($('projectsArchivedWrapper')){
   $('projectsArchivedWrapper').hidden=archived.length===0;
@@ -432,8 +429,8 @@ function openDialog(mode,project,result,options=null){
  editing=mode==='rename'?project.id:null;
  pending=mode==='create'?result:null;
  const title=$('projectsDialogTitle'),input=$('projectsName');
- title.textContent=editing?'Rename project':'Queue construction';
- $('projectsDialogSubmit').textContent=editing?'Save name':'Queue construction';
+ title.textContent=editing?'Rename project':'Add to Construction';
+ $('projectsDialogSubmit').textContent=editing?'Save name':'Add project';
  $('projectsFurnaceField').hidden=!!editing||!result?.entries?.some(r=>r.kind==='furnace');
  $('projectsFurnaceItem').value='';
  input.value=editing?project.name:fmt(result.rate)+' '+(R[result.id]?.[0]||result.id)+'/min';
@@ -461,7 +458,7 @@ function saveDialog(event){
     recipe:project.goal.id,title:'Saved construction project',
     detail:project.name+' · '+project.tasks.reduce((n,t)=>n+t.planned,0)+' machines planned · 0 built'
    });
-   notice='Queued '+project.name+'. Actual Inventory is unchanged until you mark machines built.';
+   notice='Added '+project.name+' to Construction. Mark machines built as you place them.';
    root.NauvisSensory?.semantic?.('queue');
    pendingOptions?.onSaved?.(project);
   }
@@ -546,7 +543,7 @@ function navigateToPlan(id){
   root.NauvisWorkspace?.jump?.('setup','#setupAssetsPanel');
   return;
  }
- if(project.design){root.NauvisLogistics?.viewSavedDesign?.(project);return}
+ if(project.design&&root.NauvisFocus?.getMode?.()==='full'){root.NauvisLogistics?.viewSavedDesign?.(project);return}
  const goal=project.goal;
  guide.goal=goal.id;guide.rate=goal.rate;guide.machine=goal.machine;guide.source=goal.source;guide.belt=goal.belt;
  renderGuide();

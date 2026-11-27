@@ -153,7 +153,9 @@ test('reuse requires explicitly available recorded groups and no outgoing modele
 });
 test('blueprint handoff is explicit and isolated from saved network and Inventory',()=>{
  const js=read('logistics.js'),ratio=read('recipe-ratios.js');
- assert.match(ratio,/data-ratio-logistics-preview/);
+ assert.doesNotMatch(ratio,/data-ratio-logistics-preview/);
+ assert.match(read('index.html'),/id="logisticsPreviewCurrent"/);
+ assert.match(read('focus-mode.js'),/NauvisLogistics\?\.previewBlueprint\?\.\(result\)/);
  assert.match(js,/blueprintDraft=clone\(result\)/);
  assert.match(js,/NauvisEngineering\.incrementalPlan\(blueprintDraft,selectedRates\)/);
  assert.match(js,/Save a draft to keep it across devices/);

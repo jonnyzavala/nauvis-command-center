@@ -273,7 +273,7 @@ function buildView(result,card){
  const outputDesc=output.isFluid?'Output uses pipes; pipe throughput not modeled':(output.belts+' × '+(result.belt===900?'yellow':result.belt===1800?'red':'blue')+' belt'+(output.belts===1?'':'s')+' for final output');
  return fieldset+
   '<div data-ratio-flow-root class="ratio-flow-root"></div>'+
-  '<div class="ratio-primary-actions"><button class="ratio-save-project" data-ratio-project-save type="button">Queue construction <span aria-hidden="true">→</span></button><button class="ratio-save-project ratio-secondary-action" data-ratio-logistics-preview type="button">Advanced network <span aria-hidden="true">→</span></button></div>'+
+  '<div class="ratio-primary-actions"><button class="ratio-save-project" data-ratio-project-save type="button">Add to Construction <span aria-hidden="true">→</span></button></div>'+
   settings+lanePanel(result)+
   '<details class="ratio-explain ratio-technical" data-ratio-legacy-table><summary><span>Machine rates &amp; recipe math <small>Exact ratios, output per machine and rounding</small></span><span>⌄</span></summary>'+
   '<div class="ratio-explain-body"><div class="ratio-tablewrap" tabindex="0" aria-label="Machine ratio ledger, swipe sideways on mobile">'+
@@ -281,7 +281,7 @@ function buildView(result,card){
   '<p class="ratio-output"><b>Finished output:</b> '+number(result.rate)+'/min '+escape(result.name)+'. '+outputDesc+'.</p>'+
   '<p class="ratio-caveat">Machine output = items per craft × crafting speed × 60 ÷ recipe seconds. Divide required output by per-machine output, then round each recipe group up.</p>'+detailed+
   '<p class="ratio-caveat">Scope: 182 deterministic Nauvis base recipes. Assumes continuous supply and power; supported modules, quality and effective beacon speed are included. No physical inserter, stacking, pipe throughput, fuel or beacon geometry constraints; no probabilistic quality outputs or planetary recipe chains.</p></div></details>'+
-  '<div class="ratio-actions full-only-classic"><button type="button" class="ratio-send" data-ratio-send>Open legacy detailed calculator <span aria-hidden="true">→</span></button><small>Full mode only. Updates the hypothetical goal, not Inventory.</small></div>';
+  '<div class="ratio-actions full-only-classic" hidden><button type="button" class="ratio-send" data-ratio-send>Open legacy detailed calculator <span aria-hidden="true">→</span></button></div>';
 }
 
 function renderCard(card){
@@ -338,7 +338,6 @@ function renderCard(card){
   target.querySelector('[data-ratio-lane-panel]')?.addEventListener('toggle',e=>{laneOpen=e.target.open});
   target.querySelector('[data-ratio-lane-array]')?.addEventListener('change',e=>{laneArray=e.target.value;laneOpen=true;renderAll()});
   target.querySelector('[data-ratio-lane-rounded]')?.addEventListener('change',e=>{laneRounded=e.target.checked;laneOpen=true;renderAll()});
-  target.querySelector('[data-ratio-logistics-preview]')?.addEventListener('click',()=>{if(result.rate>0)root.NauvisLogistics?.previewBlueprint?.(result);else root.alert('Choose a production target above zero.');});
   target.querySelector('[data-ratio-project-save]')?.addEventListener('click',()=>root.NauvisProjects?.createFromRatio(result));
   const button=target.querySelector('[data-ratio-send]');
   button.addEventListener('click',()=>{
