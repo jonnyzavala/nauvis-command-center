@@ -226,7 +226,7 @@ async function detach(){
  $('cloudPairedInfo').textContent='Local only. Pair again using your recovery key.';
 }
 function renderMenu(){
- $('cloudConnectForm').hidden=!!id;$('cloudPairedControls').hidden=!id;$('cloudRecoveryControls').hidden=!id;$('cloudDisconnect').hidden=!id;
+ $('cloudConnectForm').hidden=!!id;$('cloudPairedControls').hidden=!id;$('cloudRecoveryControls').hidden=!id;$('cloudDisconnect').hidden=!id;$('cloudRevokeOthers').hidden=!id;
  $('cloudMenuRevision').textContent=id?'Revision '+rev:'';
  const saved=get(storage.owner);if(saved){try{const v=JSON.parse(saved);if(v.factory===id)ownerKey=v.key}catch{}}
  $('cloudOwnerResult').hidden=!ownerKey;$('cloudOwnerKey').value=ownerKey;
@@ -235,16 +235,18 @@ function renderMenu(){
 function token(){return Array.from(crypto.getRandomValues(new Uint8Array(32)),x=>x.toString(16).padStart(2,'0')).join('')}
 async function tokenHash(t){const a=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return Array.from(new Uint8Array(a),x=>x.toString(16).padStart(2,'0')).join('')}
 async function control(action,payload={}){await authorize();return call('nauvis_device_control',{p_action:action,p_factory:id,p_payload:payload})}
-const adminButtons=['cloudInvite','cloudRotate','cloudDisableRecovery','cloudForgetOwner','cloudCopyOwner','cloudCopyInvite','cloudRetry','cloudDisconnect'];
+const adminButtons=['cloudInvite','cloudRotate','cloudDisableRecovery','cloudForgetOwner','cloudCopyOwner','cloudCopyInvite','cloudRetry','cloudDisconnect','cloudList','cloudRevokeOthers','cloudExportConflictRemote'];
 function setAdminBusy(v){adminBusy=v;for(const k of adminButtons)if($(k))$(k).disabled=v;for(const b of $('cloudDevices')?.querySelectorAll?.('button')||[])b.disabled=v}
 async function runAdmin(fn){if(adminBusy||!id||offline()){say(offline()?'Reconnect to manage devices.':'Device management unavailable.',true);return}setAdminBusy(true);try{await fn()}catch(e){say(errText(e),true)}finally{setAdminBusy(false)}}
 function forgetOwner(){drop(storage.owner);ownerKey='';$('cloudOwnerKey').value='';$('cloudOwnerResult').hidden=true}
-async function getDevices(){const r=await control('devices');if(!r||!Array.isArray(r.devices))throw Error('Device list unavailable');const host=$('cloudDevices');host.replaceChildren();for(const d of r.devices){const row=document.createElement('div');row.className='sync-device-row';const name=document.createElement('span');name.textContent=d.name+(d.current?' · This device':'');row.append(name);if(!d.current){const b=document.createElement('button');b.type='button';b.className='btn ghost';b.textContent='Revoke';b.addEventListener('click',()=>{if(!window.confirm('Revoke '+d.name+'? Outstanding codes and the reusable owner key will be invalidated.'))return;runAdmin(async()=>{await control('revoke',{id:d.id});forgetOwner();inviteCode='';renderMenu();await getDevices();say('Device revoked. Generate a new recovery key if needed.')})});row.append(b)}host.append(row)}$('cloudRecoveryState').textContent=r.recovery_enabled?'Reusable owner key enabled.':'Reusable owner key disabled.';if(!r.recovery_enabled)forgetOwner()}
+async function getDevices(){const r=await control('devices',ownerKey?{hash:await tokenHash(ownerKey)}:{});if(!r||!Array.isArray(r.devices))throw Error('Device list unavailable');const host=$('cloudDevices');host.replaceChildren();$('cloudDeviceCount').textContent='· '+r.devices.length+' active';for(const d of [...r.devices].sort((a,b)=>Number(b.current)-Number(a.current))){const row=document.createElement('div');row.className='sync-device-row';const name=document.createElement('span');name.textContent=d.name+(d.current?' · This device':'');row.append(name);if(!d.current){const b=document.createElement('button');b.type='button';b.className='btn ghost';b.textContent='Revoke';b.addEventListener('click',()=>{if(!window.confirm('Revoke '+d.name+'? Outstanding codes and the reusable owner key will be invalidated.'))return;runAdmin(async()=>{await control('revoke',{id:d.id});forgetOwner();inviteCode='';renderMenu();await getDevices();say('Device revoked. Generate a new recovery key if needed.')})});row.append(b)}host.append(row)}$('cloudRecoveryState').textContent=r.recovery_enabled?'Reusable owner key enabled.':'Reusable owner key disabled.';if(!r.recovery_enabled||r.recovery_matches===false)forgetOwner();const revoked=r.revoked_devices||[],history=$('cloudRevokedHistory'),archive=$('cloudRevokedDevices');history.hidden=!revoked.length;$('cloudRevokedCount').textContent=String(revoked.length);archive.replaceChildren();for(const d of revoked){const row=document.createElement('div');row.className='sync-device-row';row.textContent=d.name+' · Revoked';archive.append(row)}}
 function loadDevices(){return runAdmin(getDevices)}
 async function copyField(field){try{await navigator.clipboard.writeText(field.value);say('Copied privately.')}catch{const old=field.type;field.type='text';field.select();try{if(!document.execCommand('copy'))throw Error('Copy failed');say('Copied privately.')}catch{say('Copy the selected code manually.',true);return}finally{field.type=old}}}
 async function generateInvite(){return runAdmin(async()=>{const t=token(),r=await control('invite',{hash:await tokenHash(t)});inviteCode=t;$('cloudInviteExpiry').textContent='Expires '+new Date(r.expires_at).toLocaleTimeString();renderMenu();say('One-time pairing code created.')})}
 async function rotateOwner(){if(!window.confirm('Create a new reusable owner key? This replaces the previous key. Existing paired devices stay connected.'))return;return runAdmin(async()=>{const t=token();await control('recovery_set',{hash:await tokenHash(t)});forgetOwner();ownerKey=t;if(window.confirm('Save the new private recovery key on this trusted device for convenient copying?'))put(storage.owner,JSON.stringify({factory:id,key:t}));renderMenu();await getDevices();say('New owner key created. Copy it to a private password manager.')})}
 async function disableOwner(){if(!window.confirm('Disable the reusable owner key? Existing devices stay paired; you can still generate one-time codes.'))return;return runAdmin(async()=>{await control('recovery_disable');forgetOwner();await getDevices();say('Reusable owner key disabled.')})}
+async function revokeOthers(){if(!window.confirm('Revoke every other paired device? All saved pairing keys and outstanding codes will become invalid. This device stays connected.'))return;return runAdmin(async()=>{await control('revoke_others');forgetOwner();inviteCode='';renderMenu();await getDevices();say('All other devices revoked. This device remains connected.')})}
+async function exportCloudCopy(){return runAdmin(async()=>{const r=await pull();if(!r?.snapshot)throw Error('Cloud backup not available');const a=document.createElement('a'),url=URL.createObjectURL(new Blob([JSON.stringify(r.snapshot,null,2)],{type:'application/json'}));a.href=url;a.download='nauvis-cloud-backup.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);say('Cloud copy exported.')})}
 async function start(){
  $('cloudStatus')?.addEventListener('click',showDialog);
  $('cloudClose')?.addEventListener('click',hideDialog);
@@ -254,6 +256,10 @@ async function start(){
  $('cloudKeepLocal')?.addEventListener('click',()=>resolve(false));
  $('cloudRetry')?.addEventListener('click',async()=>{if(adminBusy||busy)return;await refresh();if(id&&!offline())loadDevices()});
  $('cloudInvite')?.addEventListener('click',generateInvite);
+ $('cloudList')?.addEventListener('click',loadDevices);
+ $('cloudRevokeOthers')?.addEventListener('click',revokeOthers);
+ $('cloudExportConflictLocal')?.addEventListener('click',()=>$('exportButton')?.click());
+ $('cloudExportConflictRemote')?.addEventListener('click',exportCloudCopy);
  $('cloudCopyInvite')?.addEventListener('click',()=>copyField($('cloudInviteCode')));
  $('cloudRotate')?.addEventListener('click',rotateOwner);
  $('cloudDisableRecovery')?.addEventListener('click',disableOwner);
