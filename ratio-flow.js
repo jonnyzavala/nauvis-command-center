@@ -650,5 +650,5 @@ function drawLayout(state){
   const chrome=document.querySelector('.command-chrome');if(chrome)state.observer.observe(chrome);
  }
 }
-root.NauvisRatioFlow={captureBeltPlan,beltCapacityStatus,beltAllocationByCard:new Map(),beltRequirement,beltLines,feederLines,beltModeByCard:new Map(),beltTierByCard:new Map(),mount,unmount,buildFlowGraph,routeLayout,roundedPath,focusGraph,focusBundle,inputByCard:new Map(),upstreamByCard:new Map()};
+root.NauvisRatioFlow={makeBeltPlan,solidTotals,downstreamRate,parallelPoints,captureBeltPlan,beltCapacityStatus,beltAllocationByCard:new Map(),beltRequirement,beltLines,feederLines,beltModeByCard:new Map(),beltTierByCard:new Map(),mount,unmount,buildFlowGraph,routeLayout,roundedPath,focusGraph,focusBundle,inputByCard:new Map(),upstreamByCard:new Map()};
 })(typeof window==='undefined'?globalThis:window);

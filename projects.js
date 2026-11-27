@@ -379,6 +379,7 @@ function projectHTML(p){
   '<details class="project-task-details" '+(!archived?'open':'')+'><summary>'+(p.type==='deployment'?'Placement checklist':'Machine checklist')+' <span>'+progress.complete+' / '+progress.tasks+' groups complete</span></summary><div class="project-task-list">'+lineItems+'</div><div class="project-finish-row"><button type="button" data-project-complete="'+escape(p.id)+'" '+(archived||progress.built>=progress.planned?'disabled':'')+'>'+(progress.planned>0&&progress.built===progress.planned?'✓ Project complete':'✓ Finish entire project')+'</button><small>Only mark machines actually built in-game.</small></div></details>'+
   '<details class="project-reference"><summary>Project reference <span>Materials, design &amp; installed profiles</span></summary><div class="project-reference-body">'+designDetails(p)+materialDetails(p)+p.tasks.map(task=>{const saved=task.kind==='furnace'?furnaceRecorded(p,task):recordedForTask(p,task,setup.machines);const controls=taskProfileControls(p,task,saved.mismatch||saved.count!==task.built);return controls?'<div class="project-profile-reference" data-task-row="'+escape(task.recipe)+'"><small>'+escape(R[task.recipe]?.[0]||task.recipe)+'</small>'+controls+'</div>':''}).join('')+'</div></details>'+
   '<div class="project-card-actions"><button type="button" data-project-visit="'+escape(p.id)+'">'+(p.type==='deployment'?'View placed inventory':p.design?(root.NauvisFocus?.getMode?.()==='full'?'View saved design':'Recalculate in Planner'):'Open in Planner')+'</button>'+
+  '<button type="button" data-project-export="'+escape(p.id)+'">Share PNG</button>'+
   '<button type="button" data-project-rename="'+escape(p.id)+'">Rename</button>'+
   '<button type="button" data-project-archive="'+escape(p.id)+'">'+(archived?'Restore':'Archive')+'</button>'+(archived&&p.design?.reuseClaims?.length&&!p.reuseReleased&&progress.built===0?'<button type="button" data-project-release="'+escape(p.id)+'">Release reuse commitments</button>':'')+'</div>'+
  '</article>';
@@ -587,7 +588,15 @@ function initializeDeployment(){
   }catch(err){$('deploymentError').textContent=err.message;$('deploymentError').hidden=false}
  });
 }
+function exportProjects(projects){
+ const records=projects.map(p=>{
+  let analysis=null;try{const result=p.design?.analysis||root.NauvisRecipeMath(R,p.goal,{stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names});if(result.entries.length===p.tasks.length&&result.entries.every(e=>p.tasks.some(t=>t.recipe===e.key&&t.planned===e.count)))analysis=result}catch{}
+  return {name:p.name,product:R[p.goal.id]?.[0]||p.goal.id,recipe:p.goal.id,rate:p.goal.rate,source:p.goal.source,archived:p.status==='archived',progress:projectProgress(p),beltPlan:p.beltPlan||null,analysis,tasks:p.tasks.map(t=>({recipe:t.recipe,label:R[t.recipe]?.[0]||t.recipe,kind:noun(t.kind),profile:t.kind==='asm'?'Assembler '+(taskProfile(p,t).machine===1.25?'3':taskProfile(p,t).machine===.5?'1':'2'):t.kind==='furnace'?(R[p.furnaceItem]?.[0]||'2× furnace'):'',planned:t.planned,built:t.built}))};
+ });
+ root.NauvisProjectExport?.open(records);
+}
 function attachEvents(){
+ $('projectsExportAll')?.addEventListener('click',()=>exportProjects(visibleProjects().filter(p=>p.status!=='archived')));
  $('projectsSaveForm')?.addEventListener('submit',saveDialog);
  $('projectsDialogClose')?.addEventListener('click',()=>{$('projectsDialog').close();editing=null;pending=null;pendingOptions=null});
  $('projectsArchivedWrapper')?.addEventListener('toggle',event=>{showArchived=event.target.open});
@@ -600,6 +609,7 @@ function attachEvents(){
  $('factory')?.addEventListener('change',event=>{const b=event.target;if(!b.matches('[data-project-built],[data-project-check]'))return;const p=selectedProject(b.dataset.projectBuilt||b.dataset.projectCheck),t=p?.tasks.find(t=>t.recipe===b.dataset.taskRecipe);if(!t)return;const next=b.matches('[data-project-check]')?(b.checked?t.planned:0):Number(b.value);if(!Number.isSafeInteger(next)||next<0||next>t.planned)return;if(next!==t.built){updateBuilt(p.id,t.recipe,next-t.built);const current=selectedProject(p.id)?.tasks.find(x=>x.recipe===t.recipe);if(current?.built!==next)render()}});
  $('factory')?.addEventListener('click',event=>{
   const b=event.target.closest('button');if(!b)return;
+  if(b.hasAttribute('data-project-export')){const p=selectedProject(b.dataset.projectExport);if(p)exportProjects([p]);return}
   if(b.matches('[data-project-go-planner]')){activateWorkspace('build',true);return}
   const id=b.dataset.projectPlus||b.dataset.projectMinus||b.dataset.projectBatchPlus||b.dataset.projectBatchMinus||b.dataset.projectGroupComplete||b.dataset.projectComplete||b.dataset.projectVisit||b.dataset.projectRename||b.dataset.projectArchive||b.dataset.projectRelease||b.dataset.projectMaterialSupply||b.dataset.projectProfile;
   if(!id)return;

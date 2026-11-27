@@ -17,7 +17,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,25));const d=frame.contentDocument;if(d?.documentElement?.hasAttribute('data-intro-boot')&&d.querySelector('.shell')){sawCurtain=frame.contentWindow.getComputedStyle(d.querySelector('.shell')).visibility==='hidden';break}}
   let w=prep(await loading);
   assert(sawCurtain,'First paint hides app shell while intro script is still loading');
-  w=await load('&nauvis-update=1.1.13');
+  w=await load('&nauvis-update=1.1.14');
   assert(!w.NauvisIntro.active()&&!w.document.documentElement.hasAttribute('data-intro-boot'),'Update navigation skips intro and leaves no curtain');prep(w);
   w=await load('&recover=1');
   assert(!w.NauvisIntro.active()&&!w.document.documentElement.hasAttribute('data-intro-boot'),'Recovery navigation skips intro and leaves no curtain');prep(w);
@@ -70,6 +70,21 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   click(w,'#build [data-ratio-project-save]');click(w,'#projectsDialogSubmit');
   assert(JSON.stringify(snap(w).plan.projects[0].beltPlan)===JSON.stringify(frozen),'Add to Construction stores the exact Planner belt tier and counts');
   const savedRoot='#projectsList .project-flow-panel';
+  const beforeExport=JSON.stringify(snap(w));
+  click(w,'[data-project-export]');assert(w.document.querySelector('#projectExportDialog').open,'Project PNG opens preview');
+  click(w,'#projectExportBelts');
+  for(let i=0;i<100&&w.document.querySelector('#projectExportDownload').disabled;i++)await new Promise(r=>setTimeout(r,50));
+  const exportImg=w.document.querySelector('#projectExportPreview img');
+  assert(exportImg&&exportImg.src.startsWith('blob:')&&!w.document.querySelector('#projectExportDownload').disabled,'PNG renderer produces a real image blob');
+  const png=await fetch(exportImg.src).then(r=>r.blob());
+  assert(png.type==='image/png'&&png.size>10000,'Export is a nonempty PNG');
+  click(w,'#projectExportClose');
+  await new Promise(r=>setTimeout(r,50));
+  click(w,'#projectsExportAll');
+  assert(w.document.querySelector('#projectExportDialog').open,'Combined construction export opens');
+  click(w,'#projectExportClose');
+  await new Promise(r=>setTimeout(r,50));
+  assert(JSON.stringify(snap(w))===beforeExport,'PNG export never mutates factory or project state');
   assert(!w.document.querySelector(savedRoot+' [data-flow-belt-toggle]').checked,'Construction starts with normal progress flow');
   click(w,savedRoot+' [data-flow-belt-toggle]');
   assert(w.document.querySelector(savedRoot+' [data-flow-belt-tier-label]').textContent.includes('BLUE'),'Construction reads saved tier');
