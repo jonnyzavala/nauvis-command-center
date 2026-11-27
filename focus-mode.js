@@ -54,7 +54,7 @@ function refresh(){
  if($('focusLogStats'))$('focusLogStats').innerHTML='<div><small>JOURNAL ENTRIES</small><strong>'+fmt((snap.plan.journal||[]).length)+'</strong></div><div><small>PROJECTS COMPLETE</small><strong>'+p.complete+' / '+p.active+'</strong></div>';
  if($('focusSessionNote'))$('focusSessionNote').textContent=last?last.title+' · '+last.detail:'No session notes yet. Save a short note when you finish playing.';
 }
-$('focusModeToggle')?.addEventListener('click',()=>setMode(mode==='focus'?'full':'focus'));
+$('focusModeToggle')?.addEventListener('click',()=>{const dialog=$('sensoryDialog');if(dialog?.open)dialog.close();setMode(mode==='focus'?'full':'focus')});
 document.querySelectorAll('[data-focus-view]').forEach(b=>b.addEventListener('click',()=>root.activateWorkspace(b.dataset.focusView,true)));
 document.addEventListener('click',e=>{const b=e.target.closest('[data-focus-jump]');if(b)root.activateWorkspace(b.dataset.focusJump,true)});
 $('logisticsPreviewCurrent')?.addEventListener('click',()=>{const result=root.NauvisRatioExplorer?.currentResult?.();if(result?.rate>0)root.NauvisLogistics?.previewBlueprint?.(result);else root.alert('Choose a positive production target in Planner first.')});
