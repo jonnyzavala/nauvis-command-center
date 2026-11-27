@@ -423,6 +423,23 @@ function nodeMarkup(node){
    '</button>';
 }
 function captureBeltPlan(cardKey,result){const state=browserViews.get(cardKey);return makeBeltPlan(result,state?.beltTier,state?.allocation)}
+function updateProgress(cardKey,counts){
+ const state=browserViews.get(cardKey);if(!state)return;
+ for(const node of state.graph.nodes){
+  if(node.type!=='machine'||!Object.prototype.hasOwnProperty.call(counts,node.recipe))continue;
+  node.built=Math.max(0,Math.min(node.count,Number(counts[node.recipe])||0));
+  const el=[...state.holder.querySelectorAll('[data-flow-node]')].find(b=>b.dataset.flowNode===node.key);
+  const chip=[...state.holder.querySelectorAll('[data-flow-review]')].find(b=>b.dataset.flowReview===node.key);
+  const pct=100*node.built/Math.max(1,node.count),status=node.built>=node.count?'done':node.built>0?'partial':'waiting';
+  if(el){el.style.setProperty('--built-pct',pct+'%');el.dataset.builtState=status;el.querySelector('.ratio-flow-count').textContent=formatted(node.built)+'/'+formatted(node.count)}
+  if(chip){chip.dataset.builtState=status;chip.querySelector('strong').textContent=formatted(node.built)+'/'+formatted(node.count)}
+ }
+}
+function celebrateProgress(cardKey,recipe){
+ const state=browserViews.get(cardKey);if(!state||document.hidden||matchMedia('(prefers-reduced-motion: reduce)').matches||root.NauvisSensory?.getPrefs?.().motion==='off')return;
+ const node=state.graph.nodes.find(n=>n.type==='machine'&&n.recipe===recipe),el=node&&[...state.holder.querySelectorAll('[data-flow-node]')].find(b=>b.dataset.flowNode===node.key);
+ if(!el)return;el.classList.remove('flow-complete-shine');void el.offsetWidth;el.classList.add('flow-complete-shine');el.addEventListener('animationend',()=>el.classList.remove('flow-complete-shine'),{once:true});
+}
 function unmount(cardKey){const s=browserViews.get(cardKey);s?.observer?.disconnect();s?.cancel?.();s?.cleanup?.();browserViews.delete(cardKey)}
 function mount(target,result,cardKey,options={}){
  const holder=target.querySelector('[data-ratio-flow-root]');if(!holder)return;
@@ -444,12 +461,12 @@ function mount(target,result,cardKey,options={}){
  holder.innerHTML=
   '<div class="ratio-flow-top"><h3>Production flow</h3>'+
   '<div class="ratio-flow-total">'+result.roundedTotal+'<small>machines total</small></div></div>'+
+  '<div class="flow-machine-review"><div class="flow-machine-grid">'+graph.nodes.filter(n=>n.type==='machine').map(n=>'<div class="flow-machine-chip" data-flow-review="'+escapeHTML(n.key)+'"'+(n.built!==undefined?' data-built-state="'+(n.built>=n.count?'done':n.built>0?'partial':'waiting')+'"':'')+' style="--node-color:'+nodeColor(n)+'">'+itemGlyph(n.recipe,27)+'<strong>'+(n.built!==undefined?formatted(n.built)+'/':'')+formatted(n.count)+'</strong><span>'+escapeHTML(n.label)+'</span></div>').join('')+'</div></div>'+
   '<div class="ratio-flow-controls"><div class="ratio-flow-options" data-flow-options>'+
   '<label class="ratio-flow-input-toggle"><input data-flow-input-toggle type="checkbox"'+(inputVisible?' checked':'')+'><span>Inputs</span></label>'+
   '<label class="ratio-flow-input-toggle"><input data-flow-upstream-toggle type="checkbox"'+(upstream?' checked':'')+'><span>Upstream tree</span></label><label class="ratio-flow-input-toggle"><input data-flow-belt-toggle type="checkbox"'+(beltMode?' checked':'')+'><span>Show belts</span></label></div></div>'+
   '<div data-flow-display></div>'+
-  '<section class="flow-belt-allocation" data-flow-belt-allocation hidden><div class="flow-belt-controls flow-belt-slider" data-flow-belt-controls><label>Belt tier <strong data-flow-belt-tier-label></strong><input type="range" min="0" max="3" step="1" value="'+tierList.indexOf(beltTier)+'" data-flow-belt-tier aria-label="Belt tier"></label><div class="flow-belt-tier-labels"><span>Yellow</span><span>Red</span><span>Blue</span><span>Green</span></div><button type="button" class="flow-capacity-reset" data-flow-belt-reset>Fit belts to demand</button></div><div data-flow-belt-summary></div></section>'+
-  (options.progress?'':'<div class="flow-machine-review"><h4>Machine review</h4><div class="flow-machine-grid">'+graph.nodes.filter(n=>n.type==='machine').map(n=>'<div class="flow-machine-chip" style="--node-color:'+nodeColor(n)+'">'+itemGlyph(n.recipe,27)+'<strong>'+formatted(n.count)+'</strong><span>'+escapeHTML(n.label)+'</span></div>').join('')+'</div></div>');
+  '<section class="flow-belt-allocation" data-flow-belt-allocation hidden><div class="flow-belt-controls flow-belt-slider" data-flow-belt-controls><label>Belt tier <strong data-flow-belt-tier-label></strong><input type="range" min="0" max="3" step="1" value="'+tierList.indexOf(beltTier)+'" data-flow-belt-tier aria-label="Belt tier"></label><div class="flow-belt-tier-labels"><span>Yellow</span><span>Red</span><span>Blue</span><span>Green</span></div><button type="button" class="flow-capacity-reset" data-flow-belt-reset>Fit belts to demand</button></div><div data-flow-belt-summary></div></section>';
  const display=holder.querySelector('[data-flow-display]');
  const checkbox=holder.querySelector('[data-flow-input-toggle]');
  const upstreamToggle=holder.querySelector('[data-flow-upstream-toggle]');
@@ -571,7 +588,7 @@ function drawLayout(state){
    '<div><small>FEEDS</small>'+(outputs.length?outputs.map(e=>toText(e,'out')).join(''):'<span class="ratio-muted">Final output</span>')+'</div></div>';
  }
  function redraw(){
-  if(!canvas.isConnected||!viewport.clientWidth)return;
+  if(document.hidden||!canvas.isConnected||!viewport.clientWidth)return;
   const width=viewport.clientWidth;
   const screenHeight=root.visualViewport?.height||root.innerHeight||800;
   const chromeHeight=document.querySelector('.command-chrome')?.getBoundingClientRect().height||0;
@@ -631,7 +648,10 @@ function drawLayout(state){
   svg.innerHTML='<defs>'+markers.join('')+'</defs>'+paths.map(p=>p.markup).join('')+dots.map(p=>p.markup).join('');
 
  }
+ let lastDimensions='';
+ function onResize(){const dims=viewport.clientWidth+'|'+Math.floor(root.visualViewport?.height||root.innerHeight||0)+'|'+Math.ceil(document.querySelector('.command-chrome')?.getBoundingClientRect().height||0);if(dims===lastDimensions)return;lastDimensions=dims;queueRedraw()}
  function queueRedraw(){
+  if(document.hidden||!canvas.isConnected||!viewport.clientWidth)return;
   state.cancel?.();
   let id=requestAnimationFrame(redraw);
   state.cancel=()=>cancelAnimationFrame(id);
@@ -640,15 +660,16 @@ function drawLayout(state){
  showDetails();
  state.refreshDetails=showDetails;
  state.redraw=queueRedraw;
- root.addEventListener('resize',queueRedraw,{passive:true});
- root.visualViewport?.addEventListener('resize',queueRedraw,{passive:true});
- state.cleanup=()=>{root.removeEventListener('resize',queueRedraw);root.visualViewport?.removeEventListener('resize',queueRedraw)};
- queueRedraw();
+ root.addEventListener('resize',onResize,{passive:true});
+ root.visualViewport?.addEventListener('resize',onResize,{passive:true});
+ const onVisible=()=>{if(!document.hidden){lastDimensions='';onResize()}};document.addEventListener('visibilitychange',onVisible);
+ state.cleanup=()=>{root.removeEventListener('resize',onResize);root.visualViewport?.removeEventListener('resize',onResize);document.removeEventListener('visibilitychange',onVisible)};
+ redraw();
  if(typeof ResizeObserver!=='undefined'){
-  state.observer=new ResizeObserver(queueRedraw);
+  state.observer=new ResizeObserver(onResize);
   state.observer.observe(viewport);
   const chrome=document.querySelector('.command-chrome');if(chrome)state.observer.observe(chrome);
  }
 }
-root.NauvisRatioFlow={makeBeltPlan,solidTotals,downstreamRate,parallelPoints,captureBeltPlan,beltCapacityStatus,beltAllocationByCard:new Map(),beltRequirement,beltLines,feederLines,beltModeByCard:new Map(),beltTierByCard:new Map(),mount,unmount,buildFlowGraph,routeLayout,roundedPath,focusGraph,focusBundle,inputByCard:new Map(),upstreamByCard:new Map()};
+root.NauvisRatioFlow={makeBeltPlan,solidTotals,downstreamRate,parallelPoints,captureBeltPlan,updateProgress,celebrateProgress,beltCapacityStatus,beltAllocationByCard:new Map(),beltRequirement,beltLines,feederLines,beltModeByCard:new Map(),beltTierByCard:new Map(),mount,unmount,buildFlowGraph,routeLayout,roundedPath,focusGraph,focusBundle,inputByCard:new Map(),upstreamByCard:new Map()};
 })(typeof window==='undefined'?globalThis:window);

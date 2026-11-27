@@ -4,7 +4,7 @@
 const MODE='nauvis-focus-mode-v1';
 const cap=(n,max=1000000)=>Math.min(max,Math.max(0,Number.isFinite(Number(n))?Number(n):0));
 function progress(projects){
- const active=(Array.isArray(projects)?projects:[]).filter(p=>p.status!=='archived'&&p.type!=='deployment'&&!(p.tasks||[]).some(t=>t.kind==='asset'));
+ const active=(Array.isArray(projects)?projects:[]).filter(p=>p.status!=='archived'&&!p.historyHidden&&p.type!=='deployment'&&!(p.tasks||[]).some(t=>t.kind==='asset'));
  const items=active.flatMap(p=>Array.isArray(p.tasks)?p.tasks:[]);
  const planned=items.reduce((n,t)=>n+cap(t.planned),0),built=items.reduce((n,t)=>n+Math.min(cap(t.planned),cap(t.built)),0);
  return {active:active.length,planned,built,remaining:planned-built,pct:planned?built/planned*100:0,complete:active.filter(p=>p.tasks?.length&&p.tasks.every(t=>cap(t.planned)>0&&cap(t.built)>=cap(t.planned))).length};
