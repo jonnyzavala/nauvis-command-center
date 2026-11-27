@@ -97,10 +97,10 @@ test('layout stays inside explorer and switches to vertical diagram on iPhone',(
  assert.match(style,/\.ratio-flow-node-label strong\{font-size:11px\}/);
 });
 test('version and offline caching include the visual graph without editing cloud sync',()=>{
- assert.match(html,/Nauvis Command Center v1\.1\.19/);
- assert.match(html,/href="\.\/ratio-flow\.css\?v=1\.1\.19"/);
- assert.match(html,/src="\.\/ratio-flow\.js\?v=1\.1\.19" defer/);
- assert.match(worker,/nauvis-shell-v10119/);
+ assert.match(html,/Nauvis Command Center v1\.1\.20/);
+ assert.match(html,/href="\.\/ratio-flow\.css\?v=1\.1\.20"/);
+ assert.match(html,/src="\.\/ratio-flow\.js\?v=1\.1\.20" defer/);
+ assert.match(worker,/nauvis-shell-v10120/);
  assert.match(worker,/ratio-flow\.css/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(html,/sync\/cloud-sync\.js/);
@@ -266,3 +266,16 @@ test('fixed belt allocations distinguish shortage, exact match and spare capacit
 test('incremental graph models reused inputs without adding construction machines',()=>{const {incrementalPlan}=require('../recipe-ratios.js');const full=calc(),partial=incrementalPlan(full,{'copper-cable':450,'electronic-circuit':180});const graph=buildFlowGraph(partial);assert.equal(graph.nodes.filter(n=>n.type==='machine').reduce((sum,n)=>sum+n.count,0),partial.roundedTotal);for(const r of partial.reused){const node=graph.nodes.find(n=>n.key==='r:'+r.key);assert.ok(node);assert.ok(Math.abs(graph.edges.filter(e=>e.from===node.key).reduce((s,e)=>s+e.rate,0)-r.rate)<1e-6)}for(const e of partial.entries)for(const ing of e.ingredients)assert.ok(Math.abs(graph.edges.filter(x=>x.to==='m:'+e.key&&x.item===ing.id).reduce((s,x)=>s+x.rate,0)-ing.needed)<1e-6)});
 
 test('saved belt plan retains zero, excess and selected tier without sharing mutable allocation',()=>{const {makeBeltPlan}=require('../ratio-flow.js'),result=calc(),allocation=new Map([['s:copper-plate',0],['m:copper-cable',3]]);const p=makeBeltPlan(result,'green',allocation);allocation.set('s:copper-plate',5);assert.equal(p.tier,'green');assert.equal(p.counts['s:copper-plate'],0);assert.equal(p.counts['m:copper-cable'],3);assert.ok(Object.keys(p.counts).length>2);assert.deepEqual(makeBeltPlan(result,p.tier,p.counts),p);});
+
+test('incoming supply checklist uses frozen whole-belt assignments and single fluid connections',()=>{
+ const flow=require('../ratio-flow.js'),result=calc('processing-unit',90),graph=flow.buildFlowGraph(result),plan=flow.makeBeltPlan(result,'red');
+ const solid=graph.nodes.find(n=>n.type==='supply'&&n.kind!=='fluid'&&plan.counts[n.key]>0);
+ assert.ok(solid);plan.counts[solid.key]=2;
+ const tasks=flow.incomingLogistics(result,plan);
+ assert.equal(tasks.find(t=>t.key===solid.key).planned,2);
+ assert.ok(tasks.some(t=>t.kind==='pipe'));
+ assert.ok(tasks.every(t=>/^[sr]:/.test(t.key)&&t.built===0));
+ assert.ok(tasks.filter(t=>t.kind==='pipe').every(t=>t.planned===1&&t.rate>0));
+ assert.ok(!tasks.some(t=>t.key.startsWith('m:')));
+ plan.counts[solid.key]=0;assert.ok(!flow.incomingLogistics(result,plan).some(t=>t.key===solid.key));
+});
