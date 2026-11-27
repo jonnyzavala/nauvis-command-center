@@ -19,6 +19,16 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(w.NauvisLocal&&w.NauvisLogistics&&w.NauvisRecipeMath&&w.NauvisSensory,'Application and deferred modules initialized');
   assert(w.NauvisFocus.getMode()==='focus'&&w.document.querySelector('#build.active'),'Focus is the default and opens Planner');
   const initial=JSON.stringify(snap(w));
+  click(w,'#sensoryLaunch');click(w,'#previewIntro');
+  assert(w.document.querySelector('#nauvisIntro').open&&!w.document.querySelector('#introMark'),'Intro is text only, without a logo');
+  const introWelcome=w.document.querySelector('#introWelcome'),headerWelcome=w.document.querySelector('#headerWelcome');
+  assert(w.getComputedStyle(introWelcome).fontSize===w.getComputedStyle(headerWelcome).fontSize,'Greeting starts at exact header font size');
+  assert(w.getComputedStyle(headerWelcome).visibility==='hidden','Header counterpart is hidden during transition');
+  await new Promise(r=>setTimeout(r,1700));
+  assert(w.NauvisIntro.active()&&introWelcome.getAnimations().some(a=>a.effect.getKeyframes().some(k=>k.left!==undefined)),'Text is animated toward header coordinates');
+  await new Promise(r=>setTimeout(r,900));
+  assert(!w.NauvisIntro.active()&&w.getComputedStyle(headerWelcome).visibility==='visible','Intro completes and restores real header');
+  assert(JSON.stringify(snap(w))===initial,'Intro does not change factory data');
   click(w,'#versionHistory');assert(w.document.querySelector('#versionDialog').open&&w.document.querySelector('#checkRelease')&&w.document.querySelector('#versionDialog details').open,'Version menu exposes manual updates and latest changelog');click(w,'#versionClose');
   click(w,'#cloudStatus');assert(w.document.querySelector('#cloudDialog').open&&!w.document.querySelector('#cloudConnectForm').hidden&&w.document.querySelector('#cloudPairedControls').hidden,'Unpaired sync menu shows pairing only');click(w,'#cloudClose');
   w.activateWorkspace('flow',true);

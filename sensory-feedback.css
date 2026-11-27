@@ -10,6 +10,14 @@ body[data-sensory-motion=off] *,body[data-sensory-motion=off] *::before,body[dat
 /* Keep modal controls below the status bar / Dynamic Island in standalone iOS. */
 #sensoryDialog{max-height:calc(100dvh - max(12px,calc(var(--nauvis-safe-top,env(safe-area-inset-top,0px)) + 8px)) - max(12px,calc(env(safe-area-inset-bottom,0px) + 8px)));margin-top:max(12px,calc(var(--nauvis-safe-top,env(safe-area-inset-top,0px)) + 8px));margin-bottom:max(12px,calc(env(safe-area-inset-bottom,0px) + 8px));margin-inline:auto;overscroll-behavior:contain}
 
-#nauvisIntro{position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;border:0;padding:0;background:transparent;color:#b3dcff;overflow:hidden}#nauvisIntro[open]{display:grid;place-items:center}#nauvisIntro::backdrop{background:transparent}.intro-back{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 35%,#294d70,#101d2d 65%);z-index:-1}.intro-identity{display:grid;justify-items:center;text-align:center;gap:12px}.intro-mark{width:min(250px,60vw,40dvh);filter:drop-shadow(0 0 15px #65b5ff99);animation:intro-enter .45s ease-out both}.intro-mark svg{display:block;width:100%;height:auto}.intro-identity h2{font-size:clamp(32px,8vw,60px);letter-spacing:.15em;margin:0;color:#e3f3ff}.intro-identity p{font-size:20px;margin:0}.intro-identity small{font-size:11px;letter-spacing:.12em;color:#b3c8d9}#introWords{animation:intro-enter .45s .1s ease-out both}#skipIntro{position:absolute;bottom:max(24px,env(safe-area-inset-bottom));right:max(24px,env(safe-area-inset-right));background:#284354;color:#e3f3ff;border:1px solid #65889d;border-radius:9px;padding:10px 14px;min-height:44px}@keyframes intro-enter{from{opacity:0;scale:.96}to{opacity:1;scale:1}}
-
-#nauvisIntro{isolation:isolate}
+/* Fullscreen typography reveal. Header text retains layout while temporarily hidden. */
+#nauvisIntro{position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;border:0;padding:0;background:transparent;color:#b3dcff;overflow:hidden;isolation:isolate}
+#nauvisIntro[open]{display:grid;place-items:center}#nauvisIntro::backdrop{background:transparent}
+.intro-back{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 36%,#294d70,#101d2d 67%);z-index:-1}
+.intro-identity{display:grid;justify-items:center;text-align:center;gap:5px;max-width:100%;padding:0 12px}
+.intro-line{display:inline-block;white-space:nowrap;transform-origin:top left}
+.intro-wipe{overflow:visible;line-height:0}
+#nauvisIntro[open] .intro-line{animation:nauvis-text-wipe .53s var(--reveal-delay,0ms) cubic-bezier(.2,.8,.2,1) both}
+.intro-greeting{margin-top:18px}
+#skipIntro{position:absolute;bottom:max(24px,env(safe-area-inset-bottom));right:max(24px,env(safe-area-inset-right));background:#284354;color:#e3f3ff;border:1px solid #65889d;border-radius:9px;padding:10px 14px;min-height:44px}
+@keyframes nauvis-text-wipe{from{clip-path:inset(0 100% 0 0);opacity:.2}to{clip-path:inset(0 -2px 0 0);opacity:1}}
