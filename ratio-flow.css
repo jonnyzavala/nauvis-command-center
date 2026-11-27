@@ -307,3 +307,10 @@ body[data-sensory-motion="off"] .ratio-flow-auto .ratio-flow-final::before{anima
 .construction-flow .flow-capacity-grid:has(.flow-logistics-task){grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr))}
 .construction-flow .ratio-flow-supply[data-built-state]{background:linear-gradient(90deg,color-mix(in srgb,var(--node-color) 27%,#142839) var(--built-pct),#142839 var(--built-pct))}
 .construction-flow .ratio-flow-supply[data-built-state="done"]{border-color:#81e4b1;box-shadow:0 0 9px #81e4b180}
+
+/* Use the machine node's established two-row geometry for tracked supplies only. */
+.construction-flow .ratio-flow-auto .ratio-flow-supply[data-built-state]{display:grid;grid-template-columns:28px minmax(0,1fr);grid-template-rows:28px minmax(0,1fr);gap:3px 5px;min-height:0;align-content:start}
+.construction-flow .ratio-flow-auto .ratio-flow-supply[data-built-state] .ratio-flow-node-label{grid-column:1/-1}
+.construction-flow .ratio-flow-auto .ratio-flow-supply[data-built-state] .ratio-flow-count{font-size:19px}
+.construction-flow .ratio-flow-auto .ratio-flow-supply[data-built-state] .ratio-flow-node-label small{display:block;font-size:9px}
+.construction-flow .ratio-flow-auto .ratio-flow-supply[data-built-state] .ratio-flow-node-label b{display:none}
