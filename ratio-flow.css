@@ -296,3 +296,14 @@ body[data-sensory-motion="off"] .ratio-flow-node{animation:none!important;transi
 
 /* Keep the requested continuous goal pulse; use opacity-only animation rather than changing shadow geometry. */
 body[data-sensory-motion="off"] .ratio-flow-auto .ratio-flow-final::before{animation:none;opacity:.5}
+
+/* Incoming logistics derives its controls from the machine checklist. */
+.construction-flow .flow-logistics-task{grid-column:auto;min-width:0;border:1px solid #44657a;border-radius:9px;padding:8px;background-color:#132737}
+.construction-flow .flow-logistics-task.project-task-done{border-color:#70b8a8;background:linear-gradient(90deg,#28594760,#132737)}
+.construction-flow .flow-logistics-stats{display:flex;align-items:center;gap:7px;min-width:0}
+.construction-flow .flow-logistics-task .flow-resource-ring{flex-shrink:0}
+.construction-flow .flow-logistics-task .project-task-identity{min-width:0}
+.construction-flow .flow-logistics-task .project-task-counter{white-space:nowrap}
+.construction-flow .flow-capacity-grid:has(.flow-logistics-task){grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr))}
+.construction-flow .ratio-flow-supply[data-built-state]{background:linear-gradient(90deg,color-mix(in srgb,var(--node-color) 27%,#142839) var(--built-pct),#142839 var(--built-pct))}
+.construction-flow .ratio-flow-supply[data-built-state="done"]{border-color:#81e4b1;box-shadow:0 0 9px #81e4b180}
