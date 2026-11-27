@@ -366,7 +366,7 @@ function interactive(e){return e.target?.closest?.('button,summary,a[href],input
 function gesture(e){if(!e.isTrusted)return;localChange=null;lastGesture=performance.now();if(prefs.enabled&&!useMedia()&&engine.state()!=='running'&&!e.target?.closest?.('#sensoryDialog,#sensoryLaunch'))unlock(true)}
 document.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')gesture(e)},true);
 document.addEventListener('pointerup',gesture,true);
-document.addEventListener('change',e=>{if(e.target?.matches?.('[data-project-built],[data-project-check]')){gesture(e);lastRange.delete(e.target)}},true);
+document.addEventListener('change',e=>{if(e.target?.matches?.('[data-project-built],[data-project-check],[data-project-logistics-built],[data-project-logistics-check]')){gesture(e);lastRange.delete(e.target)}},true);
 document.addEventListener('touchend',gesture,{capture:true,passive:true});
 document.addEventListener('click',gesture,true);
 document.addEventListener('keydown',e=>{if(!e.repeat)gesture(e)},true);
@@ -389,7 +389,7 @@ document.addEventListener('change',e=>{
 },false);
 document.addEventListener('input',e=>{
  const el=e.target;if(!e.isTrusted||!el?.matches?.('input[type="range"],input[type="number"],input[type="text"],input[type="search"],input:not([type]),textarea')||isUiSetting(el)||el.disabled)return;
- if(el.matches('[data-project-built]')){
+ if(el.matches('[data-project-built],[data-project-logistics-built]')){
   if(root.NauvisCloudApplying)return;
   const prev=lastRange.get(el)?.value??Number(el.dataset.soundValue),value=Number(el.value);
   lastRange.set(el,{value});
