@@ -142,9 +142,9 @@ test('advanced assets load offline and preserved cloud snapshot shape is unchang
   assert.ok(sw.includes("'./"+file+"'"),file);
  assert.match(sw,/nauvis-shell-v10113/);
  assert.match(html,/Nauvis Command Center v1\.1\.13/);
- assert.match(html,/src="\.\/production-effects\.js"/);
- assert.match(html,/src="\.\/machine-upgrades\.js"/);
- assert.match(html,/href="\.\/advanced-v028\.css"/);
+ assert.match(html,/src="\.\/production-effects\.js\?v=1\.1\.13"/);
+ assert.match(html,/src="\.\/machine-upgrades\.js\?v=1\.1\.13"/);
+ assert.match(html,/href="\.\/advanced-v028\.css\?v=1\.1\.13"/);
  assert.match(html,/snapshot\(\)\{return JSON\.parse\(JSON\.stringify\(\{version:7,plan:factory,guide,setup,balancePrefs\}\)\)\}/);
 });
 

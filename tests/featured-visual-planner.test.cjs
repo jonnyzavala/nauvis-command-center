@@ -33,8 +33,8 @@ test('the older calculator is available one click away with all existing IDs',()
  }
 });
 test('open-on-load explorer renders its graph with the dependency module available',()=>{
- const graphScript=html.indexOf('src="./ratio-flow.js" defer');
- const ratioScript=html.indexOf('src="./recipe-ratios.js" defer');
+ const graphScript=html.indexOf('src="./ratio-flow.js?v=1.1.13" defer');
+ const ratioScript=html.indexOf('src="./recipe-ratios.js?v=1.1.13" defer');
  assert.ok(graphScript>0&&ratioScript>graphScript,'Graph must be loaded before initial explorer render');
  assert.match(ratios,/cards\.filter\(card=>card\.open\)\.forEach\(renderCard\)/);
  assert.match(ratios,/root\.NauvisRatioFlow\?\.mount\(target,result,card\.dataset\.ratioExplorer\)/);

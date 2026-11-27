@@ -74,8 +74,8 @@ test('three top-level tabs retain their distinct dual-mode destinations',()=>{
 });
 test('preset scripts and styling precache offline without any data schema changes',()=>{
  const worker=read('service-worker.js');
- assert.match(html,/src="\.\/production-presets\.js"/);
- assert.match(html,/href="\.\/preset-v026\.css"/);
+ assert.match(html,/src="\.\/production-presets\.js\?v=1\.1\.13"/);
+ assert.match(html,/href="\.\/preset-v026\.css\?v=1\.1\.13"/);
  assert.match(worker,/nauvis-shell-v10113/);
  assert.match(worker,/production-presets\.js/);
  assert.match(worker,/preset-v026\.css/);
