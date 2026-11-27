@@ -25,8 +25,8 @@ test('each crossed notch plays in pitch order, including zero reversal and five-
  assert.equal(up.length,5);assert.equal(down.length,5);
  assert.ok(up.every((v,i)=>!i||v>up[i-1]));
  assert.ok(down.every((v,i)=>!i||v<down[i-1]));
- assert.equal(sliderPitches(1,0,0,10)[0],240);
- assert.equal(sliderPitches(9,10,0,10)[0],720);
+ assert.equal(sliderPitches(1,0,0,10)[0],850);
+ assert.equal(sliderPitches(9,10,0,10)[0],1870);
  assert.deepEqual(sliderPitches(3,3,0,10),[]);
  assert.equal(sliderPitches(0,100000,0,100000).length,48);
  assert.equal(sliderNotes(up).length,5);
@@ -58,4 +58,12 @@ test('Web Audio schedules five separate rising ticks and the committed completio
  const e=makeEngine(Audio,()=>normalize({enabled:true,palette:'electronic'}),()=>true,()=>0);await e.unlock();
  const pitches=sliderPitches(0,5,0,10);assert.ok(e.playSlider(pitches));assert.deepEqual(hz,pitches);assert.equal(times.length,5);
  assert.equal(e.play('sync'),false);assert.ok(e.play('phase'));assert.ok(times[5]>times[4]);e.stop();
+});
+
+test('slider clicks are crisp, higher pitched and separated by silence without frequency sweeps',()=>{
+ const pitches=sliderPitches(0,5,0,5),notes=sliderNotes(pitches);
+ for(const [from,to,duration] of notes){assert.ok(from>=850&&from<=1870);assert.equal(from,to);assert.ok(duration<=.012)}
+ for(let i=1;i<notes.length;i++)assert.ok(notes[i][3]-notes[i-1][3]-notes[i-1][2]>.03);
+ const wav=renderWav(normalize({enabled:true,volume:60}),'ratchet',24000,pitches),v=new DataView(wav.buffer);
+ for(let i=0;i<4;i++){const midpoint=Math.round((notes[i][3]+.025)*24000);assert.equal(v.getInt16(44+midpoint*2,true),0)}
 });
