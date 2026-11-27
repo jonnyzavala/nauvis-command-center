@@ -123,10 +123,10 @@ function makeAwardTracker(){
 function sliderPitches(from,to,min,max,step=1){
  if(![from,to,min,max,step].every(Number.isFinite)||step<=0||max<=min||from===to)return [];
  const a=Math.round((clamp(from,min,max)-min)/step),b=Math.round((clamp(to,min,max)-min)/step),dir=Math.sign(b-a),n=Math.min(48,Math.abs(b-a));
- return Array.from({length:n},(_,i)=>Math.round(240*Math.pow(3,(clamp(min+(b-dir*(n-1-i))*step,min,max)-min)/(max-min))));
+ return Array.from({length:n},(_,i)=>Math.round(850*Math.pow(2.2,(clamp(min+(b-dir*(n-1-i))*step,min,max)-min)/(max-min))));
 }
-const SLIDER_SPACING=.036;
-function sliderNotes(pitches){return pitches.map((hz,i)=>[hz,hz*.84,.026,i*SLIDER_SPACING,'triangle',.26])}
+const SLIDER_SPACING=.048;
+function sliderNotes(pitches){return pitches.map((hz,i)=>[hz,hz,.011,i*SLIDER_SPACING,'triangle',.36])}
 function renderWav(p,event,sr=24000,pitches=null){
  const diagnostic=event==='test';
  const notes=pitches?.length?sliderNotes(pitches):diagnostic?[[660,660,.16,0,'sine',.65],[880,880,.24,.18,'sine',.65]]:soundDefinition(p,event)[1];
@@ -277,7 +277,7 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
    for(const [from,to,length,offset,wave,level] of sliderNotes(pitches)){
     const o=context.createOscillator(),g=context.createGain(),t=start+offset,end=t+length;
     o.type=wave;o.frequency.setValueAtTime(from,t);o.frequency.exponentialRampToValueAtTime(to,end);
-    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(.00011,p.volume/100*.24*level),t+.004);g.gain.exponentialRampToValueAtTime(.0001,end);
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(.00011,p.volume/100*.24*level),t+.0012);g.gain.exponentialRampToValueAtTime(.0001,end);
     o.connect(g);g.connect(context.destination);voices.push(o);
     o.onended=()=>{voices=voices.filter(v=>v!==o);try{o.disconnect();g.disconnect()}catch{}};
     o.start(t);o.stop(end+.003);
