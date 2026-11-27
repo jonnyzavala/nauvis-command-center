@@ -17,7 +17,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,25));const d=frame.contentDocument;if(d?.documentElement?.hasAttribute('data-intro-boot')&&d.querySelector('.shell')){sawCurtain=frame.contentWindow.getComputedStyle(d.querySelector('.shell')).visibility==='hidden';break}}
   let w=prep(await loading);
   assert(sawCurtain,'First paint hides app shell while intro script is still loading');
-  w=await load('&nauvis-update=1.1.18');
+  w=await load('&nauvis-update=1.1.19');
   assert(!w.NauvisIntro.active()&&!w.document.documentElement.hasAttribute('data-intro-boot'),'Update navigation skips intro and leaves no curtain');prep(w);
   w=await load('&recover=1');
   assert(!w.NauvisIntro.active()&&!w.document.documentElement.hasAttribute('data-intro-boot'),'Recovery navigation skips intro and leaves no curtain');prep(w);
@@ -244,8 +244,15 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   const rail=w.getComputedStyle(w.document.querySelector('.nav-track'),'::after');
   assert(rail.display!=='none'&&rail.backgroundImage.includes('linear-gradient')&&rail.content!=='none','One continuous gradient rail is visible');
   assert([...w.document.querySelectorAll('[data-focus-view]')].every(b=>w.getComputedStyle(b,'::after').display==='none'),'Legacy segmented rails are suppressed');
-  const chips=[...w.document.querySelector('.command-actions').children].map(n=>n.getBoundingClientRect());
-  assert(chips.length===3&&chips.every(r=>Math.abs(r.width-chips[0].width)<1&&Math.abs(r.height-chips[0].height)<1),'Three remaining header chips share equal dimensions');
+  const originalWidth=frame.style.width;
+  for(const width of [1100,440,390,320]){
+   frame.style.width=width+'px';await new Promise(r=>setTimeout(r,80));
+   const sync=w.document.querySelector('#cloudStatus').getBoundingClientRect(),sound=w.document.querySelector('#sensoryLaunch').getBoundingClientRect(),version=w.document.querySelector('#versionHistory').getBoundingClientRect();
+   const near=(a,b)=>Math.abs(a-b)<1;
+   assert(near(sync.left,sound.left)&&near(sync.right,version.right)&&near(sound.top,version.top)&&near(sound.bottom,version.bottom)&&near(sound.width,version.width)&&near(sync.height,sound.height)&&sync.bottom<sound.top,'Flush sync header and equal lower buttons at '+width+'px');
+   assert(sync.width<=149&&sync.height<=32&&sound.width>=44,'Compact header retains usable lower buttons at '+width+'px');
+  }
+  frame.style.width=originalWidth;await new Promise(r=>setTimeout(r,80));
   assert(w.document.querySelector('#sensoryDialog #focusModeToggle'),'Legacy mode switch is available in settings');
   const goalNode=w.document.querySelector('#build .ratio-flow-final');
   assert(!!goalNode,'Planner goal block exists');
