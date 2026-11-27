@@ -17,7 +17,10 @@ body[data-sensory-motion=off] *,body[data-sensory-motion=off] *::before,body[dat
 .intro-identity{display:grid;justify-items:center;text-align:center;gap:5px;max-width:100%;padding:0 12px}
 .intro-line{display:inline-block;white-space:nowrap;transform-origin:top left}
 .intro-wipe{overflow:visible;line-height:0}
-#nauvisIntro[open] .intro-line{animation:nauvis-text-wipe .53s var(--reveal-delay,0ms) cubic-bezier(.2,.8,.2,1) both}
+#nauvisIntro[open] .intro-line{animation:nauvis-text-wipe .95s var(--reveal-delay,0ms) cubic-bezier(.2,.8,.2,1) both}
 .intro-greeting{margin-top:18px}
 #skipIntro{position:absolute;bottom:max(24px,env(safe-area-inset-bottom));right:max(24px,env(safe-area-inset-right));background:#284354;color:#e3f3ff;border:1px solid #65889d;border-radius:9px;padding:10px 14px;min-height:44px}
-@keyframes nauvis-text-wipe{from{clip-path:inset(0 100% 0 0);opacity:.2}to{clip-path:inset(0 -2px 0 0);opacity:1}}
+@keyframes nauvis-text-wipe{0%{clip-path:inset(-22px 100% -22px -22px);opacity:0}25%{opacity:1}100%{clip-path:inset(-22px -22px -22px -22px);opacity:1}}
+/* Low-key blueprint illumination, not a second logo. */
+.intro-back{overflow:hidden}.intro-grid{position:absolute;inset:0;background-image:linear-gradient(#83b8e210 1px,transparent 1px),linear-gradient(90deg,#83b8e210 1px,transparent 1px);background-size:48px 48px;mask-image:radial-gradient(ellipse at center,#000 5%,transparent 75%);opacity:.85}.intro-halo{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,#77baff20,transparent 48%);animation:nauvis-intro-halo 3.6s ease-in-out both}.intro-scan{position:absolute;left:12%;right:12%;height:1px;top:30%;background:linear-gradient(90deg,transparent,#b9deff80,transparent);box-shadow:0 0 20px #65b5ff90;animation:nauvis-intro-scan 3s ease-in-out both}.intro-line{text-shadow:0 0 12px color-mix(in srgb,currentColor 55%,transparent),0 0 28px color-mix(in srgb,currentColor 22%,transparent)}#introWelcome{text-shadow:0 0 14px color-mix(in srgb,currentColor 65%,transparent),0 0 28px color-mix(in srgb,currentColor 25%,transparent)}
+@keyframes nauvis-intro-halo{0%{opacity:0}42%{opacity:1}100%{opacity:.65}}@keyframes nauvis-intro-scan{0%{top:30%;opacity:0}20%{opacity:.75}80%{opacity:.55}100%{top:70%;opacity:0}}

@@ -13,7 +13,10 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
  const snap=w=>w.NauvisLocal.snapshot();
  const count=w=>snap(w).setup.machines.reduce((n,r)=>n+Number(r.count),0);
  try{
-  let w=prep(await load());
+  const loading=load();let sawCurtain=false;
+  for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,25));const d=frame.contentDocument;if(d?.documentElement.hasAttribute('data-intro-boot')&&d.querySelector('.shell')){sawCurtain=frame.contentWindow.getComputedStyle(d.querySelector('.shell')).visibility==='hidden';break}}
+  let w=prep(await loading);
+  assert(sawCurtain,'First paint hides app shell while intro script is still loading');
   await new Promise(r=>setTimeout(r,50));
   if(w.document.querySelector('#factoryOnboardingDialog').open)click(w,'[data-onboard-action="close"]');
   assert(w.NauvisLocal&&w.NauvisLogistics&&w.NauvisRecipeMath&&w.NauvisSensory,'Application and deferred modules initialized');
@@ -24,9 +27,12 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   const introWelcome=w.document.querySelector('#introWelcome'),headerWelcome=w.document.querySelector('#headerWelcome');
   assert(w.getComputedStyle(introWelcome).fontSize===w.getComputedStyle(headerWelcome).fontSize,'Greeting starts at exact header font size');
   assert(w.getComputedStyle(headerWelcome).visibility==='hidden','Header counterpart is hidden during transition');
-  await new Promise(r=>setTimeout(r,1700));
+  assert(w.getComputedStyle(introWelcome).color==='rgb(235, 191, 121)','Greeting begins in engineer gold');
+  assert(w.getComputedStyle(introWelcome).textShadow!=='none','Greeting has luminous text shadow');
+  await new Promise(r=>setTimeout(r,3450));
   assert(w.NauvisIntro.active()&&introWelcome.getAnimations().some(a=>a.effect.getKeyframes().some(k=>k.left!==undefined)),'Text is animated toward header coordinates');
-  await new Promise(r=>setTimeout(r,900));
+  assert(introWelcome.getAnimations().some(a=>a.effect.getKeyframes().some(k=>k.color===w.getComputedStyle(headerWelcome).color)),'Greeting morphs to current workspace color');
+  await new Promise(r=>setTimeout(r,1750));
   assert(!w.NauvisIntro.active()&&w.getComputedStyle(headerWelcome).visibility==='visible','Intro completes and restores real header');
   assert(JSON.stringify(snap(w))===initial,'Intro does not change factory data');
   click(w,'#versionHistory');assert(w.document.querySelector('#versionDialog').open&&w.document.querySelector('#checkRelease')&&w.document.querySelector('#versionDialog details').open,'Version menu exposes manual updates and latest changelog');click(w,'#versionClose');
@@ -296,7 +302,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   const file=path.resolve(root,'.'+decodeURIComponent(url.pathname==='/'?'/index.html':url.pathname));
   if(!file.startsWith(root+path.sep)||!fs.existsSync(file)||!fs.statSync(file).isFile()){res.statusCode=404;res.end();return}
   const mime={'.html':'text/html','.js':'application/javascript','.css':'text/css','.json':'application/json','.webmanifest':'application/manifest+json'};
-  res.setHeader('Content-Type',mime[path.extname(file)]||'application/octet-stream');fs.createReadStream(file).pipe(res);
+  res.setHeader('Content-Type',mime[path.extname(file)]||'application/octet-stream');if(url.pathname==='/startup-intro.js'){setTimeout(()=>fs.createReadStream(file).pipe(res),450);return}fs.createReadStream(file).pipe(res);
  });
  await new Promise(r=>server.listen(0,'127.0.0.1',r));
  const chrome=spawn(process.env.CHROME_BIN||'google-chrome',['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-background-networking','--autoplay-policy=no-user-gesture-required','--no-first-run','--no-default-browser-check','--window-size=1280,1000','--user-data-dir='+profile,'http://127.0.0.1:'+server.address().port+'/__smoke'],{stdio:['ignore','ignore','pipe']});
