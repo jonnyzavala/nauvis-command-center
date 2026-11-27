@@ -379,6 +379,11 @@ function makeBeltPlan(result,tier,allocation={}){
  }
  return {tier:selected,counts};
 }
+// Incoming supply boundary: external and reused supply nodes, not machine outputs.
+function incomingLogistics(result,beltPlan){
+ const graph=buildFlowGraph(result),plan=makeBeltPlan(result,beltPlan?.tier,beltPlan?.counts),totals=solidTotals(graph);
+ return graph.nodes.filter(n=>n.type==='supply'&&graph.edges.some(e=>e.from===n.key)).map(n=>({key:n.key,recipe:n.recipe,label:n.label,kind:n.kind==='fluid'?'pipe':'belt',planned:n.kind==='fluid'?1:plan.counts[n.key]??0,built:0,rate:n.kind==='fluid'?graph.edges.filter(e=>e.from===n.key).reduce((sum,e)=>sum+e.rate,0):totals.get(n.key)||0})).filter(t=>t.planned>0);
+}
 function solidTotals(graph){const totals=new Map();for(const e of graph.edges){if(!e.fluid)totals.set(e.from,(totals.get(e.from)||0)+e.rate)}return totals}
 function downstreamRate(bundle,path){
  const same=(a,b)=>a.x===b.x&&a.y===b.y;
@@ -402,7 +407,7 @@ function feederLines(count,tier,a,b,capacity){
  return '<div class="physical-feeder"><div class="physical-feeder-label"><b>'+count+' × '+escapeHTML(tier)+' belt'+(count===1?'':'s')+'</b><span>'+desc+'</span></div>'+beltLines(count,tier)+'<small>'+formatted(count*capacity)+'/min physical capacity · '+(mixed?'shared ingredients':half?'one lane used':'both lanes')+'</small></div>';
 }
 
-if(typeof module==='object'&&module.exports)module.exports={makeBeltPlan,beltCapacityStatus,solidTotals,beltRequirement,downstreamRate,parallelPoints,beltLines,feederLines,buildFlowGraph,routeLayout,baseRouteLayout,routingScore,fitLayout,mergeRoutes,roundedPath,focusGraph,focusBundle,toggleSelection,focusTone};
+if(typeof module==='object'&&module.exports)module.exports={incomingLogistics,makeBeltPlan,beltCapacityStatus,solidTotals,beltRequirement,downstreamRate,parallelPoints,beltLines,feederLines,buildFlowGraph,routeLayout,baseRouteLayout,routingScore,fitLayout,mergeRoutes,roundedPath,focusGraph,focusBundle,toggleSelection,focusTone};
 if(typeof document==='undefined')return;
 const browserViews=new Map();
 function nodeColor(node){
@@ -419,7 +424,7 @@ function nodeMarkup(node){
      itemGlyph(node.recipe,40)+'<span class="ratio-flow-count">'+(node.built!==undefined?formatted(node.built)+'/'+formatted(node.count):formatted(node.count))+'</span>'+
      '<span class="ratio-flow-node-label"><strong>'+label+'</strong><b>'+machineNoun(node.kind)+'</b><small>Needs '+formatted(node.needed)+'/min output</small></span>':
      itemGlyph(node.recipe,34)+
-     '<span class="ratio-flow-node-label"><strong>'+label+'</strong><b>Input supply</b><small>'+formatted(node.needed)+'/min</small></span>')+
+     (node.built!==undefined?'<span class="ratio-flow-count">'+formatted(node.built)+'/'+formatted(node.count)+'</span>':'')+'<span class="ratio-flow-node-label"><strong>'+label+'</strong><b>'+(node.built!==undefined?(node.kind==='fluid'?'Pipe connection':'Incoming belts'):'Input supply')+'</b><small>'+formatted(node.needed)+'/min</small></span>')+
    '</button>';
 }
 function captureBeltPlan(cardKey,result){const state=browserViews.get(cardKey);return makeBeltPlan(result,state?.beltTier,state?.allocation)}
@@ -435,15 +440,28 @@ function updateProgress(cardKey,counts){
   if(chip){chip.dataset.builtState=status;chip.querySelector('strong').textContent=formatted(node.built)+'/'+formatted(node.count)}
  }
 }
-function celebrateProgress(cardKey,recipe){
+function updateLogisticsProgress(cardKey,tasks,{preview=false}={}){
+ const state=browserViews.get(cardKey);if(!state)return;
+ for(const task of tasks||[]){
+  const n=state.graph.nodes.find(x=>x.key===task.key&&x.type==='supply');if(!n)continue;
+  n.count=task.planned;n.built=Math.max(0,Math.min(task.planned,task.built));const pct=100*n.built/Math.max(1,n.count),status=n.built>=n.count?'done':n.built>0?'partial':'waiting';
+  const el=[...state.holder.querySelectorAll('[data-flow-node]')].find(b=>b.dataset.flowNode===n.key);
+  if(el){el.style.setProperty('--built-pct',pct+'%');el.dataset.builtState=status;const count=el.querySelector('.ratio-flow-count');if(count)count.textContent=formatted(n.built)+'/'+formatted(n.count)}
+  const row=[...state.holder.querySelectorAll('[data-logistics-row]')].find(r=>r.dataset.logisticsRow===task.key);
+  if(row){row.classList.toggle('project-task-done',status==='done');row.querySelector('[data-built-preview]').textContent=n.built;const input=row.querySelector('[data-project-logistics-built]'),check=row.querySelector('[data-project-logistics-check]');if(!preview){input.value=n.built;input.dataset.soundValue=n.built;check.checked=status==='done'}}
+  if(!preview)state.logistics.set(task.key,{...task,built:n.built});
+ }
+}
+function celebrateProgress(cardKey,recipe,logistics=false){
  const state=browserViews.get(cardKey);if(!state||document.hidden||matchMedia('(prefers-reduced-motion: reduce)').matches||root.NauvisSensory?.getPrefs?.().motion==='off')return;
- const node=state.graph.nodes.find(n=>n.type==='machine'&&n.recipe===recipe),el=node&&[...state.holder.querySelectorAll('[data-flow-node]')].find(b=>b.dataset.flowNode===node.key);
+ const node=state.graph.nodes.find(n=>logistics?n.type==='supply'&&n.key===recipe:n.type==='machine'&&n.recipe===recipe),el=node&&[...state.holder.querySelectorAll('[data-flow-node]')].find(b=>b.dataset.flowNode===node.key);
  if(!el)return;el.classList.remove('flow-complete-shine');void el.offsetWidth;el.classList.add('flow-complete-shine');el.addEventListener('animationend',()=>el.classList.remove('flow-complete-shine'),{once:true});
 }
 function unmount(cardKey){const s=browserViews.get(cardKey);s?.observer?.disconnect();s?.cancel?.();s?.cleanup?.();browserViews.delete(cardKey)}
 function mount(target,result,cardKey,options={}){
  const holder=target.querySelector('[data-ratio-flow-root]');if(!holder)return;
- const graph=buildFlowGraph(result);
+ const graph=buildFlowGraph(result),logistics=new Map((options.logistics||[]).map(t=>[t.key,{...t}]));
+ for(const node of graph.nodes){const task=logistics.get(node.key);if(task){node.count=task.planned;node.built=task.built}}
  if(options.progress)for(const node of graph.nodes)if(node.type==='machine')node.built=options.progress[node.recipe]??0;
  const older=browserViews.get(cardKey);
  older?.observer?.disconnect();
@@ -470,10 +488,10 @@ function mount(target,result,cardKey,options={}){
  const display=holder.querySelector('[data-flow-display]');
  const checkbox=holder.querySelector('[data-flow-input-toggle]');
  const upstreamToggle=holder.querySelector('[data-flow-upstream-toggle]');
- const state={graph,display,holder,result,cardKey,inputVisible,upstream,beltMode,beltTier,totals,allocation,selected:older?.result?.id===result.id?(older.selected||null):null,observer:null,
+ const state={graph,display,holder,result,cardKey,logistics,inputVisible,upstream,beltMode,beltTier,totals,allocation,selected:older?.result?.id===result.id?(older.selected||null):null,observer:null,
   cancel:null,redraw:null};
  browserViews.set(cardKey,state);
- if(options.progress){holder.classList.add('construction-flow');checkbox.closest('label').hidden=true;upstreamToggle.closest('label').hidden=true;holder.querySelector('[data-flow-belt-tier]').disabled=true;holder.querySelector('[data-flow-belt-reset]').hidden=true;holder.querySelector('[data-flow-belt-toggle]').nextElementSibling.textContent=options.beltPlan?'Show saved belts':'Show estimated belts';}
+ if(options.progress){holder.classList.add('construction-flow');checkbox.closest('label').hidden=true;upstreamToggle.closest('label').hidden=true;holder.querySelector('[data-flow-belt-tier]').disabled=true;holder.querySelector('[data-flow-belt-reset]').hidden=true;holder.querySelector('[data-flow-belt-toggle]').nextElementSibling.textContent=options.beltPlan?'Show saved logistics':'Show estimated logistics';}
  function update(){
   updateBeltControls();
   state.observer?.disconnect();
@@ -494,17 +512,29 @@ function mount(target,result,cardKey,options={}){
   const summary=holder.querySelector('[data-flow-belt-summary]');
   const row=([key,rate])=>{
    const node=graph.nodes.find(n=>n.key===key);
+   const task=options.progress&&logistics.get(key);
+   if(task){
+    const pipe=task.kind==='pipe',done=task.built===task.planned;
+    return '<div class="project-task flow-logistics-task'+(done?' project-task-done':'')+'" data-logistics-row="'+escapeHTML(key)+'" data-flow-resource="'+escapeHTML(key)+'" style="--project-task-accent:'+nodeColor(node)+'">'+
+    '<div class="project-task-identity"><span class="project-task-led" aria-hidden="true"></span>'+itemGlyph(node.recipe,32)+'<div><strong>'+escapeHTML(node.label)+'</strong><small>'+task.planned+' '+(pipe?'pipe connection':tier+' belt'+(task.planned===1?'':'s'))+' planned</small></div></div>'+
+    '<div class="flow-logistics-stats">'+(pipe?'':'<div class="flow-resource-ring" aria-label="Planned capacity utilization"><b data-flow-util></b></div>')+'<div class="flow-resource-main"><small data-flow-rates></small><small data-flow-status></small></div></div>'+
+    '<div class="project-task-controls project-slider-controls"><label class="project-built-slider"><span class="project-task-counter"><b data-built-preview>'+task.built+'</b><small>/ '+task.planned+' built</small></span><input type="range" min="0" max="'+task.planned+'" step="1" value="'+task.built+'" data-sound-value="'+task.built+'" data-project-logistics-built="'+escapeHTML(options.projectId)+'" data-logistics-key="'+escapeHTML(key)+'" aria-label="Built incoming '+escapeHTML(node.label)+' '+(pipe?'pipe connection':'belts')+'"></label><label class="project-check"><input type="checkbox" data-project-logistics-check="'+escapeHTML(options.projectId)+'" data-logistics-key="'+escapeHTML(key)+'" '+(done?'checked':'')+'> Done</label></div></div>';
+   }
    return '<div class="flow-belt-resource" data-flow-resource="'+escapeHTML(key)+'"><div class="flow-resource-ring" aria-label="Capacity utilization"><b data-flow-util></b></div><div class="flow-resource-main"><b>'+itemGlyph(node.recipe,20)+escapeHTML(node.label)+'</b><small data-flow-rates></small><small data-flow-status></small><label class="flow-resource-slider"><input type="range" min="0" step="1" data-flow-belt-count data-flow-material="'+escapeHTML(key)+'" aria-label="Assigned belts for '+escapeHTML(node.label)+'"><span><b data-flow-assigned></b> belts</span></label></div></div>';
   };
   const entries=[...totals];
+  if(options.progress)for(const task of logistics.values())if(task.kind==='pipe')entries.push([task.key,task.rate]);
   if(!summary.children.length)summary.innerHTML='<div class="flow-capacity-grid">'+entries.map(row).join('')+'</div>';
   for(const el of summary.querySelectorAll('[data-flow-resource]')){
-   const key=el.dataset.flowResource,rate=totals.get(key),r=beltCapacityStatus(rate,tier,allocation.get(key)),pct=r.utilization;
+   const key=el.dataset.flowResource,task=logistics.get(key),rate=totals.get(key)??task?.rate??0;
+   if(task?.kind==='pipe'){el.querySelector('[data-flow-rates]').textContent=formatted(rate)+'/min required flow';el.querySelector('[data-flow-status]').textContent='One incoming pipe connection · capacity not modeled';continue}
+   const r=beltCapacityStatus(rate,tier,allocation.get(key)),pct=r.utilization;
    el.dataset.capacityStatus=r.status;
    el.querySelector('[data-flow-util]').textContent=pct===null?'—':formatted(Math.round(pct))+'%';
    el.querySelector('.flow-resource-ring').style.setProperty('--ring-p',Math.min(100,pct??(rate?100:0))+'%');
    el.querySelector('[data-flow-rates]').textContent=formatted(rate)+' / '+formatted(r.capacity)+'/min · '+r.required+' required';
    el.querySelector('[data-flow-status]').textContent=capacityLabel(r.status)+' · '+(r.status==='starving'?formatted(-r.delta)+'/min short':r.status==='excess'?formatted(r.delta)+'/min spare':'Demand matched');
+   if(task)continue;
    el.querySelector('[data-flow-assigned]').textContent=r.assigned;
    const input=el.querySelector('[data-flow-belt-count]');input.max=String(Math.max(4,r.required*2,r.assigned));input.value=String(r.assigned);if(options.progress){input.hidden=true;input.disabled=true;}input.setAttribute('aria-valuetext',r.assigned+' '+tier+' belts');
   }
@@ -629,9 +659,10 @@ function drawLayout(state){
      const annotation=seg?'<text x="'+(seg.a.x+seg.b.x)/2+'" y="'+((seg.a.y+seg.b.y)/2-8-n*2)+'" text-anchor="middle" font-size="9" font-weight="700" fill="'+(isRoot?statusColor:tierColor)+'" stroke="#152b3b" stroke-width="2.5" paint-order="stroke" opacity="'+(state.selected&&!active?.35:1)+'">'+r.count+' '+state.beltTier+(isRoot?' · '+capacityLabel(check.status):'')+'</text>':'';
      paths.push({active,markup:markup+annotation});continue;
     }
-    const line='<path class="ratio-link-underlay" d="'+d+'"/>'+
-     (active?'<path class="ratio-link-glow" style="stroke:'+color+'" d="'+d+'"/>':'')+
-     '<path class="ratio-link '+tone+'" style="stroke:'+color+'" d="'+d+'"'+(path.edge?' marker-end="url(#'+id+(active?'-on':'-off')+')"':'')+'/>';
+    const dashed=bundle.routes[0].edge.fluid?' stroke-dasharray="6 5" data-fluid-route="true"':'';
+    const line='<path class="ratio-link-underlay" d="'+d+'"'+dashed+'/>'+
+     (active?'<path class="ratio-link-glow" style="stroke:'+color+'" d="'+d+'"'+dashed+'/>':'')+
+     '<path class="ratio-link '+tone+'" style="stroke:'+color+'" d="'+d+'"'+dashed+(path.edge?' marker-end="url(#'+id+(active?'-on':'-off')+')"':'')+'/>';
     paths.push({active,markup:line});
    }
    const dot=(p,kind,r)=>{
@@ -671,5 +702,5 @@ function drawLayout(state){
   const chrome=document.querySelector('.command-chrome');if(chrome)state.observer.observe(chrome);
  }
 }
-root.NauvisRatioFlow={makeBeltPlan,solidTotals,downstreamRate,parallelPoints,captureBeltPlan,updateProgress,celebrateProgress,beltCapacityStatus,beltAllocationByCard:new Map(),beltRequirement,beltLines,feederLines,beltModeByCard:new Map(),beltTierByCard:new Map(),mount,unmount,buildFlowGraph,routeLayout,roundedPath,focusGraph,focusBundle,inputByCard:new Map(),upstreamByCard:new Map()};
+root.NauvisRatioFlow={incomingLogistics,makeBeltPlan,solidTotals,downstreamRate,parallelPoints,captureBeltPlan,updateProgress,updateLogisticsProgress,celebrateProgress,beltCapacityStatus,beltAllocationByCard:new Map(),beltRequirement,beltLines,feederLines,beltModeByCard:new Map(),beltTierByCard:new Map(),mount,unmount,buildFlowGraph,routeLayout,roundedPath,focusGraph,focusBundle,inputByCard:new Map(),upstreamByCard:new Map()};
 })(typeof window==='undefined'?globalThis:window);
