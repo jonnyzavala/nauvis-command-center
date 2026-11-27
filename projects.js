@@ -129,6 +129,15 @@ function projectProgress(project){
   complete:tasks.filter(t=>clampInt(t.planned)>0&&clampInt(t.built)>=clampInt(t.planned)).length,
   tasks:tasks.length};
 }
+// Only incomplete-to-complete transitions on a committed edit earn a reward.
+function constructionFeedback(before,after,changes,recipe=null){
+ const delta=changes.reduce((n,t)=>n+t.delta,0);
+ const completed=changes.filter(c=>{const task=after.tasks.find(t=>t.recipe===c.recipe);return c.delta>0&&task?.planned>0&&c.before<task.planned&&c.after===task.planned}).map(c=>c.recipe);
+ const old=projectProgress(before),next=projectProgress(after);
+ const projectDone=delta>0&&old.built<old.planned&&next.planned>0&&next.built===next.planned;
+ const groupDone=delta>0&&!!recipe&&completed.includes(recipe);
+ return {delta,completed,projectDone,groupDone,event:projectDone?'complete':groupDone?'phase':delta>0?'build':delta<0?'reverse':null};
+}
 // The saved blueprint remains historical; a task override describes the
 // uniform profile actually installed (and used by subsequent Built actions).
 function taskProfile(project,task){return task.actualProfile||project.goal}
@@ -218,7 +227,7 @@ function normalizeProjects(value){
  });
 }
 if(typeof module==='object'&&module.exports)
- module.exports={buildProject,projectProgress,recordedForTask,applyBuildDelta,prepareBuildBatch,validateProjectName,normalizeProjects,reuseClaims,validateReuseClaims,freezeDesign,constructionMaterials,expandConstructionMaterials,constructionSupply,taskProfile,reconcileTaskProfile};
+ module.exports={buildProject,projectProgress,constructionFeedback,recordedForTask,applyBuildDelta,prepareBuildBatch,validateProjectName,normalizeProjects,reuseClaims,validateReuseClaims,freezeDesign,constructionMaterials,expandConstructionMaterials,constructionSupply,taskProfile,reconcileTaskProfile};
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id);
 const escape=s=>String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
@@ -345,7 +354,7 @@ function projectHTML(p){
   const done=task.built>=task.planned&&task.planned>0,plusDisabled=archived||done||mismatch||cannotRecord,minusDisabled=archived||task.built<=0||mismatch;
   return '<div class="project-task'+(done?' project-task-done':'')+'" data-task-row="'+escape(task.recipe)+'" style="--project-task-accent:'+color+'">'+
    '<div class="project-task-identity"><span class="project-task-led" aria-hidden="true"></span>'+itemGlyph(task.recipe,32)+'<div><strong>'+escape(R[task.recipe]?.[0]||task.recipe)+'</strong><small>'+escape(noun(task.kind))+' · '+task.planned+' planned'+(task.kind==='asm'?' · Assembler '+(taskProfile(p,task).machine===1.25?'3':taskProfile(p,task).machine===.5?'1':'2'):task.kind==='furnace'?' · '+escape(R[p.furnaceItem]?.[0]||'2× furnace'):'')+'</small></div></div>'+
-   '<div class="project-task-controls project-slider-controls"><label class="project-built-slider"><span class="project-task-counter"><b data-built-preview>'+task.built+'</b><small>/ '+task.planned+' built</small></span><input type="range" min="0" max="'+task.planned+'" step="1" value="'+task.built+'" data-project-built="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Built '+escape(task.recipe)+'" '+(archived||mismatch||cannotRecord?'disabled':'')+'></label><label class="project-check"><input type="checkbox" data-project-check="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" '+(done?'checked ':'')+(archived||mismatch||cannotRecord?'disabled':'')+'> Done</label></div>'+
+   '<div class="project-task-controls project-slider-controls"><label class="project-built-slider"><span class="project-task-counter"><b data-built-preview>'+task.built+'</b><small>/ '+task.planned+' built</small></span><input type="range" min="0" max="'+task.planned+'" step="1" value="'+task.built+'" data-sound-value="'+task.built+'" data-project-built="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" aria-label="Built '+escape(task.recipe)+'" '+(archived||mismatch||cannotRecord?'disabled':'')+'></label><label class="project-check"><input type="checkbox" data-project-check="'+escape(p.id)+'" data-task-recipe="'+escape(task.recipe)+'" '+(done?'checked ':'')+(archived||mismatch||cannotRecord?'disabled':'')+'> Done</label></div>'+
    (mismatch?'<div class="project-task-foot"><span class="project-task-warning">Recorded counts differ from the checklist. Review the installed record before editing.</span></div>':
     cannotRecord?'<div class="project-task-foot"><span class="project-task-warning">Set actual smelting speed to 2× before recording this furnace.</span></div>':'')+
    '</div>';
@@ -498,7 +507,7 @@ function restorePosition(id,recipe,anchor){
  const y=top!=null&&anchor.top!=null?root.scrollY+top-anchor.top:anchor.y;
  root.scrollTo({top:Math.max(0,y),behavior:'instant'});
 }
-function positiveFeedback(id,recipe,delta,groupDone,projectDone){
+function positiveFeedback(id,recipe,delta,groupDone,projectDone,slider=false){
  const seq=++feedbackSequence,el=projectDone?cardFor(id):recipe?rowFor(id,recipe):cardFor(id);
  if(el){el.classList.remove('project-celebrate','project-count-flash');void el.offsetWidth;el.classList.add(groupDone||projectDone?'project-celebrate':'project-count-flash')}
  let toast=$('projectFeedbackToast');
@@ -507,7 +516,7 @@ function positiveFeedback(id,recipe,delta,groupDone,projectDone){
  toast.className='project-feedback-toast'+(projectDone?' project-feedback-win':groupDone?' project-feedback-group':'');toast.hidden=false;
  if(feedbackTimer!==null)clearTimeout(feedbackTimer);
  feedbackTimer=setTimeout(()=>{if(seq===feedbackSequence)toast.hidden=true;el?.classList.remove('project-celebrate','project-count-flash')},projectDone?2500:groupDone?1800:1000);
- root.NauvisSensory?.semantic?.(projectDone?'complete':groupDone?'phase':delta>0?'build':'reverse',el);
+ if(!slider||groupDone||projectDone)root.NauvisSensory?.semantic?.(projectDone?'complete':groupDone?'phase':delta>0?'build':'reverse',el);
 }
 // Progress changes are not navigation: keep the actual slider and graph DOM in place.
 function updateProjectProgress(project){
@@ -520,7 +529,7 @@ function updateProjectProgress(project){
   const row=rowFor(project.id,task.recipe),newRow=[...fresh.querySelectorAll('.project-task')].find(r=>r.dataset.taskRow===task.recipe);if(!row||!newRow)continue;
   row.className=newRow.className;
   const slider=row.querySelector('[data-project-built]'),check=row.querySelector('[data-project-check]');
-  slider.value=String(task.built);slider.disabled=newRow.querySelector('[data-project-built]').disabled;
+  slider.value=String(task.built);slider.dataset.soundValue=String(task.built);slider.disabled=newRow.querySelector('[data-project-built]').disabled;
   check.checked=task.planned>0&&task.built>=task.planned;check.disabled=newRow.querySelector('[data-project-check]').disabled;
   row.querySelector('[data-built-preview]').textContent=String(task.built);
   const foot=row.querySelector('.project-task-foot'),newFoot=newRow.querySelector('.project-task-foot');
@@ -533,7 +542,7 @@ function updateProjectProgress(project){
  if($('projectsNotice')){$('projectsNotice').textContent=notice;$('projectsNotice').hidden=!notice}
  root.NauvisFocus?.refresh?.();
 }
-function updateBuiltBatch(id,adjustments,recipe=null){
+function updateBuiltBatch(id,adjustments,recipe=null,slider=false){
  const project=selectedProject(id);if(!project||project.status==='archived')return;
  const anchor=anchorPosition(id,recipe),before=projectProgress(project);
  try{
@@ -548,13 +557,12 @@ function updateBuiltBatch(id,adjustments,recipe=null){
   saveSetup();save();renderSetup();
   notice='';updateProjectProgress(change.project);root.NauvisAssets?.render?.();
   restorePosition(id,recipe,anchor);
-  for(const item of change.changes){const task=change.project.tasks.find(t=>t.recipe===item.recipe);if(item.delta>0&&task.built===task.planned)root.NauvisRatioFlow?.celebrateProgress?.('project:'+id,item.recipe)}
-  const groupDone=!!recipe&&totalDelta>0&&change.project.tasks.find(t=>t.recipe===recipe).built===change.project.tasks.find(t=>t.recipe===recipe).planned;
-  const projectDone=totalDelta>0&&after.planned>0&&after.built===after.planned;
-  positiveFeedback(id,recipe,totalDelta,groupDone,projectDone);
+  const feedback=constructionFeedback(project,change.project,change.changes,recipe);
+  for(const key of feedback.completed)root.NauvisRatioFlow?.celebrateProgress?.('project:'+id,key);
+  if(feedback.event)positiveFeedback(id,recipe,feedback.delta,feedback.groupDone,feedback.projectDone,slider);
  }catch(err){notice=err.message;render();restorePosition(id,recipe,anchor);root.NauvisSensory?.semantic?.('warning')}
 }
-function updateBuilt(id,recipe,delta){updateBuiltBatch(id,[{recipe,delta}],recipe)}
+function updateBuilt(id,recipe,delta,slider=false){updateBuiltBatch(id,[{recipe,delta}],recipe,slider)}
 function batchBuilt(project,recipe,sign){
  const t=project.tasks.find(t=>t.recipe===recipe);if(!t)return;
  const input=rowFor(project.id,recipe)?.querySelector('[data-project-batch-size]'),n=Number(input?.value??batchAmount(project.id,recipe));
@@ -636,7 +644,7 @@ function attachEvents(){
  });
  $('projectsOpenFactory')?.addEventListener('click',()=>activateWorkspace('setup',true));
  $('factory')?.addEventListener('input',event=>{const b=event.target;if(b.matches('[data-project-built]')){const row=b.closest('.project-task');row.querySelector('[data-built-preview]').textContent=b.value;root.NauvisRatioFlow?.updateProgress?.('project:'+b.dataset.projectBuilt,{[b.dataset.taskRecipe]:Number(b.value)})}});
- $('factory')?.addEventListener('change',event=>{const b=event.target;if(!b.matches('[data-project-built],[data-project-check]'))return;const p=selectedProject(b.dataset.projectBuilt||b.dataset.projectCheck),t=p?.tasks.find(t=>t.recipe===b.dataset.taskRecipe);if(!t)return;const next=b.matches('[data-project-check]')?(b.checked?t.planned:0):Number(b.value);if(!Number.isSafeInteger(next)||next<0||next>t.planned)return;if(next!==t.built){updateBuilt(p.id,t.recipe,next-t.built);const current=selectedProject(p.id)?.tasks.find(x=>x.recipe===t.recipe);if(current?.built!==next)render()}else root.NauvisRatioFlow?.updateProgress?.('project:'+p.id,{[t.recipe]:t.built})});
+ $('factory')?.addEventListener('change',event=>{const b=event.target;if(!b.matches('[data-project-built],[data-project-check]'))return;const p=selectedProject(b.dataset.projectBuilt||b.dataset.projectCheck),t=p?.tasks.find(t=>t.recipe===b.dataset.taskRecipe);if(!t)return;const next=b.matches('[data-project-check]')?(b.checked?t.planned:0):Number(b.value);if(!Number.isSafeInteger(next)||next<0||next>t.planned)return;if(next!==t.built){updateBuilt(p.id,t.recipe,next-t.built,b.matches('[data-project-built]'));const current=selectedProject(p.id)?.tasks.find(x=>x.recipe===t.recipe);if(current?.built!==next)render()}else root.NauvisRatioFlow?.updateProgress?.('project:'+p.id,{[t.recipe]:t.built})});
  $('factory')?.addEventListener('click',event=>{
   const b=event.target.closest('button');if(!b)return;
   if(b.hasAttribute('data-project-remove')){const p=selectedProject(b.dataset.projectRemove);if(p)removeProjectRecord(p);return}
