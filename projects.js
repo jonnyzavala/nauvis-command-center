@@ -275,9 +275,11 @@ function uniqueId(){
 }
 function visibleProjects(){return allProjects().filter(p=>!p.historyHidden&&p.type!=='deployment'&&!p.tasks.some(t=>t.kind==='asset'))}
 function selectedProject(id){return visibleProjects().find(p=>p.id===id)}
+const legacyLogisticsCache=new WeakMap();
 function logisticsFor(p){
  if(Array.isArray(p.logisticsTasks))return p.logisticsTasks;
  if(p.type==='deployment'||p.status==='archived'||!p.tasks?.length)return [];
+ if(legacyLogisticsCache.has(p))return legacyLogisticsCache.get(p);
  try{const a=p.design?.analysis||root.NauvisRecipeMath(R,p.goal,{stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names});
  if(a.entries.length!==p.tasks.length||a.entries.some(e=>!p.tasks.some(t=>t.recipe===e.key&&t.planned===e.count)))return [];
  return root.NauvisRatioFlow.incomingLogistics(a,p.beltPlan);
@@ -286,7 +288,7 @@ function logisticsFor(p){
 function withLogistics(p){return Array.isArray(p.logisticsTasks)?p:{...p,logisticsTasks:logisticsFor(p)}}
 function stats(){
  const all=visibleProjects(),active=all.filter(p=>p.status!=='archived');
- const summary=active.reduce((a,p)=>{const progress=projectProgress(p);a.planned+=progress.planned;a.built+=progress.built;return a;},{planned:0,built:0});
+ const summary=active.reduce((a,p)=>{const progress=overallProgress(withLogistics(p));a.planned+=progress.planned;a.built+=progress.built;return a;},{planned:0,built:0});
  return {active:active.length,archived:all.length-active.length,...summary};
 }
 function legacyStats(){
