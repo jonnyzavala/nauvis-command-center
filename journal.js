@@ -145,7 +145,7 @@ function addNote(note){
 }
 function events(){
  document.getElementById('journalList')?.addEventListener('click',e=>{
-  const button=e.target.closest('[data-journal-delete]');if(!button||!root.confirm('Delete this log entry? Factory and project counts will not change.'))return;
+  const button=e.target.closest('[data-journal-delete]');if(!button)return;
   factory.journal=getJournal().filter(x=>x.id!==button.dataset.journalDelete);persistPlan();save();render();root.NauvisFocus?.refresh?.();
  });
  document.getElementById('journalNoteForm')?.addEventListener('submit',e=>{
