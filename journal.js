@@ -115,22 +115,22 @@ function formatTime(at){
  const d=new Date(at);return Number.isNaN(d.getTime())?'Unknown time':
   d.toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
 }
-function renderEntry(e){
+function renderEntry(e,allowDelete=false){
  const kind=escapeHTML(e.type),src=escapeHTML(e.source),ico=e.recipe?root.NauvisIcons?.item?.(e.recipe,30)||'':'';
  const extra=e.delta===null||e.delta===undefined?'':'<span class="journal-amount">'+(e.delta>0?'+':'')+escapeHTML(e.delta)+'</span>';
  return '<li class="journal-entry" data-journal-id="'+escapeHTML(e.id)+'">'+
   '<span class="journal-entry-icon" aria-hidden="true">'+(ico||'▤')+'</span>'+
   '<div class="journal-entry-body"><strong>'+escapeHTML(e.title)+'</strong><p>'+escapeHTML(e.detail)+'</p>'+
-  '<span class="journal-entry-meta">'+escapeHTML(formatTime(e.at))+' · '+src+' · '+kind+'</span></div>'+extra+'</li>';
+  '<span class="journal-entry-meta">'+escapeHTML(formatTime(e.at))+' · '+src+' · '+kind+'</span></div>'+extra+(allowDelete?'<button type="button" data-journal-delete="'+escapeHTML(e.id)+'" aria-label="Delete this log entry">Delete</button>':'')+'</li>';
 }
 let showAll=false;
 function render(){
  const data=getJournal().slice().reverse();
  const panel=document.getElementById('journalList');
- if(panel)panel.innerHTML=data.length?data.slice(0,showAll?MAX_ENTRIES:12).map(renderEntry).join(''):
+ if(panel)panel.innerHTML=data.length?data.slice(0,showAll?MAX_ENTRIES:12).map(e=>renderEntry(e,true)).join(''):
   '<li class="journal-entry journal-empty">No recorded changes yet. Updates you make in Projects or Factory will appear here.</li>';
  const preview=document.getElementById('journalPreview');
- if(preview)preview.innerHTML=data.length?data.slice(0,2).map(renderEntry).join(''):
+ if(preview)preview.innerHTML=data.length?data.slice(0,2).map(e=>renderEntry(e)).join(''):
   '<li class="journal-entry journal-empty">Your recent Factory and construction changes will appear here.</li>';
  const button=document.getElementById('journalShowAll');
  if(button){button.hidden=data.length<=12;button.textContent=showAll?'Show fewer':'Show all '+data.length+' changes'}
@@ -143,7 +143,16 @@ function addNote(note){
  record({type:'note',source:'Field note',title:'Construction note',detail:trimmed},{syncSetup:false});
  save(); // saves existing plan and queues this note for the normal cloud revision pipeline
 }
+function deleteEntry(id){
+ if(!getJournal().some(e=>e.id===id))return;
+ factory.journal=getJournal().filter(e=>e.id!==id);
+ persistPlan();save();render();root.NauvisFocus?.refresh?.();root.NauvisWorkspace?.refresh?.();
+}
 function events(){
+ document.getElementById('journalList')?.addEventListener('click',e=>{
+  const button=e.target.closest('[data-journal-delete]');if(!button)return;
+  if(root.confirm('Delete this log entry? Construction progress and machine counts will not change.'))deleteEntry(button.dataset.journalDelete);
+ });
  document.getElementById('journalNoteForm')?.addEventListener('submit',e=>{
   e.preventDefault();
   const field=document.getElementById('journalNoteInput');
