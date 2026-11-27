@@ -1,7 +1,7 @@
 /* Version manifest is network-only. Updates never clear storage or pairing. */
 (function(root){
 'use strict';
-const APP_RELEASE='1.1.9';
+const APP_RELEASE='1.1.10';
 function releaseNewer(a,b){const valid=v=>/^\d+\.\d+\.\d+$/.test(v);if(!valid(a)||!valid(b))return false;const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if(x[i]!==y[i])return x[i]>y[i]}return false}
 if(typeof module==='object'&&module.exports)module.exports={releaseNewer};
 if(typeof document==='undefined')return;
