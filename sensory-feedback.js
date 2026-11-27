@@ -104,7 +104,7 @@ function makeCueGate(clock=()=>Date.now()){
  let until=0;
  return {allow:(event,preview=false)=>preview||clock()>=until||COMMIT_CUES.has(event),
   active:()=>clock()<until,
-  played:(event,p)=>{until=REWARD_CUES.has(event)?clock()+1000*Math.max(...soundDefinition(p,event)[1].map(n=>n[2]+n[3])):0},
+  played:(event,p,delay=0)=>{until=REWARD_CUES.has(event)?clock()+delay+1000*Math.max(...soundDefinition(p,event)[1].map(n=>n[2]+n[3])):0},
   reset:()=>{until=0}};
 }
 const DURABLE_AWARDS=new Set(['First sparks','Factory online','Black gold','Industrial scale','Connected','Architect','First blueprint queued','First machine placed']);
@@ -162,12 +162,16 @@ function renderWav(p,event,sr=24000,pitches=null){
 function makeMediaEngine(audio,getPrefs,visible=()=>true,clock=()=>Date.now(),encode=bytes=>{
  let s='';for(let i=0;i<bytes.length;i+=4096)s+=String.fromCharCode(...bytes.subarray(i,i+4096));return 'data:audio/wav;base64,'+btoa(s)
 }){
- let state='ready',error='',last=-Infinity,serial=0,cache=new Map(),lastResult=Promise.resolve(false),ticks=[],tickPlaying=false;
- function stop(){serial++;ticks=[];tickPlaying=false;try{audio.pause()}catch{}state='ready';last=-Infinity}
+ let state='ready',error='',last=-Infinity,serial=0,cache=new Map(),lastResult=Promise.resolve(false),ticks=[],tickPlaying=false,queuedReward=null,tickEnd=0;
+ function stop(){serial++;ticks=[];tickPlaying=false;queuedReward=null;tickEnd=0;try{audio.pause()}catch{}state='ready';last=-Infinity}
  function play(event,preview=false,pitches=null){
   const p=getPrefs();if(!audio||!visible()||!p.enabled||p.volume<=0||event!=='test'&&!canPlay(p,event))return false;
   const now=clock();if(!pitches&&!preview&&event!=='test'&&!COMMIT_CUES.has(event)&&!REWARD_CUES.has(event)&&now-last<65)return false;
-  if(!pitches){ticks=[];tickPlaying=false}
+  if(!pitches&&!preview&&tickPlaying){
+   if(event==='phase'||event==='complete'){queuedReward=event;return true}
+   if(!COMMIT_CUES.has(event))return false;
+  }
+  if(!pitches){ticks=[];tickPlaying=false;queuedReward=null;tickEnd=0}
   const id=++serial;last=now;error='';
   try{
    const key=[p.palette,p.volume,event,pitches?.join(',')||''].join(':');let src=cache.get(key);
@@ -180,9 +184,9 @@ function makeMediaEngine(audio,getPrefs,visible=()=>true,clock=()=>Date.now(),en
  }
  function flushTicks(){
   if(!ticks.length||!visible()||!canPlay(getPrefs(),'ratchet')){ticks=[];tickPlaying=false;return false}
-  const batch=ticks.splice(0,12);tickPlaying=true;
+  const batch=ticks.splice(0,12);tickPlaying=true;tickEnd=clock()+batch.length*SLIDER_SPACING*1000+30;
   const sent=play('ratchet',false,batch);if(!sent){tickPlaying=false;ticks=[]}
-  else lastResult.then(ok=>{if(!ok&&tickPlaying){tickPlaying=false;ticks=[]}});
+  else {const id=serial;lastResult.then(ok=>{if(!ok&&id===serial&&tickPlaying){tickPlaying=false;ticks=[];queuedReward=null}})}
   return sent;
  }
  function playSlider(pitches){
@@ -190,8 +194,8 @@ function makeMediaEngine(audio,getPrefs,visible=()=>true,clock=()=>Date.now(),en
   ticks.push(...pitches);if(ticks.length>48)ticks.splice(0,ticks.length-48);
   return tickPlaying||flushTicks();
  }
- audio.addEventListener?.('ended',()=>{if(state==='playing')state='ready';if(tickPlaying){tickPlaying=false;flushTicks()}});
- return {play,playSlider,testTone:()=>play('test',true),stop,reset:()=>{stop();error=''},state:()=>state,error:()=>error,result:()=>lastResult};
+ audio.addEventListener?.('ended',()=>{if(state==='playing')state='ready';if(tickPlaying){tickPlaying=false;if(ticks.length)flushTicks();else if(queuedReward){const reward=queuedReward;queuedReward=null;play(reward)}}});
+ return {play,playSlider,sliderDelay:()=>tickPlaying?Math.max(0,tickEnd-clock())+ticks.length*SLIDER_SPACING*1000+Math.ceil(ticks.length/12)*30:0,testTone:()=>play('test',true),stop,reset:()=>{stop();error=''},state:()=>state,error:()=>error,result:()=>lastResult};
 }
 function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now()){
  let context=null,last=-Infinity,voices=[],pending=null,noiseBuffer=null,lastError='',tickTail=0;
@@ -246,11 +250,12 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
  function play(event,preview=false){
   const p=getPrefs();if(!canPlay(p,event)||!visible()||context?.state!=='running')return false;
   const now=clock(),special=['phase','complete','achievement','saved','queue','warning','build','reverse','route'].includes(event);
-  if(!preview&&!special&&now-last<55)return false;
-  if(special||preview)stop();
-  if(voices.length>24)stop();
+  if(!preview&&!special&&(now-last<55||tickTail>context.currentTime))return false;
+  const followsTicks=!preview&&(event==='phase'||event==='complete')&&tickTail>context.currentTime;
+  if((special||preview)&&!followsTicks)stop();
+  if(voices.length>24&&!followsTicks)stop();
   last=now;
-  try{const start=context.currentTime+.008;
+  try{const start=followsTicks?tickTail:context.currentTime+.008;
    for(const [from,to,length,offset,wave,level] of soundDefinition(p,event)[1]){
     const o=context.createOscillator(),g=context.createGain(),t=start+offset,end=t+length;
     o.type=wave;o.frequency.setValueAtTime(from,t);o.frequency.exponentialRampToValueAtTime(to,end);
@@ -280,7 +285,7 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
    tickTail=start+pitches.length*SLIDER_SPACING;last=clock();return true;
   }catch(err){lastError=err?.message||'Slider audio failed';stop();return false}
  }
- return {unlock,play,playSlider,stop,reset,testTone,error:()=>lastError,state:()=>context?.state||'locked'};
+ return {unlock,play,playSlider,sliderDelay:()=>context?Math.max(0,tickTail-context.currentTime)*1000:0,stop,reset,testTone,error:()=>lastError,state:()=>context?.state||'locked'};
 }
 if(typeof module==='object'&&module.exports)module.exports={normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine,renderWav,makeMediaEngine,makeCueGate,makeAwardTracker,sliderPitches,sliderNotes};
 if(typeof document==='undefined')return;
@@ -333,7 +338,8 @@ function cue(event,el,{semantic=false,haptic=true,preview=false}={}){
  if(!SOUNDS[event]||(!preview&&document.hidden))return false;
  if(semantic)lastSemantic=performance.now();
  if(!gate.allow(event,preview))return false;
- const played=useMedia()?media.play(event,preview):engine.play(event,preview);if(played)gate.played(event,prefs);if(haptic)vibrate(event);if(el)pulse(el);
+ const backend=useMedia()?media:engine,delay=backend.sliderDelay();
+ const played=backend.play(event,preview);if(played)gate.played(event,prefs,preview?0:delay);if(haptic)vibrate(event);if(el)pulse(el);
  return played;
 }
 function semantic(event,el){if(performance.now()-lastGesture>1500||root.NauvisCloudApplying)return false;return cue(event,el,{semantic:true})}
@@ -397,7 +403,7 @@ document.addEventListener('input',e=>{
  if(prev&&now-prev.time<85)return;lastRange.set(el,{time:now});cue(el.matches('[type="range"]')?'ratchet':el.matches('[type="number"]')?'tick':'key',null,{haptic:false});
 },false);
 document.addEventListener('invalid',e=>{if(e.isTrusted&&!isUiSetting(e.target))semantic('warning',e.target)},true);
-document.addEventListener('visibilitychange',()=>{if(document.hidden){engine.stop();media.stop();gate.reset();localChange=null}audioState()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){engine.stop();media.stop();gate.reset();localChange=null;lastRange=new WeakMap()}audioState()});
 window.addEventListener('pageshow',audioState);
 reduce?.addEventListener?.('change',paint);
 launcher?.addEventListener('click',()=>{paint();status(prefs.enabled?'Tap Test sound to check audio output.':'Sound is off. Enable it when you want tactile feedback.');dialog?.showModal();if(prefs.enabled)unlock(true)});
