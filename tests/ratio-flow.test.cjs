@@ -77,18 +77,16 @@ test('zero production does not invent machine counts or chart arrows',()=>{
  assert.equal(graph.nodes.length,0);
  assert.equal(graph.edges.length,0);
 });
-test('visual interface presents counts before flow and includes Flow/Table toggle',()=>{
- assert.match(flowSource,/Build these machines/);
- assert.match(flowSource,/formatted\(n\.count\)/);
- assert.match(flowSource,/fullLabel\(n\)/);
- assert.match(flowSource,/Flow view/);
- assert.match(flowSource,/Table view/);
- assert.match(flowSource,/Show inputs/);
+test('blueprint uses one graph and keeps optional technical data below',()=>{
+ assert.match(flowSource,/Production flow/);
+ assert.doesNotMatch(flowSource,/data-flow-mode|Table view|ratio-flow-build-list/);
+ assert.match(flowSource,/data-flow-input-toggle/);
  assert.match(flowSource,/data-flow-node/);
  assert.match(flowSource,/ratio-flow-junction/);
  assert.match(ratioSource,/data-ratio-flow-root/);
- assert.match(ratioSource,/data-ratio-legacy-table hidden/);
+ assert.match(ratioSource,/<details class="ratio-explain ratio-technical" data-ratio-legacy-table/);
  assert.match(ratioSource,/NauvisRatioFlow\?\.mount/);
+ assert.ok(flowSource.indexOf('<div data-flow-display>')<flowSource.indexOf('<details class="flow-belt-allocation"'));
 });
 test('layout stays inside explorer and switches to vertical diagram on iPhone',()=>{
  assert.match(style,/\.ratio-flow-viewport\{/);
@@ -99,10 +97,10 @@ test('layout stays inside explorer and switches to vertical diagram on iPhone',(
  assert.match(style,/\.ratio-flow-node-label strong\{font-size:11px\}/);
 });
 test('version and offline caching include the visual graph without editing cloud sync',()=>{
- assert.match(html,/Nauvis Command Center v1\.1\.6/);
+ assert.match(html,/Nauvis Command Center v1\.1\.7/);
  assert.match(html,/href="\.\/ratio-flow\.css"/);
  assert.match(html,/src="\.\/ratio-flow\.js" defer/);
- assert.match(worker,/nauvis-shell-v1016/);
+ assert.match(worker,/nauvis-shell-v1017/);
  assert.match(worker,/ratio-flow\.css/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(html,/sync\/cloud-sync\.js/);

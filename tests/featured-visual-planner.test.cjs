@@ -38,7 +38,7 @@ test('open-on-load explorer renders its graph with the dependency module availab
  assert.ok(graphScript>0&&ratioScript>graphScript,'Graph must be loaded before initial explorer render');
  assert.match(ratios,/cards\.filter\(card=>card\.open\)\.forEach\(renderCard\)/);
  assert.match(ratios,/root\.NauvisRatioFlow\?\.mount\(target,result,card\.dataset\.ratioExplorer\)/);
- assert.match(flow,/Build these machines/);
+ assert.match(flow,/Production flow/);
 });
 test('sending an exploratory goal opens the detailed calculator and scrolls to it',()=>{
  assert.match(ratios,/guide\.goal=state\.id;guide\.rate=state\.rate;guide\.machine=state\.machine;guide\.source=state\.source;guide\.belt=state\.belt;/);
@@ -58,9 +58,9 @@ test('the featured visuals keep current mobile layout and offline support',()=>{
  assert.match(css,/#build \.build-classic/);
  assert.match(css,/scroll-margin-top:calc\(var\(--chrome-height/);
  assert.match(css,/@media\(max-width:650px\)/);
- assert.match(worker,/nauvis-shell-v1016/);
+ assert.match(worker,/nauvis-shell-v1017/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(worker,/recipe-ratios\.js/);
- assert.match(html,/Nauvis Command Center v1\.1\.6/);
+ assert.match(html,/Nauvis Command Center v1\.1\.7/);
  assert.match(html,/sync\/cloud-sync\.js/);
 });

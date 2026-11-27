@@ -46,3 +46,6 @@ body:not([data-app-mode=focus]) .focus-only{display:none!important}
 
 /* v1.1.6: inline advanced network, no detached Flow screen. */
 .planner-tool>summary{cursor:pointer;font-weight:750;color:#b4d8ff;display:flex;flex-wrap:wrap;justify-content:space-between;gap:5px}.planner-tool>summary small{font-size:11px;color:#b9ccda;font-weight:500}.planner-tool[open]>summary{margin-bottom:12px}#plannerNetworkHost #logistics{display:block;min-width:0}#plannerNetworkHost #logistics>.focus-panel{display:none}#plannerNetworkHost #logisticsEditor{margin:0;padding:8px}#build .ratio-lane-rates>div{grid-template-columns:22px minmax(0,1fr) auto auto;gap:4px}
+
+/* Legacy duplicate calculator stays available in Full mode only. */
+body[data-app-mode=focus] #buildClassic,body[data-app-mode=focus] .full-only-classic,body[data-app-mode=focus] #build>.coach-first-use{display:none!important}
