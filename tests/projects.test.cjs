@@ -188,3 +188,18 @@ test('batch construction uses the same linked row and reverses partial quantity'
 test('multi-task completion is staged atomically without mutating supplied records',()=>{const {prepareBuildBatch}=require('../projects.js'),effects=require('../production-effects.js'),p=make(),rows=[],smelt={};const before=JSON.stringify({p,rows,smelt});const adjustments=p.tasks.map(t=>({recipe:t.recipe,delta:t.planned}));const a=prepareBuildBatch(p,adjustments,rows,smelt,[p],effects);assert.equal(projectProgress(a.project).built,projectProgress(p).planned);assert.equal(a.rows.reduce((n,r)=>n+r.count,0),projectProgress(p).planned);assert.equal(JSON.stringify({p,rows,smelt}),before);assert.throws(()=>prepareBuildBatch(p,[adjustments[0],{recipe:adjustments[1].recipe,delta:99999}],rows,smelt,[p],effects));assert.equal(JSON.stringify({p,rows,smelt}),before);assert.throws(()=>prepareBuildBatch({...p,status:'archived'},adjustments,rows,smelt,[p],effects),/Archived/);});
 
 test('project retains a detached belt snapshot across serialization and construction edits',()=>{const beltPlan={tier:'blue',counts:{'s:copper-plate':0,'m:copper-cable':3}};const p=buildProject('Saved belts',analyze(),'belts','now',null,beltPlan);beltPlan.counts['s:copper-plate']=8;const loaded=normalizeProjects(JSON.parse(JSON.stringify([p])))[0];assert.equal(loaded.beltPlan.tier,'blue');assert.equal(loaded.beltPlan.counts['s:copper-plate'],0);assert.equal(loaded.beltPlan.counts['m:copper-cable'],3);assert.equal(make().beltPlan,undefined);});
+
+
+test('cancelling a plan preserves physical counts, machine identity, and other plans',()=>{
+ const {removeProjectPlan}=require('../projects.js');
+ const effects=require('../production-effects.js');
+ const p={id:'cancel-me',tasks:[{recipe:'iron-plate',kind:'furnace',planned:8,built:3},{recipe:'iron-gear-wheel',kind:'asm',planned:5,built:2}]};
+ const other={id:'keep-me',tasks:[]};
+ const rows=[{recipe:'iron-gear-wheel',count:2,tier:.75,destination:'Other',entityKey:'machine:iron-gear-wheel|project:cancel-me',projectId:p.id,projectTask:'iron-gear-wheel'},{recipe:'iron-gear-wheel',count:4,tier:.75,destination:'Other'}];
+ const smelt={ironFurnaces:10,furnaceSpeed:2,projectBuilt:[{projectId:p.id,recipe:'iron-plate',count:3}]};
+ const result=removeProjectPlan(p.id,[p,other],rows,smelt,effects);
+ assert.deepEqual(result.projects,[other]);
+ assert.equal(result.rows[0].count,2);assert.equal(result.rows[0].entityKey,rows[0].entityKey);assert.equal(result.rows[0].projectId,undefined);
+ assert.deepEqual(result.rows[1],rows[1]);assert.equal(result.smelt.ironFurnaces,10);assert.deepEqual(result.smelt.projectBuilt,[]);
+ assert.equal(rows[0].projectId,p.id);assert.equal(smelt.projectBuilt.length,1);
+});
