@@ -63,8 +63,9 @@ test('existing manually placed infrastructure is not implicitly claimed or recou
  assert.equal(next.rows.length,2);
  assert.equal(next.rows.find(x=>x.id==='manual').count,12);
  assert.equal(next.rows.find(x=>x.projectId==='p2').count,1);
- assert.match(projects,/matchingUnlinkedAssets/);
- assert.match(projects,/if\(overlaps\.length&&!root\.confirm\(/);
+ // The pure delta assertions above verify that existing manual records remain untouched.
+ // Focus Construction no longer prompts about unrelated matching records.
+ assert.doesNotMatch(projects,/if\(overlaps\.length&&!root\.confirm\(/);
 });
 test('a previously modified or duplicated linked asset blocks project updates',()=>{
  const p=deploymentProject('Battery bank','accumulator',3,'p3');
@@ -134,7 +135,7 @@ test('empty defaults do not repopulate historical counts after reload or sync',(
  assert.match(html,/Object\.assign\(setup\.smelt,blankSmelt,data\.setup\.smelt/);
  assert.match(html,/tasks\.length\?complete\/tasks\.length\*100:0/);
  assert.match(html,/window\.NauvisCloudApplying=true/);
- assert.match(sw,/nauvis-shell-v10114/);assert.match(html,/Nauvis Command Center v1\.1\.14/);
+ assert.match(sw,/nauvis-shell-v10115/);assert.match(html,/Nauvis Command Center v1\.1\.15/);
 });
 
 test('Fresh Start removes smelting ownership alongside construction records',()=>{
