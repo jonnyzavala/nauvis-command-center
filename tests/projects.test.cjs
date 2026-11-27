@@ -131,7 +131,7 @@ test('the cloud snapshot continues to include plan without new tables or sync co
 test('projects and the visual planner expose working navigation and create controls',()=>{
  assert.match(html,/id="projectsGoPlanner"/);
  assert.match(html,/id="projectsSaveForm"/);
- assert.match(recipeJs,/NauvisProjects\?\.createFromRatio\(result\)/);
+ assert.match(recipeJs,/NauvisProjects\?\.createFromRatio\(result,\{beltPlan:/);
  assert.match(recipeJs,/setGoal\(goal\)/);
  assert.match(projectJs,/saveSetup\(\);save\(\);renderSetup\(\)/);
  assert.match(projectJs,/factory\.projects=allProjects\(\)\.map/);
