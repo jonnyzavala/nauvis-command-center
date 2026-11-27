@@ -60,7 +60,9 @@ function buildProject(name,analysis,id,createdAt,furnaceItem=null,beltPlan=null)
  if(new Set(tasks.map(x=>x.recipe)).size!==tasks.length)throw Error('Duplicate recipe in project.');
  const design=freezeDesign(analysis);
  const savedBelts=beltPlan?JSON.parse(JSON.stringify(beltPlan)):null;
- return {...(savedBelts?{beltPlan:savedBelts}:{}),id,name:validateProjectName(name),status:'active',createdAt:String(createdAt),...(design?{design}:{}),...(hasFurnaces?{furnaceItem}:{}),
+ const flow=root.NauvisRatioFlow||(typeof require==='function'?require('./ratio-flow.js'):null);
+ const logisticsTasks=flow?.incomingLogistics(analysis,savedBelts)||[];
+ return {...(savedBelts?{beltPlan:savedBelts}:{}),logisticsTasks,id,name:validateProjectName(name),status:'active',createdAt:String(createdAt),...(design?{design}:{}),...(hasFurnaces?{furnaceItem}:{}),
   goal:{id:analysis.id,rate:analysis.rate,machine:analysis.machine,source:analysis.source,belt:analysis.belt,
    moduleType:analysis.moduleType||'none',moduleCount:analysis.moduleCount||0,moduleType2:analysis.moduleType2||'none',moduleCount2:analysis.moduleCount2||0,
    machineQuality:analysis.machineQuality||'normal',beaconSpeed:analysis.beaconSpeed||0},
@@ -129,13 +131,28 @@ function projectProgress(project){
   complete:tasks.filter(t=>clampInt(t.planned)>0&&clampInt(t.built)>=clampInt(t.planned)).length,
   tasks:tasks.length};
 }
+function logisticsProgress(tasks){
+ const list=Array.isArray(tasks)?tasks:[];
+ return {planned:list.reduce((n,t)=>n+clampInt(t.planned),0),built:list.reduce((n,t)=>n+Math.min(clampInt(t.built),clampInt(t.planned)),0)};
+}
+function overallProgress(project){
+ const machines=projectProgress(project),logistics=logisticsProgress(project.logisticsTasks);
+ const planned=machines.planned+logistics.planned,built=machines.built+logistics.built;
+ return {machines,logistics,planned,built,complete:planned>0&&built===planned};
+}
+function changeLogistics(project,edits){
+ if(project.status==='archived')throw Error('Archived projects cannot be changed.');
+ const tasks=project.logisticsTasks||[],keys=new Set();
+ for(const {key,built} of edits){const t=tasks.find(t=>t.key===key);if(!t||keys.has(key)||!Number.isSafeInteger(built)||built<0||built>t.planned)throw Error('Invalid incoming supply progress.');keys.add(key)}
+ return {...project,logisticsTasks:tasks.map(t=>keys.has(t.key)?{...t,built:edits.find(e=>e.key===t.key).built}:t)};
+}
 // Only incomplete-to-complete transitions on a committed edit earn a reward.
 function constructionFeedback(before,after,changes,recipe=null){
  const delta=changes.reduce((n,t)=>n+t.delta,0);
  const completed=changes.filter(c=>{const task=after.tasks.find(t=>t.recipe===c.recipe);return c.delta>0&&task?.planned>0&&c.before<task.planned&&c.after===task.planned}).map(c=>c.recipe);
- const old=projectProgress(before),next=projectProgress(after);
- const projectDone=delta>0&&old.built<old.planned&&next.planned>0&&next.built===next.planned;
- const groupDone=delta>0&&!!recipe&&completed.includes(recipe);
+ const old=overallProgress(before),next=overallProgress(after);
+ const projectDone=delta>0&&!old.complete&&next.complete;
+ const groupDone=delta>0&&(recipe?completed.includes(recipe):completed.length>0);
  return {delta,completed,projectDone,groupDone,event:projectDone?'complete':groupDone?'phase':delta>0?'build':delta<0?'reverse':null};
 }
 // The saved blueprint remains historical; a task override describes the
@@ -227,7 +244,7 @@ function normalizeProjects(value){
  });
 }
 if(typeof module==='object'&&module.exports)
- module.exports={buildProject,projectProgress,constructionFeedback,recordedForTask,applyBuildDelta,prepareBuildBatch,validateProjectName,normalizeProjects,reuseClaims,validateReuseClaims,freezeDesign,constructionMaterials,expandConstructionMaterials,constructionSupply,taskProfile,reconcileTaskProfile};
+ module.exports={buildProject,projectProgress,logisticsProgress,overallProgress,changeLogistics,constructionFeedback,recordedForTask,applyBuildDelta,prepareBuildBatch,validateProjectName,normalizeProjects,reuseClaims,validateReuseClaims,freezeDesign,constructionMaterials,expandConstructionMaterials,constructionSupply,taskProfile,reconcileTaskProfile};
 if(typeof document==='undefined')return;
 const $=id=>document.getElementById(id);
 const escape=s=>String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
@@ -258,6 +275,15 @@ function uniqueId(){
 }
 function visibleProjects(){return allProjects().filter(p=>!p.historyHidden&&p.type!=='deployment'&&!p.tasks.some(t=>t.kind==='asset'))}
 function selectedProject(id){return visibleProjects().find(p=>p.id===id)}
+function logisticsFor(p){
+ if(Array.isArray(p.logisticsTasks))return p.logisticsTasks;
+ if(p.type==='deployment'||p.status==='archived'||!p.tasks?.length)return [];
+ try{const a=p.design?.analysis||root.NauvisRecipeMath(R,p.goal,{stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names});
+ if(a.entries.length!==p.tasks.length||a.entries.some(e=>!p.tasks.some(t=>t.recipe===e.key&&t.planned===e.count)))return [];
+ return root.NauvisRatioFlow.incomingLogistics(a,p.beltPlan);
+ }catch{return []}
+}
+function withLogistics(p){return Array.isArray(p.logisticsTasks)?p:{...p,logisticsTasks:logisticsFor(p)}}
 function stats(){
  const all=visibleProjects(),active=all.filter(p=>p.status!=='archived');
  const summary=active.reduce((a,p)=>{const progress=projectProgress(p);a.planned+=progress.planned;a.built+=progress.built;return a;},{planned:0,built:0});
@@ -343,7 +369,7 @@ function updateTaskProfile(p,recipe,button){
  }catch(err){root.alert(err.message)}
 }
 function projectHTML(p){
- const progress=projectProgress(p),pct=progress.planned?Math.round(100*progress.built/progress.planned):0;
+ const overall=overallProgress(withLogistics(p)),progress=overall.machines,lp=overall.logistics,pct=overall.planned?Math.floor(100*overall.built/overall.planned):0;
  const archived=p.status==='archived';
  const lineItems=p.tasks.map(task=>{
   const isAsset=task.kind==='asset';
@@ -368,11 +394,11 @@ function projectHTML(p){
  (p.goal.moduleType2&&p.goal.moduleType2!=='none'?' · '+escape(p.goal.moduleType2)+' ×'+Number(p.goal.moduleCount2||0):'')+
   (p.goal.machineQuality&&p.goal.machineQuality!=='normal'?' · '+escape(p.goal.machineQuality)+' machines':'')+
  (p.goal.beaconSpeed?' · +'+Number(p.goal.beaconSpeed)+'% effective beacon speed':''))+'</p></div>'+
-  '<span class="project-card-status">'+(archived?(p.cancelled?'CANCELLED':'ARCHIVED'):pct===100?'COMPLETE':progress.built===0?'NOT STARTED':'IN PROGRESS')+'</span></div>'+
-  '<div class="focus-project-progress"><div class="focus-ring focus-project-ring focus-only" style="--p:'+pct+'%" role="img" aria-label="'+pct+' percent built"><strong>'+pct+'%</strong></div><div class="project-card-progress"><div class="project-card-progress-top"><strong>'+progress.built+' / '+progress.planned+(p.type==='deployment'?' items placed':' machines built')+'</strong><span>'+pct+'%</span></div>'+
+  '<span class="project-card-status">'+(archived?(p.cancelled?'CANCELLED':'ARCHIVED'):overall.complete?'COMPLETE':overall.built===0?'NOT STARTED':'IN PROGRESS')+'</span></div>'+
+  '<div class="focus-project-progress"><div class="focus-ring focus-project-ring focus-only" style="--p:'+pct+'%" role="img" aria-label="'+pct+' percent built"><strong>'+pct+'%</strong></div><div class="project-card-progress"><div class="project-card-progress-top"><strong>'+progress.built+' / '+progress.planned+(p.type==='deployment'?' items placed':' machines built')+(lp.planned?' · '+lp.built+'/'+lp.planned+' supply connections':'')+'</strong><span>'+pct+'%</span></div>'+
   '<div class="project-progress-track"><span style="width:'+pct+'%"></span></div></div></div>'+
   '<details class="project-flow-panel" '+(!archived?'open':'')+'><summary>Construction flow <small>Built / planned</small></summary><div data-ratio-flow-root></div></details>'+
-  '<details class="project-task-details" '+(!archived?'open':'')+'><summary>'+(p.type==='deployment'?'Placement checklist':'Machine checklist')+' <span>'+progress.complete+' / '+progress.tasks+' groups complete</span></summary><div class="project-task-list">'+lineItems+'</div><div class="project-finish-row"><button type="button" data-project-complete="'+escape(p.id)+'" '+(archived||progress.built>=progress.planned?'disabled':'')+'>'+(progress.planned>0&&progress.built===progress.planned?'✓ Project complete':'✓ Finish entire project')+'</button><small>Only mark machines actually built in-game.</small></div></details>'+
+  '<details class="project-task-details" '+(!archived?'open':'')+'><summary>'+(p.type==='deployment'?'Placement checklist':'Machine checklist')+' <span>'+progress.complete+' / '+progress.tasks+' groups complete</span></summary><div class="project-task-list">'+lineItems+'</div><div class="project-finish-row"><button type="button" data-project-complete="'+escape(p.id)+'" '+(archived||overall.complete?'disabled':'')+'>'+(overall.complete?'✓ Project complete':'✓ Finish entire project')+'</button><small>Only mark machines and incoming connections actually built in-game.</small></div></details>'+
   '<details class="project-reference"><summary>Project reference <span>Materials, design &amp; installed profiles</span></summary><div class="project-reference-body">'+designDetails(p)+materialDetails(p)+p.tasks.map(task=>{const saved=task.kind==='furnace'?furnaceRecorded(p,task):recordedForTask(p,task,setup.machines);const controls=taskProfileControls(p,task,saved.mismatch||saved.count!==task.built);return controls?'<div class="project-profile-reference" data-task-row="'+escape(task.recipe)+'"><small>'+escape(R[task.recipe]?.[0]||task.recipe)+'</small>'+controls+'</div>':''}).join('')+'</div></details>'+
   '<div class="project-card-actions"><button type="button" data-project-visit="'+escape(p.id)+'">'+(p.type==='deployment'?'View placed inventory':p.design?(root.NauvisFocus?.getMode?.()==='full'?'View saved design':'Recalculate in Planner'):'Open in Planner')+'</button>'+
   '<button type="button" data-project-export="'+escape(p.id)+'">Share PNG</button>'+
@@ -383,7 +409,7 @@ function projectHTML(p){
 }
 // Physically built machines and reused-supply commitments are not undone by cancelling a plan.
 function removeProjectRecord(p){
- const built=projectProgress(p).built;
+ const built=overallProgress(withLogistics(p)).built;
  const hasLedger=(setup.machines||[]).some(x=>x.projectId===p.id)||(setup.smelt.projectBuilt||[]).some(x=>x.projectId===p.id)||(setup.assets||[]).some(x=>x.projectId===p.id);
  const preserve=built>0||hasLedger;
  const archived=p.status==='archived';
@@ -433,15 +459,15 @@ function render(){
  for(const key of projectFlowKeys.keys())if(!live.has(key)){root.NauvisRatioFlow?.unmount?.(key);projectFlowKeys.delete(key)}
  for(const p of active){
   const card=cardFor(p.id),panel=card?.querySelector('.project-flow-panel');if(!panel)continue;
-  const key='project:'+p.id,signature=JSON.stringify([p.goal,p.design,p.beltPlan,p.tasks.map(t=>[t.recipe,t.planned])]),prior=projectFlowKeys.get(key),progress=Object.fromEntries(p.tasks.map(t=>[t.recipe,t.built]));
+  const key='project:'+p.id,signature=JSON.stringify([p.goal,p.design,p.beltPlan,logisticsFor(p).map(t=>[t.key,t.planned]),p.tasks.map(t=>[t.recipe,t.planned])]),prior=projectFlowKeys.get(key),progress=Object.fromEntries(p.tasks.map(t=>[t.recipe,t.built]));
   if(prior&&prior.signature===signature){
    panel.querySelector('[data-ratio-flow-root]').replaceWith(prior.holder);
-   root.NauvisRatioFlow?.updateProgress?.(key,progress);
+   root.NauvisRatioFlow?.updateProgress?.(key,progress);root.NauvisRatioFlow?.updateLogisticsProgress?.(key,logisticsFor(p));
   }else if(prior){root.NauvisRatioFlow?.unmount?.(key);projectFlowKeys.delete(key)}
   const show=()=>{if(!panel.open||projectFlowKeys.has(key))return;try{
    const analysis=p.design?.analysis||root.NauvisRecipeMath(R,p.goal,{stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names});
    if(analysis.entries.length!==p.tasks.length||analysis.entries.some(e=>!p.tasks.some(t=>t.recipe===e.key&&t.planned===e.count)))throw Error('Historical recipe differs from current model');
-   root.NauvisRatioFlow.mount(panel,analysis,key,{progress,beltPlan:p.beltPlan||null});
+   root.NauvisRatioFlow.mount(panel,analysis,key,{progress,beltPlan:p.beltPlan||null,logistics:logisticsFor(p),projectId:p.id});
    projectFlowKeys.set(key,{signature,holder:panel.querySelector('[data-ratio-flow-root]')});
   }catch(err){panel.querySelector('[data-ratio-flow-root]').textContent='Saved checklist preserved; a matching historical flowchart is unavailable.';console.warn('Construction flow:',err.message)}};
   panel.addEventListener('toggle',show);show();
@@ -507,8 +533,8 @@ function restorePosition(id,recipe,anchor){
  const y=top!=null&&anchor.top!=null?root.scrollY+top-anchor.top:anchor.y;
  root.scrollTo({top:Math.max(0,y),behavior:'instant'});
 }
-function positiveFeedback(id,recipe,delta,groupDone,projectDone,slider=false){
- const seq=++feedbackSequence,el=projectDone?cardFor(id):recipe?rowFor(id,recipe):cardFor(id);
+function positiveFeedback(id,recipe,delta,groupDone,projectDone,slider=false,logistics=false){
+ const seq=++feedbackSequence,el=projectDone?cardFor(id):logistics?[...(cardFor(id)?.querySelectorAll('[data-logistics-row]')||[])].find(r=>r.dataset.logisticsRow===recipe):recipe?rowFor(id,recipe):cardFor(id);
  if(el){el.classList.remove('project-celebrate','project-count-flash');void el.offsetWidth;el.classList.add(groupDone||projectDone?'project-celebrate':'project-count-flash')}
  let toast=$('projectFeedbackToast');
  if(!toast){toast=document.createElement('div');toast.id='projectFeedbackToast';toast.setAttribute('role','status');toast.setAttribute('aria-live','polite');document.body.append(toast)}
@@ -539,26 +565,31 @@ function updateProjectProgress(project){
  const reference=card.querySelector('.project-reference-body'),freshReference=fresh.querySelector('.project-reference-body');
  if(reference&&freshReference){const states=detailStates();reference.replaceWith(freshReference);restoreDetails(states)}
  root.NauvisRatioFlow?.updateProgress?.('project:'+project.id,Object.fromEntries(project.tasks.map(t=>[t.recipe,t.built])));
+ root.NauvisRatioFlow?.updateLogisticsProgress?.('project:'+project.id,logisticsFor(project));
  if($('projectsNotice')){$('projectsNotice').textContent=notice;$('projectsNotice').hidden=!notice}
  root.NauvisFocus?.refresh?.();
 }
-function updateBuiltBatch(id,adjustments,recipe=null,slider=false){
- const project=selectedProject(id);if(!project||project.status==='archived')return;
+function updateBuiltBatch(id,adjustments,recipe=null,slider=false,finishLogistics=false){
+ const selected=selectedProject(id);if(!selected||selected.status==='archived')return;
+ const project=withLogistics(selected);
  const anchor=anchorPosition(id,recipe),before=projectProgress(project);
  try{
   const actual=allProjects(),effects=root.NauvisEffects;
   // Validate every task first; project completion is all-or-nothing.
   const change=prepareBuildBatch(project,adjustments,setup.machines,setup.smelt,actual,effects);
+  const completedLogistics=finishLogistics?project.logisticsTasks.filter(t=>t.built<t.planned):[];
+  if(completedLogistics.length)change.project=changeLogistics(change.project,completedLogistics.map(t=>({key:t.key,built:t.planned})));
   factory.projects=actual.map(p=>p.id===id?change.project:p);
   setup.machines=change.rows;Object.assign(setup.smelt,change.smelt);
   const totalDelta=change.changes.reduce((n,x)=>n+x.delta,0),after=projectProgress(change.project);
   const title=change.changes.length>1?(totalDelta>0?'Completed project · +'+totalDelta+' built':'Reversed project progress'):(totalDelta>0?'Built +'+totalDelta+' ':'Reversed −'+Math.abs(totalDelta)+' ')+(R[change.changes[0].recipe]?.[0]||change.changes[0].recipe);
-  root.NauvisJournal?.record?.({type:'construction',source:'Construction Queue',projectId:id,recipe:recipe||null,delta:totalDelta,before:recipe?change.changes[0].before:before.built,after:recipe?change.changes[0].after:after.built,title,detail:project.name+' · '+change.changes.map(x=>(R[x.recipe]?.[0]||x.recipe)+' '+x.before+' → '+x.after).join('; ')+' · checklist updated.'});
+  root.NauvisJournal?.record?.({type:'construction',source:'Construction Queue',projectId:id,recipe:recipe||null,delta:totalDelta,before:recipe?change.changes[0].before:before.built,after:recipe?change.changes[0].after:after.built,title,detail:project.name+' · '+change.changes.map(x=>(R[x.recipe]?.[0]||x.recipe)+' '+x.before+' → '+x.after).join('; ')+' · checklist updated.'+(completedLogistics.length?' Incoming connections completed: '+completedLogistics.map(t=>t.label+' '+t.built+' → '+t.planned).join('; '):'')});
   saveSetup();save();renderSetup();
   notice='';updateProjectProgress(change.project);root.NauvisAssets?.render?.();
   restorePosition(id,recipe,anchor);
   const feedback=constructionFeedback(project,change.project,change.changes,recipe);
   for(const key of feedback.completed)root.NauvisRatioFlow?.celebrateProgress?.('project:'+id,key);
+  for(const t of completedLogistics)root.NauvisRatioFlow?.celebrateProgress?.('project:'+id,t.key,true);
   if(feedback.event)positiveFeedback(id,recipe,feedback.delta,feedback.groupDone,feedback.projectDone,slider);
  }catch(err){notice=err.message;render();restorePosition(id,recipe,anchor);root.NauvisSensory?.semantic?.('warning')}
 }
@@ -573,10 +604,24 @@ function batchBuilt(project,recipe,sign){
 function completeGroup(project,recipe){
  const t=project.tasks.find(t=>t.recipe===recipe);if(t&&t.planned>t.built)updateBuilt(project.id,recipe,t.planned-t.built);
 }
+function updateLogistics(id,edits,key=null,slider=false){
+ const selected=selectedProject(id);if(!selected||selected.status==='archived')return;
+ const p=withLogistics(selected);
+ try{
+  const next=changeLogistics(p,edits),changed=next.logisticsTasks.filter(t=>p.logisticsTasks.find(a=>a.key===t.key).built!==t.built);
+  if(!changed.length){root.NauvisRatioFlow?.updateLogisticsProgress?.('project:'+id,p.logisticsTasks);return}
+  const delta=changed.reduce((n,t)=>n+t.built-p.logisticsTasks.find(a=>a.key===t.key).built,0),completed=changed.filter(t=>t.built===t.planned);
+  factory.projects=allProjects().map(x=>x.id===id?next:x);
+  root.NauvisJournal?.record?.({type:'construction',source:'Incoming logistics',projectId:id,title:delta>0?'Built incoming supply':'Reversed incoming supply',delta,detail:p.name+' · '+changed.map(t=>t.label+' '+p.logisticsTasks.find(a=>a.key===t.key).built+' → '+t.built+' / '+t.planned+' '+t.kind).join('; ')});
+  save();notice='';updateProjectProgress(next);
+  for(const t of completed)root.NauvisRatioFlow?.celebrateProgress?.('project:'+id,t.key,true);
+  positiveFeedback(id,key,delta,completed.length>0,!overallProgress(p).complete&&overallProgress(next).complete,slider,true);
+ }catch(err){notice=err.message;root.NauvisRatioFlow?.updateLogisticsProgress?.('project:'+id,p.logisticsTasks);root.NauvisSensory?.semantic?.('warning');}
+}
 function completeProject(project){
- const changes=project.tasks.filter(t=>t.planned>t.built).map(t=>({recipe:t.recipe,delta:t.planned-t.built}));
- if(!changes.length)return;
- updateBuiltBatch(project.id,changes);
+ const p=withLogistics(project),changes=p.tasks.filter(t=>t.planned>t.built).map(t=>({recipe:t.recipe,delta:t.planned-t.built}));
+ if(changes.length)updateBuiltBatch(p.id,changes,null,false,true);
+ else updateLogistics(p.id,p.logisticsTasks.filter(t=>t.built<t.planned).map(t=>({key:t.key,built:t.planned})));
 }
 function navigateToPlan(id){
  const project=selectedProject(id);if(!project)return;
@@ -629,11 +674,13 @@ function initializeDeployment(){
 function exportProjects(projects){
  const records=projects.map(p=>{
   let analysis=null;try{const result=p.design?.analysis||root.NauvisRecipeMath(R,p.goal,{stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names});if(result.entries.length===p.tasks.length&&result.entries.every(e=>p.tasks.some(t=>t.recipe===e.key&&t.planned===e.count)))analysis=result}catch{}
-  return {name:p.name,product:R[p.goal.id]?.[0]||p.goal.id,recipe:p.goal.id,rate:p.goal.rate,source:p.goal.source,archived:p.status==='archived',progress:projectProgress(p),beltPlan:p.beltPlan||null,analysis,tasks:p.tasks.map(t=>({recipe:t.recipe,label:R[t.recipe]?.[0]||t.recipe,kind:noun(t.kind),profile:t.kind==='asm'?'Assembler '+(taskProfile(p,t).machine===1.25?'3':taskProfile(p,t).machine===.5?'1':'2'):t.kind==='furnace'?(R[p.furnaceItem]?.[0]||'2× furnace'):'',planned:t.planned,built:t.built}))};
+  return {name:p.name,product:R[p.goal.id]?.[0]||p.goal.id,recipe:p.goal.id,rate:p.goal.rate,source:p.goal.source,archived:p.status==='archived',progress:projectProgress(p),beltPlan:p.beltPlan||null,logisticsTasks:logisticsFor(p),overall:overallProgress(withLogistics(p)),analysis,tasks:p.tasks.map(t=>({recipe:t.recipe,label:R[t.recipe]?.[0]||t.recipe,kind:noun(t.kind),profile:t.kind==='asm'?'Assembler '+(taskProfile(p,t).machine===1.25?'3':taskProfile(p,t).machine===.5?'1':'2'):t.kind==='furnace'?(R[p.furnaceItem]?.[0]||'2× furnace'):'',planned:t.planned,built:t.built}))};
  });
  root.NauvisProjectExport?.open(records);
 }
 function attachEvents(){
+ $('factory')?.addEventListener('input',event=>{const b=event.target;if(!b.matches('[data-project-logistics-built]'))return;const p=selectedProject(b.dataset.projectLogisticsBuilt),t=p&&logisticsFor(p).find(t=>t.key===b.dataset.logisticsKey);if(t)root.NauvisRatioFlow?.updateLogisticsProgress?.('project:'+p.id,[{...t,built:Number(b.value)}],{preview:true})});
+ $('factory')?.addEventListener('change',event=>{const b=event.target;if(!b.matches('[data-project-logistics-built],[data-project-logistics-check]'))return;const p=selectedProject(b.dataset.projectLogisticsBuilt||b.dataset.projectLogisticsCheck),t=p&&logisticsFor(p).find(t=>t.key===b.dataset.logisticsKey);if(t)updateLogistics(p.id,[{key:t.key,built:b.matches('[data-project-logistics-check]')?(b.checked?t.planned:0):Number(b.value)}],t.key,b.matches('[data-project-logistics-built]'))});
  $('projectsExportAll')?.addEventListener('click',()=>exportProjects(visibleProjects().filter(p=>p.status!=='archived')));
  $('projectsSaveForm')?.addEventListener('submit',saveDialog);
  $('projectsDialogClose')?.addEventListener('click',()=>{$('projectsDialog').close();editing=null;pending=null;pendingOptions=null});
@@ -684,6 +731,6 @@ function createFromRatio(result,options=null){
  $('projectsDialogError').hidden=true;openDialog('create',null,JSON.parse(JSON.stringify(result)),options);
 }
 function refresh(){render()}
-root.NauvisProjects={createFromRatio,refresh,reuseClaims:()=>reuseClaims(allProjects())};
+root.NauvisProjects={createFromRatio,refresh,logisticsFor,reuseClaims:()=>reuseClaims(allProjects())};
 attachEvents();render();
 })(typeof window==='undefined'?globalThis:window);
