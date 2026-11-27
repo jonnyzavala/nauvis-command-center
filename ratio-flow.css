@@ -291,3 +291,5 @@
 @keyframes flow-complete-flash{0%{filter:brightness(1);box-shadow:0 0 6px #81e4b180}35%{filter:brightness(1.65);box-shadow:inset 0 0 14px #d7ffdeaa,0 0 18px #81e4b1}100%{filter:brightness(1);box-shadow:0 0 9px #81e4b180}}
 .flow-machine-review{margin:5px 0 8px}.flow-machine-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,90px),1fr));gap:4px}.flow-machine-chip{padding:5px;gap:2px 4px}.flow-machine-chip strong{font-size:19px;white-space:nowrap}.flow-machine-chip>span:last-child{font-size:10px}.flow-machine-chip[data-built-state="done"]{border-color:#81e4b1}.flow-machine-chip[data-built-state="done"] strong{color:#81e4b1}
 @media(prefers-reduced-motion:reduce){.construction-flow .ratio-flow-node{transition:none!important;animation:none!important}}
+
+body[data-sensory-motion="off"] .ratio-flow-node{animation:none!important;transition:none!important}body[data-sensory-motion="subtle"] .flow-complete-shine{animation-duration:.35s!important}

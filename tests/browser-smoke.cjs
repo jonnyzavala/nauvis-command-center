@@ -17,7 +17,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,25));const d=frame.contentDocument;if(d?.documentElement?.hasAttribute('data-intro-boot')&&d.querySelector('.shell')){sawCurtain=frame.contentWindow.getComputedStyle(d.querySelector('.shell')).visibility==='hidden';break}}
   let w=prep(await loading);
   assert(sawCurtain,'First paint hides app shell while intro script is still loading');
-  w=await load('&nauvis-update=1.1.14');
+  w=await load('&nauvis-update=1.1.15');
   assert(!w.NauvisIntro.active()&&!w.document.documentElement.hasAttribute('data-intro-boot'),'Update navigation skips intro and leaves no curtain');prep(w);
   w=await load('&recover=1');
   assert(!w.NauvisIntro.active()&&!w.document.documentElement.hasAttribute('data-intro-boot'),'Recovery navigation skips intro and leaves no curtain');prep(w);
@@ -52,7 +52,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   if(!beltToggle.checked)beltToggle.click();
   assert(!w.document.querySelector(beltRoot+' [data-flow-belt-allocation]').hidden,'Capacity controls appear below flowchart');
   assert(w.document.querySelector(beltRoot+' [data-flow-display]').compareDocumentPosition(w.document.querySelector(beltRoot+' [data-flow-belt-tier]'))&w.Node.DOCUMENT_POSITION_FOLLOWING,'Tier slider follows graph');
-  assert(w.document.querySelector(beltRoot+' .flow-machine-grid'),'Machine review follows flowchart');
+  assert(w.document.querySelector(beltRoot+' .flow-machine-grid').compareDocumentPosition(w.document.querySelector(beltRoot+' [data-flow-options]'))&w.Node.DOCUMENT_POSITION_FOLLOWING,'Machine review precedes graph controls');
   const beltCard=()=>w.document.querySelector(beltRoot+' .flow-belt-resource');
   assert(beltCard()&&beltCard().textContent.includes('required'),'Blueprint belt view shows physical requirements and capacity');
   const assigned=()=>beltCard().querySelector('[data-flow-assigned]').textContent;
@@ -190,9 +190,17 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(checklist.open&&!reference.open&&!!(checklist.compareDocumentPosition(reference)&w.Node.DOCUMENT_POSITION_FOLLOWING),'Checklist is open and precedes collapsed project reference');
   assert(!!reference.querySelector('.project-task-profile'),'Installed profiles live in project reference');
   const slider='[data-project-built][data-task-recipe="advanced-circuit"]';
+  const stableSlider=w.document.querySelector(slider),stableGraph=w.document.querySelector('.project-flow-panel [data-ratio-flow-root]');
+  assert(stableGraph.querySelector('.flow-machine-grid'),'Construction inherits compact machine review');
+  const oldConfirm=w.confirm;w.confirm=msg=>{throw Error('Unexpected confirmation: '+msg)};
+  set(w,slider,'0');assert(snap(w).plan.projects[0].tasks.find(t=>t.recipe==='advanced-circuit').built===0,'Reset is an absolute built count');
+  set(w,slider,String(initialBuilt));assert(count(w)===8,'Rebuild restores original count without a prompt');w.confirm=oldConfirm;
+  assert(w.document.querySelector(slider)===stableSlider&&w.document.querySelector('.project-flow-panel [data-ratio-flow-root]')===stableGraph,'Progress preserves slider and graph DOM');
+  assert(!w.document.querySelector('.project-task-recorded'),'Redundant inventory labels removed');
   w.document.querySelector(slider).scrollIntoView({block:'center'});const rowTop=w.document.querySelector(slider).closest('.project-task').getBoundingClientRect().top;
   set(w,slider,String(initialBuilt+1),'input');
   assert(count(w)===8,'Dragging built slider does not save partial movement');
+  assert(w.document.querySelector('.project-flow-panel [data-flow-node="m:advanced-circuit"] .ratio-flow-count').textContent.startsWith(String(initialBuilt+1)+'/'),'Graph previews slider motion live');
   set(w,slider,String(initialBuilt+1));
   assert(count(w)===9,'Slider release commits exactly one machine');
   assert(Math.abs(w.document.querySelector(slider).closest('.project-task').getBoundingClientRect().top-rowTop)<4,'Slider retains task position');
@@ -204,8 +212,14 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   click(w,'[data-project-check][data-task-recipe="advanced-circuit"]');
   assert(w.document.querySelector('[data-project-check][data-task-recipe="advanced-circuit"]').checked&&w.document.querySelector('#projectFeedbackToast').textContent.includes('complete'),'Done checkbox gives positive feedback');
   assert(w.document.querySelector('.project-flow-panel [data-flow-node="m:advanced-circuit"][data-built-state="done"]'),'Construction graph reflects completed group');
+  assert(w.document.querySelector('.project-flow-panel [data-flow-node="m:advanced-circuit"]').classList.contains('flow-complete-shine'),'Completed group gets finite graph shine');
   click(w,'[data-project-complete]');
   assert(snap(w).plan.projects[0].tasks.every(t=>t.built===t.planned)&&w.document.querySelector('#projectFeedbackToast').textContent.includes('Project complete'),'Project completion updates all tasks and celebrates');
+  w.NauvisLocal.apply(baseline);
+  w.activateWorkspace('factory');const savedInventory=JSON.stringify(snap(w).setup);
+  click(w,'[data-project-remove]');assert(snap(w).plan.projects[0].cancelled&&snap(w).plan.projects[0].status==='archived'&&JSON.stringify(snap(w).setup)===savedInventory,'Cancelling a partially built project preserves all inventory');
+  w.document.querySelector('#projectsArchivedWrapper').open=true;click(w,'#projectsArchived [data-project-remove]');assert(!w.document.querySelector('#projectsArchived [data-project-card]')&&JSON.stringify(snap(w).setup)===savedInventory,'Deleting archived history preserves ownership and inventory');
+  w.activateWorkspace('log');const journalCount=snap(w).plan.journal.length;click(w,'[data-journal-delete]');assert(snap(w).plan.journal.length===journalCount-1&&JSON.stringify(snap(w).setup)===savedInventory,'Deleting log entry changes history only');
   w.NauvisLocal.apply(baseline);
   const beforeFocus=JSON.stringify(snap(w));
   w.NauvisFocus.setMode('focus');w.activateWorkspace('factory');

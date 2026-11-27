@@ -113,7 +113,7 @@ test('six modes share a warm-to-purple-to-blue spectrum and teal Construction mo
  assert.match(uiCSS,/button\[data-plan-target="build"\] \.plan-switch-light/);
  assert.match(uiCSS,/button\[data-plan-target="factory"\] \.plan-switch-light/);
  assert.match(projectsCSS,/\.command-chrome \.nav-track>button::after/);
- assert.ok(html.indexOf('href="./projects.css?v=1.1.14"')<html.indexOf('href="./workspace-v025.css?v=1.1.14"'));
+ assert.ok(html.indexOf('href="./projects.css?v=1.1.15"')<html.indexOf('href="./workspace-v025.css?v=1.1.15"'));
 });
 
 test('responsive gradient paints each real navigation segment',()=>{
@@ -135,11 +135,11 @@ test('gradient and icons still share the same iPhone-responsive background strat
 });
 
 test('first render loads icon system before inline rendering and caches both files offline',()=>{
- assert.ok(html.indexOf('src="./item-icons.js?v=1.1.14"')<html.indexOf('/* Verified standard recipes.'));
- assert.match(html,/href="\.\/item-icons\.css\?v=1\.1\.14"/);
- assert.match(sw,/nauvis-shell-v10114/);
+ assert.ok(html.indexOf('src="./item-icons.js?v=1.1.15"')<html.indexOf('/* Verified standard recipes.'));
+ assert.match(html,/href="\.\/item-icons\.css\?v=1\.1\.15"/);
+ assert.match(sw,/nauvis-shell-v10115/);
  assert.match(sw,/'\.\/item-icons\.js','\.\/item-icons\.css'/);
- assert.match(html,/Nauvis Command Center v1\.1\.14/);
+ assert.match(html,/Nauvis Command Center v1\.1\.15/);
  assert.equal((html.match(/<button data-view=/g)||[]).length,3);
 });
 

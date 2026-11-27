@@ -513,6 +513,31 @@ function positiveFeedback(id,recipe,delta,groupDone,projectDone){
  feedbackTimer=setTimeout(()=>{if(seq===feedbackSequence)toast.hidden=true;el?.classList.remove('project-celebrate','project-count-flash')},projectDone?2500:groupDone?1800:1000);
  root.NauvisSensory?.semantic?.(projectDone?'complete':groupDone?'phase':delta>0?'build':'reverse',el);
 }
+// Progress changes are not navigation: keep the actual slider and graph DOM in place.
+function updateProjectProgress(project){
+ const card=cardFor(project.id);if(!card)return render();
+ const next=document.createElement('template');next.innerHTML=projectHTML(project);const fresh=next.content.firstElementChild;
+ for(const selector of ['.project-card-status','.focus-project-progress','.project-task-details>summary']){
+  const old=card.querySelector(selector),replacement=fresh.querySelector(selector);if(old&&replacement)old.replaceWith(replacement);
+ }
+ for(const task of project.tasks){
+  const row=rowFor(project.id,task.recipe),newRow=[...fresh.querySelectorAll('.project-task')].find(r=>r.dataset.taskRow===task.recipe);if(!row||!newRow)continue;
+  row.className=newRow.className;
+  const slider=row.querySelector('[data-project-built]'),check=row.querySelector('[data-project-check]');
+  slider.value=String(task.built);slider.disabled=newRow.querySelector('[data-project-built]').disabled;
+  check.checked=task.planned>0&&task.built>=task.planned;check.disabled=newRow.querySelector('[data-project-check]').disabled;
+  row.querySelector('[data-built-preview]').textContent=String(task.built);
+  row.querySelector('.project-task-progress span').style.width=100*task.built/Math.max(1,task.planned)+'%';
+  const foot=row.querySelector('.project-task-foot'),newFoot=newRow.querySelector('.project-task-foot');
+  if(foot)foot.remove();if(newFoot)row.append(newFoot);
+ }
+ const finish=card.querySelector('[data-project-complete]'),freshFinish=fresh.querySelector('[data-project-complete]');if(finish&&freshFinish){finish.textContent=freshFinish.textContent;finish.disabled=freshFinish.disabled}
+ const reference=card.querySelector('.project-reference-body'),freshReference=fresh.querySelector('.project-reference-body');
+ if(reference&&freshReference){const states=detailStates();reference.replaceWith(freshReference);restoreDetails(states)}
+ root.NauvisRatioFlow?.updateProgress?.('project:'+project.id,Object.fromEntries(project.tasks.map(t=>[t.recipe,t.built])));
+ if($('projectsNotice')){$('projectsNotice').textContent=notice;$('projectsNotice').hidden=!notice}
+ root.NauvisFocus?.refresh?.();
+}
 function updateBuiltBatch(id,adjustments,recipe=null){
  const project=selectedProject(id);if(!project||project.status==='archived')return;
  const anchor=anchorPosition(id,recipe),before=projectProgress(project);
@@ -526,7 +551,7 @@ function updateBuiltBatch(id,adjustments,recipe=null){
   const title=change.changes.length>1?(totalDelta>0?'Completed project · +'+totalDelta+' built':'Reversed project progress'):(totalDelta>0?'Built +'+totalDelta+' ':'Reversed −'+Math.abs(totalDelta)+' ')+(R[change.changes[0].recipe]?.[0]||change.changes[0].recipe);
   root.NauvisJournal?.record?.({type:'construction',source:'Construction Queue',projectId:id,recipe:recipe||null,delta:totalDelta,before:recipe?change.changes[0].before:before.built,after:recipe?change.changes[0].after:after.built,title,detail:project.name+' · '+change.changes.map(x=>(R[x.recipe]?.[0]||x.recipe)+' '+x.before+' → '+x.after).join('; ')+' · actual Inventory updated once.'});
   saveSetup();save();renderSetup();
-  notice='';render();root.NauvisAssets?.render?.();
+  notice='';updateProjectProgress(change.project);root.NauvisAssets?.render?.();
   restorePosition(id,recipe,anchor);
   for(const item of change.changes){const task=change.project.tasks.find(t=>t.recipe===item.recipe);if(item.delta>0&&task.built===task.planned)root.NauvisRatioFlow?.celebrateProgress?.('project:'+id,item.recipe)}
   const groupDone=!!recipe&&totalDelta>0&&change.project.tasks.find(t=>t.recipe===recipe).built===change.project.tasks.find(t=>t.recipe===recipe).planned;
@@ -617,7 +642,7 @@ function attachEvents(){
  });
  $('projectsOpenFactory')?.addEventListener('click',()=>activateWorkspace('setup',true));
  $('factory')?.addEventListener('input',event=>{const b=event.target;if(b.matches('[data-project-built]')){const row=b.closest('.project-task');row.querySelector('[data-built-preview]').textContent=b.value;row.querySelector('.project-task-progress span').style.width=100*Number(b.value)/Math.max(1,Number(b.max))+'%';root.NauvisRatioFlow?.updateProgress?.('project:'+b.dataset.projectBuilt,{[b.dataset.taskRecipe]:Number(b.value)})}});
- $('factory')?.addEventListener('change',event=>{const b=event.target;if(!b.matches('[data-project-built],[data-project-check]'))return;const p=selectedProject(b.dataset.projectBuilt||b.dataset.projectCheck),t=p?.tasks.find(t=>t.recipe===b.dataset.taskRecipe);if(!t)return;const next=b.matches('[data-project-check]')?(b.checked?t.planned:0):Number(b.value);if(!Number.isSafeInteger(next)||next<0||next>t.planned)return;if(next!==t.built){updateBuilt(p.id,t.recipe,next-t.built);const current=selectedProject(p.id)?.tasks.find(x=>x.recipe===t.recipe);if(current?.built!==next)render()}});
+ $('factory')?.addEventListener('change',event=>{const b=event.target;if(!b.matches('[data-project-built],[data-project-check]'))return;const p=selectedProject(b.dataset.projectBuilt||b.dataset.projectCheck),t=p?.tasks.find(t=>t.recipe===b.dataset.taskRecipe);if(!t)return;const next=b.matches('[data-project-check]')?(b.checked?t.planned:0):Number(b.value);if(!Number.isSafeInteger(next)||next<0||next>t.planned)return;if(next!==t.built){updateBuilt(p.id,t.recipe,next-t.built);const current=selectedProject(p.id)?.tasks.find(x=>x.recipe===t.recipe);if(current?.built!==next)render()}else root.NauvisRatioFlow?.updateProgress?.('project:'+p.id,{[t.recipe]:t.built})});
  $('factory')?.addEventListener('click',event=>{
   const b=event.target.closest('button');if(!b)return;
   if(b.hasAttribute('data-project-remove')){const p=selectedProject(b.dataset.projectRemove);if(p)removeProjectRecord(p);return}
