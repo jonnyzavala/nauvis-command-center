@@ -19,6 +19,8 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(w.NauvisLocal&&w.NauvisLogistics&&w.NauvisRecipeMath&&w.NauvisSensory,'Application and deferred modules initialized');
   assert(w.NauvisFocus.getMode()==='focus'&&w.document.querySelector('#build.active'),'Focus is the default and opens Planner');
   const initial=JSON.stringify(snap(w));
+  click(w,'#versionHistory');assert(w.document.querySelector('#versionDialog').open&&w.document.querySelector('#checkRelease')&&w.document.querySelector('#versionDialog details').open,'Version menu exposes manual updates and latest changelog');click(w,'#versionClose');
+  click(w,'#cloudStatus');assert(w.document.querySelector('#cloudDialog').open&&!w.document.querySelector('#cloudConnectForm').hidden&&w.document.querySelector('#cloudPairedControls').hidden,'Unpaired sync menu shows pairing only');click(w,'#cloudClose');
   w.activateWorkspace('flow',true);
   assert(w.document.querySelector('#build.active')&&!w.document.querySelector('#plannerQuickCheck,#flow'),'Legacy Flow navigation returns to the blueprint; split checker removed');
   const beltRoot='#build [data-ratio-flow-root]';
