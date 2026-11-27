@@ -74,12 +74,12 @@ test('three top-level tabs retain their distinct dual-mode destinations',()=>{
 });
 test('preset scripts and styling precache offline without any data schema changes',()=>{
  const worker=read('service-worker.js');
- assert.match(html,/src="\.\/production-presets\.js\?v=1\.1\.16"/);
- assert.match(html,/href="\.\/preset-v026\.css\?v=1\.1\.16"/);
- assert.match(worker,/nauvis-shell-v10116/);
+ assert.match(html,/src="\.\/production-presets\.js\?v=1\.1\.17"/);
+ assert.match(html,/href="\.\/preset-v026\.css\?v=1\.1\.17"/);
+ assert.match(worker,/nauvis-shell-v10117/);
  assert.match(worker,/production-presets\.js/);
  assert.match(worker,/preset-v026\.css/);
- assert.match(html,/Nauvis Command Center v1\.1\.16/);
+ assert.match(html,/Nauvis Command Center v1\.1\.17/);
  assert.match(html,/version:7,plan:factory,guide,setup,balancePrefs/);
 });
 
