@@ -549,7 +549,7 @@ function updateBuiltBatch(id,adjustments,recipe=null){
   setup.machines=change.rows;Object.assign(setup.smelt,change.smelt);
   const totalDelta=change.changes.reduce((n,x)=>n+x.delta,0),after=projectProgress(change.project);
   const title=change.changes.length>1?(totalDelta>0?'Completed project · +'+totalDelta+' built':'Reversed project progress'):(totalDelta>0?'Built +'+totalDelta+' ':'Reversed −'+Math.abs(totalDelta)+' ')+(R[change.changes[0].recipe]?.[0]||change.changes[0].recipe);
-  root.NauvisJournal?.record?.({type:'construction',source:'Construction Queue',projectId:id,recipe:recipe||null,delta:totalDelta,before:recipe?change.changes[0].before:before.built,after:recipe?change.changes[0].after:after.built,title,detail:project.name+' · '+change.changes.map(x=>(R[x.recipe]?.[0]||x.recipe)+' '+x.before+' → '+x.after).join('; ')+' · actual Inventory updated once.'});
+  root.NauvisJournal?.record?.({type:'construction',source:'Construction Queue',projectId:id,recipe:recipe||null,delta:totalDelta,before:recipe?change.changes[0].before:before.built,after:recipe?change.changes[0].after:after.built,title,detail:project.name+' · '+change.changes.map(x=>(R[x.recipe]?.[0]||x.recipe)+' '+x.before+' → '+x.after).join('; ')+' · checklist updated.'});
   saveSetup();save();renderSetup();
   notice='';updateProjectProgress(change.project);root.NauvisAssets?.render?.();
   restorePosition(id,recipe,anchor);
@@ -574,7 +574,7 @@ function completeProject(project){
  const changes=project.tasks.filter(t=>t.planned>t.built).map(t=>({recipe:t.recipe,delta:t.planned-t.built}));
  if(!changes.length)return;
  const count=changes.reduce((n,t)=>n+t.delta,0);
- if(root.confirm('Mark all '+count+' remaining machines in '+project.name+' as physically built? This updates actual Inventory and the journal together.'))updateBuiltBatch(project.id,changes);
+ if(root.confirm('Mark all '+count+' remaining machines in '+project.name+' as physically built? This updates the checklist and journal together.'))updateBuiltBatch(project.id,changes);
 }
 function navigateToPlan(id){
  const project=selectedProject(id);if(!project)return;
