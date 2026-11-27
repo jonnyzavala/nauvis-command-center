@@ -193,6 +193,8 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   w.document.querySelector(slider).scrollIntoView({block:'center'});const rowTop=w.document.querySelector(slider).closest('.project-task').getBoundingClientRect().top;
   set(w,slider,String(initialBuilt+1),'input');
   assert(count(w)===8,'Dragging built slider does not save partial movement');
+  assert(w.document.querySelector('.project-flow-panel [data-flow-node="m:advanced-circuit"] .ratio-flow-count').textContent.startsWith(String(initialBuilt+1)+'/'),'Slider previews construction graph without saving');
+  assert(w.document.querySelector('.project-flow-panel .flow-machine-review'),'Construction includes machine review');
   set(w,slider,String(initialBuilt+1));
   assert(count(w)===9,'Slider release commits exactly one machine');
   assert(Math.abs(w.document.querySelector(slider).closest('.project-task').getBoundingClientRect().top-rowTop)<4,'Slider retains task position');
@@ -203,7 +205,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   const baseline=snap(w);
   click(w,'[data-project-check][data-task-recipe="advanced-circuit"]');
   assert(w.document.querySelector('[data-project-check][data-task-recipe="advanced-circuit"]').checked&&w.document.querySelector('#projectFeedbackToast').textContent.includes('complete'),'Done checkbox gives positive feedback');
-  assert(w.document.querySelector('.project-flow-panel [data-flow-node="m:advanced-circuit"][data-built-state="done"]'),'Construction graph reflects completed group');
+  assert(w.document.querySelector('.project-flow-panel [data-flow-node="m:advanced-circuit"][data-built-state="done"].flow-build-complete'),'Construction graph reflects completed group and flashes');
   click(w,'[data-project-complete]');
   assert(snap(w).plan.projects[0].tasks.every(t=>t.built===t.planned)&&w.document.querySelector('#projectFeedbackToast').textContent.includes('Project complete'),'Project completion updates all tasks and celebrates');
   w.NauvisLocal.apply(baseline);
