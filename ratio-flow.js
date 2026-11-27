@@ -26,14 +26,25 @@ function buildFlowGraph(result){
  }
  result.entries.forEach(machineNode);
  result.external.forEach(inputNode);
+ // Reused rates are separate existing supplies, not machines to construct.
+ const reused=new Map((result.reused||[]).filter(r=>r.rate>1e-9).map(r=>[r.key,r]));
+ const gross=new Map(),fluids=new Map();
+ for(const c of result.entries)for(const ing of c.ingredients){gross.set(ing.id,(gross.get(ing.id)||0)+ing.needed);fluids.set(ing.id,ing.fluid)}
+ for(const r of reused.values()){
+  const key='r:'+r.key;existing.add(key);
+  nodes.push({key,recipe:r.key,label:r.name+' (existing)',type:'supply',kind:fluids.get(r.key)?'fluid':'solid',count:null,needed:r.rate,final:false,level:0});
+ }
  const edges=[];
  for(const consumer of result.entries){
   for(const ingredient of consumer.ingredients){
    if(!(ingredient.needed>1e-9))continue;
    const from=machineMap.has(ingredient.id)?'m:'+ingredient.id:'s:'+ingredient.id;
    const to='m:'+consumer.key;
-   if(!existing.has(from)||!existing.has(to))throw Error('Missing upstream node: '+ingredient.id);
-   edges.push({from,to,rate:ingredient.needed,item:ingredient.id,fluid:ingredient.fluid});
+   const reusedRate=Math.min(ingredient.needed,ingredient.needed*(reused.get(ingredient.id)?.rate||0)/Math.max(1e-9,gross.get(ingredient.id)||ingredient.needed));
+   const newRate=ingredient.needed-reusedRate;
+   if(!existing.has(to)||newRate>1e-8&&!existing.has(from))throw Error('Missing upstream node: '+ingredient.id);
+   if(newRate>1e-8)edges.push({from,to,rate:newRate,item:ingredient.id,fluid:ingredient.fluid});
+   if(reusedRate>1e-8)edges.push({from:'r:'+ingredient.id,to,rate:reusedRate,item:ingredient.id,fluid:ingredient.fluid});
   }
  }
  const byKey=new Map(nodes.map(node=>[node.key,node]));
