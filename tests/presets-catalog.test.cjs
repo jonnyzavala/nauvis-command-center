@@ -76,10 +76,10 @@ test('preset scripts and styling precache offline without any data schema change
  const worker=read('service-worker.js');
  assert.match(html,/src="\.\/production-presets\.js"/);
  assert.match(html,/href="\.\/preset-v026\.css"/);
- assert.match(worker,/nauvis-shell-v1018/);
+ assert.match(worker,/nauvis-shell-v1019/);
  assert.match(worker,/production-presets\.js/);
  assert.match(worker,/preset-v026\.css/);
- assert.match(html,/Nauvis Command Center v1\.1\.8/);
+ assert.match(html,/Nauvis Command Center v1\.1\.9/);
  assert.match(html,/version:7,plan:factory,guide,setup,balancePrefs/);
 });
 
@@ -94,7 +94,7 @@ test('categorized recipe browsing covers the entire catalog and filters without 
  assert.equal(recipeGroup('laser-turret'),'Military & equipment');
  assert.ok(recipeMatches(ids,R,'all','copper cable').includes('copper-cable'));
  assert.deepEqual(recipeMatches(ids,R,'Military & equipment','copper cable'),[]);
- assert.match(ratio,/data-recipe-category/);assert.match(ratio,/data-recipe-pick/);assert.match(ratio,/<optgroup label=/);
+ assert.doesNotMatch(ratio,/data-recipe-category/);assert.match(ratio,/data-recipe-pick/);assert.match(ratio,/<optgroup label=/);
 });
 test('mobile profile spans the full row; compact inputs and corrected recipe color',()=>{
  const css=read('advanced-v028.css');

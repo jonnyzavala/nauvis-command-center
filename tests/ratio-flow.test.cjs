@@ -86,7 +86,7 @@ test('blueprint uses one graph and keeps optional technical data below',()=>{
  assert.match(ratioSource,/data-ratio-flow-root/);
  assert.match(ratioSource,/<details class="ratio-explain ratio-technical" data-ratio-legacy-table/);
  assert.match(ratioSource,/NauvisRatioFlow\?\.mount/);
- assert.ok(flowSource.indexOf('<div data-flow-display>')<flowSource.indexOf('<details class="flow-belt-allocation"'));
+ assert.ok(flowSource.indexOf('<div data-flow-display>')<flowSource.indexOf('<section class="flow-belt-allocation"'));
 });
 test('layout stays inside explorer and switches to vertical diagram on iPhone',()=>{
  assert.match(style,/\.ratio-flow-viewport\{/);
@@ -97,10 +97,10 @@ test('layout stays inside explorer and switches to vertical diagram on iPhone',(
  assert.match(style,/\.ratio-flow-node-label strong\{font-size:11px\}/);
 });
 test('version and offline caching include the visual graph without editing cloud sync',()=>{
- assert.match(html,/Nauvis Command Center v1\.1\.8/);
+ assert.match(html,/Nauvis Command Center v1\.1\.9/);
  assert.match(html,/href="\.\/ratio-flow\.css"/);
  assert.match(html,/src="\.\/ratio-flow\.js" defer/);
- assert.match(worker,/nauvis-shell-v1018/);
+ assert.match(worker,/nauvis-shell-v1019/);
  assert.match(worker,/ratio-flow\.css/);
  assert.match(worker,/ratio-flow\.js/);
  assert.match(html,/sync\/cloud-sync\.js/);

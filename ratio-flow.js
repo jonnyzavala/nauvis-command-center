@@ -407,7 +407,6 @@ function mount(target,result,cardKey,options={}){
  const graph=buildFlowGraph(result);
  if(options.progress)for(const node of graph.nodes)if(node.type==='machine')node.built=options.progress[node.recipe]??0;
  const older=browserViews.get(cardKey);
- const allocationOpen=older?.holder?.querySelector('[data-flow-belt-allocation]')?.open||older?.allocationOpen||false;
  older?.observer?.disconnect();
  older?.cancel?.();
  older?.cleanup?.();
@@ -429,7 +428,6 @@ function mount(target,result,cardKey,options={}){
   '<section class="flow-belt-allocation" data-flow-belt-allocation hidden><div class="flow-belt-controls flow-belt-slider" data-flow-belt-controls><label>Belt tier <strong data-flow-belt-tier-label></strong><input type="range" min="0" max="3" step="1" value="'+tierList.indexOf(beltTier)+'" data-flow-belt-tier aria-label="Belt tier"></label><div class="flow-belt-tier-labels"><span>Yellow</span><span>Red</span><span>Blue</span><span>Green</span></div><button type="button" class="flow-capacity-reset" data-flow-belt-reset>Fit belts to demand</button></div><div data-flow-belt-summary></div></section>'+
   (options.progress?'':'<div class="flow-machine-review"><h4>Machine review</h4><div class="flow-machine-grid">'+graph.nodes.filter(n=>n.type==='machine').map(n=>'<div class="flow-machine-chip" style="--node-color:'+nodeColor(n)+'">'+itemGlyph(n.recipe,27)+'<strong>'+formatted(n.count)+'</strong><span>'+escapeHTML(n.label)+'</span></div>').join('')+'</div></div>');
  const display=holder.querySelector('[data-flow-display]');
- const allocationPanel=holder.querySelector('[data-flow-belt-allocation]');allocationPanel.open=allocationOpen;
  const checkbox=holder.querySelector('[data-flow-input-toggle]');
  const upstreamToggle=holder.querySelector('[data-flow-upstream-toggle]');
  const state={graph,display,holder,result,cardKey,inputVisible,upstream,beltMode,beltTier,totals,allocation,selected:older?.result?.id===result.id?(older.selected||null):null,observer:null,

@@ -194,8 +194,8 @@ function groupedOptions(){
 function recipeResults(){
 
  const matches=matchingRecipes(),shown=matches;
- return '<div class="recipe-result-count">'+matches.length+' matching recipe'+(matches.length===1?'':'s')++'</div>'+
-  (shown.length?'<div class="recipe-result-grid">'+shown.map(id=>'<button type="button" data-recipe-pick="'+escape(id)+'" aria-pressed="'+(id===state.id)+'">'+itemGlyph(id,25)+'<span>'+escape(recipes[id][0])+'</span></button>').join('')+'</div>':'<p class="ratio-muted">No matches in this category. Try another category or search.</p>');
+ return '<div class="recipe-result-count">'+matches.length+' matching recipe'+(matches.length===1?'':'s')+'</div>'+
+  (shown.length?'<div class="recipe-result-grid">'+shown.map(id=>'<button type="button" data-recipe-pick="'+escape(id)+'" aria-pressed="'+(id===state.id)+'">'+itemGlyph(id,25)+'<span>'+escape(recipes[id][0])+'</span></button>').join('')+'</div>':'<p class="ratio-muted">No matching recipes. Try another search.</p>');
 }
 function descriptionForRate(r){
  return number(r.needed)+' output/min ÷ '+precision(r.effectiveOutputPerCraft||r.outputPerCraft)+' effective per craft = '+precision(r.craftsPerMinute)+' crafts/min.';
@@ -298,7 +298,6 @@ function renderCard(card){
   };
   target.querySelector('.ratio-recipe-search')?.addEventListener('toggle',e=>{if(e.target.open)search?.focus({preventScroll:true})});
   search?.addEventListener('input',event=>{recipeFilter=event.target.value.trim().toLowerCase();updatePicker()});
-  target.querySelector('[data-recipe-category]')?.addEventListener('change',event=>{recipeCategory=event.target.value;updatePicker()});
   target.querySelector('[data-recipe-results]')?.addEventListener('click',event=>{
    const item=event.target.closest('[data-recipe-pick]');if(!item)return;
    const pick=target.querySelector('[data-ratio-field="id"]');if(pick){pick.value=item.dataset.recipePick;pick.dispatchEvent(new Event('change',{bubbles:true}))}

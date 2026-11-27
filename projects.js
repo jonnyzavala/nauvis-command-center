@@ -596,7 +596,7 @@ function attachEvents(){
  });
  $('projectsOpenFactory')?.addEventListener('click',()=>activateWorkspace('setup',true));
  $('factory')?.addEventListener('input',event=>{const b=event.target;if(b.matches('[data-project-built]')){const row=b.closest('.project-task');row.querySelector('[data-built-preview]').textContent=b.value;row.querySelector('.project-task-progress span').style.width=100*Number(b.value)/Math.max(1,Number(b.max))+'%'}});
- $('factory')?.addEventListener('change',event=>{const b=event.target;if(!b.matches('[data-project-built],[data-project-check]'))return;const p=selectedProject(b.dataset.projectBuilt||b.dataset.projectCheck),t=p?.tasks.find(t=>t.recipe===b.dataset.taskRecipe);if(!t)return;const next=b.matches('[data-project-check]')?(b.checked?t.planned:0):Number(b.value);if(!Number.isSafeInteger(next)||next<0||next>t.planned)return;if(next!==t.built)updateBuilt(p.id,t.recipe,next-t.built);render()});
+ $('factory')?.addEventListener('change',event=>{const b=event.target;if(!b.matches('[data-project-built],[data-project-check]'))return;const p=selectedProject(b.dataset.projectBuilt||b.dataset.projectCheck),t=p?.tasks.find(t=>t.recipe===b.dataset.taskRecipe);if(!t)return;const next=b.matches('[data-project-check]')?(b.checked?t.planned:0):Number(b.value);if(!Number.isSafeInteger(next)||next<0||next>t.planned)return;if(next!==t.built){updateBuilt(p.id,t.recipe,next-t.built);const current=selectedProject(p.id)?.tasks.find(x=>x.recipe===t.recipe);if(current?.built!==next)render()}});
  $('factory')?.addEventListener('click',event=>{
   const b=event.target.closest('button');if(!b)return;
   if(b.matches('[data-project-go-planner]')){activateWorkspace('build',true);return}
