@@ -118,10 +118,19 @@ function makeAwardTracker(){
 }
 // Render original sounds to standard mono 16-bit PCM WAV, without Web Audio.
 // The media element is reused, and play() is invoked synchronously during user gestures.
-function renderWav(p,event,sr=24000){
+// Each crossed notch has its own pitch. Limit very large jumps to the most
+// recent 48 steps so dragging a 100,000-count range cannot queue minutes of audio.
+function sliderPitches(from,to,min,max,step=1){
+ if(![from,to,min,max,step].every(Number.isFinite)||step<=0||max<=min||from===to)return [];
+ const a=Math.round((clamp(from,min,max)-min)/step),b=Math.round((clamp(to,min,max)-min)/step),dir=Math.sign(b-a),n=Math.min(48,Math.abs(b-a));
+ return Array.from({length:n},(_,i)=>Math.round(240*Math.pow(3,(clamp(min+(b-dir*(n-1-i))*step,min,max)-min)/(max-min))));
+}
+const SLIDER_SPACING=.036;
+function sliderNotes(pitches){return pitches.map((hz,i)=>[hz,hz*.84,.026,i*SLIDER_SPACING,'triangle',.26])}
+function renderWav(p,event,sr=24000,pitches=null){
  const diagnostic=event==='test';
- const notes=diagnostic?[[660,660,.16,0,'sine',.65],[880,880,.24,.18,'sine',.65]]:soundDefinition(p,event)[1];
- const layers=!diagnostic&&p.palette==='industrial'?NOISE[event]||[]:[];
+ const notes=pitches?.length?sliderNotes(pitches):diagnostic?[[660,660,.16,0,'sine',.65],[880,880,.24,.18,'sine',.65]]:soundDefinition(p,event)[1];
+ const layers=!pitches&&!diagnostic&&p.palette==='industrial'?NOISE[event]||[]:[];
  const length=Math.ceil((Math.max(...notes.map(n=>n[2]+n[3]),...layers.map(n=>n[0]+n[1]))+.025)*sr),samples=new Float32Array(length);
  const envelope=(t,d,a)=>Math.min(1,t/a)*Math.pow(Math.max(0,1-t/d),2);
  for(const [from,to,d,offset,wave,gain] of notes){
@@ -153,26 +162,39 @@ function renderWav(p,event,sr=24000){
 function makeMediaEngine(audio,getPrefs,visible=()=>true,clock=()=>Date.now(),encode=bytes=>{
  let s='';for(let i=0;i<bytes.length;i+=4096)s+=String.fromCharCode(...bytes.subarray(i,i+4096));return 'data:audio/wav;base64,'+btoa(s)
 }){
- let state='ready',error='',last=-Infinity,serial=0,cache=new Map(),lastResult=Promise.resolve(false);
- function stop(){serial++;try{audio.pause()}catch{}state='ready';last=-Infinity}
- function play(event,preview=false){
+ let state='ready',error='',last=-Infinity,serial=0,cache=new Map(),lastResult=Promise.resolve(false),ticks=[],tickPlaying=false;
+ function stop(){serial++;ticks=[];tickPlaying=false;try{audio.pause()}catch{}state='ready';last=-Infinity}
+ function play(event,preview=false,pitches=null){
   const p=getPrefs();if(!audio||!visible()||!p.enabled||p.volume<=0||event!=='test'&&!canPlay(p,event))return false;
-  const now=clock();if(!preview&&event!=='test'&&!COMMIT_CUES.has(event)&&!REWARD_CUES.has(event)&&now-last<65)return false;
+  const now=clock();if(!pitches&&!preview&&event!=='test'&&!COMMIT_CUES.has(event)&&!REWARD_CUES.has(event)&&now-last<65)return false;
+  if(!pitches){ticks=[];tickPlaying=false}
   const id=++serial;last=now;error='';
   try{
-   const key=[p.palette,p.volume,event].join(':');let src=cache.get(key);
-   if(!src){src=encode(renderWav(p,event));if(cache.size>=64)cache.clear();cache.set(key,src)}
+   const key=[p.palette,p.volume,event,pitches?.join(',')||''].join(':');let src=cache.get(key);
+   if(!src){src=encode(renderWav(p,event,24000,pitches));if(cache.size>=64)cache.clear();cache.set(key,src)}
    audio.pause();if(audio.getAttribute('src')!==src)audio.src=src;try{audio.currentTime=0}catch{}
    state='starting';
    lastResult=Promise.resolve(audio.play()).then(()=>{if(id!==serial)return false;state='playing';return true},err=>{if(id===serial){state='blocked';error=err?.name+': '+(err?.message||'Media playback rejected')}return false});
    return true;
   }catch(err){state='error';error=err?.message||'Media audio error';lastResult=Promise.resolve(false);return false}
  }
- audio.addEventListener?.('ended',()=>{if(state==='playing')state='ready'});
- return {play,testTone:()=>play('test',true),stop,reset:()=>{stop();error=''},state:()=>state,error:()=>error,result:()=>lastResult};
+ function flushTicks(){
+  if(!ticks.length||!visible()||!canPlay(getPrefs(),'ratchet')){ticks=[];tickPlaying=false;return false}
+  const batch=ticks.splice(0,12);tickPlaying=true;
+  const sent=play('ratchet',false,batch);if(!sent){tickPlaying=false;ticks=[]}
+  else lastResult.then(ok=>{if(!ok&&tickPlaying){tickPlaying=false;ticks=[]}});
+  return sent;
+ }
+ function playSlider(pitches){
+  if(!pitches.length||!visible()||!canPlay(getPrefs(),'ratchet'))return false;
+  ticks.push(...pitches);if(ticks.length>48)ticks.splice(0,ticks.length-48);
+  return tickPlaying||flushTicks();
+ }
+ audio.addEventListener?.('ended',()=>{if(state==='playing')state='ready';if(tickPlaying){tickPlaying=false;flushTicks()}});
+ return {play,playSlider,testTone:()=>play('test',true),stop,reset:()=>{stop();error=''},state:()=>state,error:()=>error,result:()=>lastResult};
 }
 function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now()){
- let context=null,last=-Infinity,voices=[],pending=null,noiseBuffer=null,lastError='';
+ let context=null,last=-Infinity,voices=[],pending=null,noiseBuffer=null,lastError='',tickTail=0;
  function unlock(retry=false){
   if(!AudioContext||!getPrefs().enabled)return Promise.resolve(false);
   try{
@@ -202,7 +224,7 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
    o.start(t);o.stop(t+.44);lastError='';return true;
   }catch(err){lastError=err?.message||'Could not schedule test tone';stop();return false}
  }
- function stop(){for(const v of voices){try{v.stop()}catch{}}voices=[]}
+ function stop(){for(const v of voices){try{v.stop()}catch{}}voices=[];tickTail=0}
  function buffer(){
   if(noiseBuffer)return noiseBuffer;
   if(!context.createBuffer||!context.createBufferSource||!context.createBiquadFilter)return null;
@@ -242,9 +264,25 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
    return true;
   }catch(err){lastError=err?.message||'Sound synthesis failed';stop();return false}
  }
- return {unlock,play,stop,reset,testTone,error:()=>lastError,state:()=>context?.state||'locked'};
+ function playSlider(pitches){
+  const p=getPrefs();if(!pitches.length||!canPlay(p,'ratchet')||!visible()||context?.state!=='running')return false;
+  try{
+   if(tickTail-context.currentTime>1.75)stop();
+   const start=Math.max(context.currentTime+.008,tickTail);
+   for(const [from,to,length,offset,wave,level] of sliderNotes(pitches)){
+    const o=context.createOscillator(),g=context.createGain(),t=start+offset,end=t+length;
+    o.type=wave;o.frequency.setValueAtTime(from,t);o.frequency.exponentialRampToValueAtTime(to,end);
+    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(.00011,p.volume/100*.24*level),t+.004);g.gain.exponentialRampToValueAtTime(.0001,end);
+    o.connect(g);g.connect(context.destination);voices.push(o);
+    o.onended=()=>{voices=voices.filter(v=>v!==o);try{o.disconnect();g.disconnect()}catch{}};
+    o.start(t);o.stop(end+.003);
+   }
+   tickTail=start+pitches.length*SLIDER_SPACING;last=clock();return true;
+  }catch(err){lastError=err?.message||'Slider audio failed';stop();return false}
+ }
+ return {unlock,play,playSlider,stop,reset,testTone,error:()=>lastError,state:()=>context?.state||'locked'};
 }
-if(typeof module==='object'&&module.exports)module.exports={normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine,renderWav,makeMediaEngine,makeCueGate,makeAwardTracker};
+if(typeof module==='object'&&module.exports)module.exports={normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine,renderWav,makeMediaEngine,makeCueGate,makeAwardTracker,sliderPitches,sliderNotes};
 if(typeof document==='undefined')return;
 let prefs=normalize(null);try{prefs=normalize(JSON.parse(localStorage.getItem(KEY)||'null'))}catch{}
 const $=id=>document.getElementById(id),dialog=$('sensoryDialog'),launcher=$('sensoryLaunch');
@@ -305,7 +343,7 @@ function markLocalChange(){
  // milestones, sync, and non-construction edits must not compete with them.
  if(!root.NauvisCloudApplying&&document.body.dataset.appMode==='full'&&workspace!=='factory'&&performance.now()-lastGesture<1500)localChange=workspace;
 }
-function resetBaseline(){localChange=null;awards.reset();if(gate.active()){engine.stop();media.stop();gate.reset()}}
+function resetBaseline(){localChange=null;awards.reset();lastRange=new WeakMap();engine.stop();media.stop();gate.reset()}
 function updateAwards(keys){
  const eligible=!!localChange&&localChange===document.body.dataset.workspace&&document.body.dataset.appMode==='full'&&!root.NauvisCloudApplying&&!document.hidden&&performance.now()-lastGesture<1500;
  localChange=null;
@@ -321,7 +359,8 @@ function isUiSetting(el){return !!el.closest('#sensoryDialog,#sensoryLaunch')}
 function interactive(e){return e.target?.closest?.('button,summary,a[href],input,select,textarea,[role="button"]')}
 function gesture(e){if(!e.isTrusted)return;localChange=null;lastGesture=performance.now();if(prefs.enabled&&!useMedia()&&engine.state()!=='running'&&!e.target?.closest?.('#sensoryDialog,#sensoryLaunch'))unlock(true)}
 document.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')gesture(e)},true);
-document.addEventListener('pointerup',e=>{if(e.pointerType!=='mouse')gesture(e)},true);
+document.addEventListener('pointerup',gesture,true);
+document.addEventListener('change',e=>{if(e.target?.matches?.('[data-project-built],[data-project-check]')){gesture(e);lastRange.delete(e.target)}},true);
 document.addEventListener('touchend',gesture,{capture:true,passive:true});
 document.addEventListener('click',gesture,true);
 document.addEventListener('keydown',e=>{if(!e.repeat)gesture(e)},true);
@@ -344,7 +383,16 @@ document.addEventListener('change',e=>{
 },false);
 document.addEventListener('input',e=>{
  const el=e.target;if(!e.isTrusted||!el?.matches?.('input[type="range"],input[type="number"],input[type="text"],input[type="search"],input:not([type]),textarea')||isUiSetting(el)||el.disabled)return;
- if(el.matches('[data-project-built]')&&gate.active()){engine.stop();media.stop();gate.reset()}
+ if(el.matches('[data-project-built]')){
+  if(root.NauvisCloudApplying)return;
+  const prev=lastRange.get(el)?.value??Number(el.dataset.soundValue),value=Number(el.value);
+  lastRange.set(el,{value});
+  const pitches=sliderPitches(prev,value,Number(el.min),Number(el.max),Number(el.step)||1);
+  if(!pitches.length)return;
+  if(gate.active()){engine.stop();media.stop();gate.reset()}
+  if(!document.hidden)(useMedia()?media:engine).playSlider(pitches);
+  return;
+ }
  const now=performance.now(),prev=lastRange.get(el);
  if(prev&&now-prev.time<85)return;lastRange.set(el,{time:now});cue(el.matches('[type="range"]')?'ratchet':el.matches('[type="number"]')?'tick':'key',null,{haptic:false});
 },false);
