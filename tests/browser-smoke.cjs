@@ -97,9 +97,9 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   w.NauvisLocal.apply(JSON.parse(initial));w.activateWorkspace('build');
   click(w,'[data-focus-view="log"]');
   assert(w.document.querySelector('#focusLogHost #journalPanel')&&w.document.querySelectorAll('#journalPanel').length===1,'Log uses original journal, not a copy');
-  click(w,'#focusModeToggle');
-  assert(w.NauvisFocus.getMode()==='full'&&w.document.querySelector('#factory #journalPanel'),'Full mode restores original journal position');
-  click(w,'#focusModeToggle');
+  click(w,'#sensoryLaunch');w.document.querySelector('#focusModeToggle').closest('details').open=true;click(w,'#focusModeToggle');
+  assert(w.NauvisFocus.getMode()==='full'&&w.document.querySelector('#factory #journalPanel')&&!w.document.querySelector('#sensoryDialog').open,'Maintenance switch restores original journal position and closes settings');
+  click(w,'#sensoryLaunch');w.document.querySelector('#focusModeToggle').closest('details').open=true;click(w,'#focusModeToggle');
   assert(w.NauvisFocus.getMode()==='focus'&&JSON.stringify(snap(w))===initial,'Mode switches do not modify factory data');
   const beforeSensory=JSON.stringify(snap(w));
   click(w,'#sensoryLaunch');
@@ -244,7 +244,16 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(rail.display!=='none'&&rail.backgroundImage.includes('linear-gradient')&&rail.content!=='none','One continuous gradient rail is visible');
   assert([...w.document.querySelectorAll('[data-focus-view]')].every(b=>w.getComputedStyle(b,'::after').display==='none'),'Legacy segmented rails are suppressed');
   const chips=[...w.document.querySelector('.command-actions').children].map(n=>n.getBoundingClientRect());
-  assert(chips.length===4&&chips.every(r=>Math.abs(r.width-chips[0].width)<1&&Math.abs(r.height-chips[0].height)<1),'Four header chips share equal dimensions');
+  assert(chips.length===3&&chips.every(r=>Math.abs(r.width-chips[0].width)<1&&Math.abs(r.height-chips[0].height)<1),'Three remaining header chips share equal dimensions');
+  assert(w.document.querySelector('#sensoryDialog #focusModeToggle'),'Legacy mode switch is available in settings');
+  const goalNode=w.document.querySelector('#build .ratio-flow-final');
+  assert(!!goalNode,'Planner goal block exists');
+  const selected=w.document.querySelector('#build [data-flow-node][aria-pressed="true"]');if(selected)selected.click();
+  const pulse=w.getComputedStyle(goalNode,'::before');
+  assert(pulse.animationName==='nauvis-goal-pulse'&&pulse.animationIterationCount==='infinite','Goal block has continuous opacity-only pulse');
+  w.NauvisSensory.setPrefs({motion:'off'});
+  assert(w.getComputedStyle(goalNode,'::before').animationName==='none','Goal pulse respects motion-off preference');
+  w.NauvisSensory.setPrefs({motion:'full'});
   assert(w.document.querySelector('#cloudStatusText').textContent==='Local','Local-only display is shortened without changing cloud state');
   w.document.documentElement.style.removeProperty('--nauvis-safe-top');
   // Responsive viewports exercise each actual workspace in a real layout engine.
