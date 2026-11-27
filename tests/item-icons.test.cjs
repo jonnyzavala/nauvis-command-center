@@ -64,19 +64,15 @@ test('icons are local, copyright-safe vector drawings, not copied game art or ne
  assert.doesNotMatch(svg,/<img\b|<script\b/i);
 });
 
-test('item icons remain in the production flow, the big Build these machines list and detail',()=>{
+test('item icons remain in the production flow and selected detail',()=>{
  assert.match(flow,/itemGlyph\(node\.recipe,40\)/);
  assert.match(flow,/itemGlyph\(node\.recipe,34\)/);
- assert.match(flow,/itemGlyph\(n\.recipe,35\)/);
  assert.match(flow,/itemGlyph\(node\.recipe,27\)/);
- assert.match(flow,/Build these machines/);
+ assert.match(flow,/Production flow/);
 });
 
-test('ratio inspector and supply cards use the same icon API',()=>{
- assert.match(ratios,/itemGlyph\(x\.key,34\)/);
- assert.match(ratios,/itemGlyph\(x\.key,25\)/);
+test('technical reference uses the same icon API',()=>{
  assert.match(ratios,/itemGlyph\(x\.key,30\)/);
- assert.match(ratios,/itemGlyph\(x\.key,31\)/);
  assert.match(ratios,/itemGlyph\(x\.key,27\)/);
 });
 
@@ -141,9 +137,9 @@ test('gradient and icons still share the same iPhone-responsive background strat
 test('first render loads icon system before inline rendering and caches both files offline',()=>{
  assert.ok(html.indexOf('src="./item-icons.js"')<html.indexOf('/* Verified standard recipes.'));
  assert.match(html,/href="\.\/item-icons\.css"/);
- assert.match(sw,/nauvis-shell-v1016/);
+ assert.match(sw,/nauvis-shell-v1017/);
  assert.match(sw,/'\.\/item-icons\.js','\.\/item-icons\.css'/);
- assert.match(html,/Nauvis Command Center v1\.1\.6/);
+ assert.match(html,/Nauvis Command Center v1\.1\.7/);
  assert.equal((html.match(/<button data-view=/g)||[]).length,3);
 });
 

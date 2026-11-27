@@ -54,3 +54,8 @@ If pairing says `column reference "factory_id" is ambiguous`, the original `nauv
 - [../index.html](../index.html): the dashboard, in-browser state adapter, and sync UI.
 
 **Testing before release:** confirm a new Supabase project can run the SQL; pair a Mac browser, edit a machine count, pair the iPhone, and verify the data appears; try offline edits on both devices and confirm the conflict choices preserve data. Do not merge until these checks pass.
+
+## Device-management upgrade (v1.1.7)
+Apply `device-management.sql` to an existing Nauvis database once. It adds one-time codes, key rotation/disable, and device listing/revocation without modifying the saved snapshot or existing paired devices. Every paired device is trusted to administer its own shared factory. Revocation invalidates outstanding codes and the reusable key. A key is stored on a browser only if explicitly approved; use a password manager. The old recovery key remains valid until rotated, disabled or a device is revoked.
+
+Then apply `device-management-safeguards.sql` for revocation history, bulk revoke, stale-key detection and serialization of legacy writes with revocation. Both upgrades are additive and do not change existing snapshots.

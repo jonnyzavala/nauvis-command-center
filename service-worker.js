@@ -1,6 +1,6 @@
 /* NAUVIS Command Center offline shell. Does not cache private cloud API responses. */
-const VERSION='nauvis-shell-v1016';
-const STATIC=['./','./index.html','./sync/cloud-sync.js','./quick-add.js','./quick-add.css','./recipe-ratios.js','./recipe-ratios.css','./ratio-flow.js','./ratio-flow.css','./projects.js','./projects.css','./item-icons.js','./item-icons.css','./journal.js','./workspace-ui.js','./workspace-v025.css','./production-presets.js','./preset-v026.css','./inventory-v027.css','./factory-reset.js','./factory-onboarding.js','./factory-onboarding.css','./factory-milestones.js','./factory-milestones.css','./sensory-feedback.js','./sensory-feedback.css','./factory-coach.js','./factory-coach.css','./focus-mode.js','./focus-mode.css','./header-polish.css','./production-effects.js','./machine-upgrades.js','./advanced-v028.css','./logistics.js','./logistics.css'];
+const VERSION='nauvis-shell-v1017';
+const STATIC=['./','./index.html','./release-updates.js','./release.json','./sync/cloud-sync.js','./quick-add.js','./quick-add.css','./recipe-ratios.js','./recipe-ratios.css','./ratio-flow.js','./ratio-flow.css','./projects.js','./projects.css','./item-icons.js','./item-icons.css','./journal.js','./workspace-ui.js','./workspace-v025.css','./production-presets.js','./preset-v026.css','./inventory-v027.css','./factory-reset.js','./factory-onboarding.js','./factory-onboarding.css','./factory-milestones.js','./factory-milestones.css','./sensory-feedback.js','./sensory-feedback.css','./factory-coach.js','./factory-coach.css','./focus-mode.js','./focus-mode.css','./header-polish.css','./production-effects.js','./machine-upgrades.js','./advanced-v028.css','./logistics.js','./logistics.css'];
 self.addEventListener('install',event=>{
  event.waitUntil(caches.open(VERSION).then(cache=>cache.addAll(STATIC)).then(()=>self.skipWaiting()));
 });
@@ -14,6 +14,7 @@ self.addEventListener('fetch',event=>{
  if(url.origin!==self.location.origin)return;
  const scope=new URL(self.registration.scope);
  if(!url.pathname.startsWith(scope.pathname))return;
+ if(url.pathname===new URL('./release.json',scope).pathname){event.respondWith(fetch(req,{cache:'no-store'}));return;}
  if(req.mode==='navigate'){
   event.respondWith(fetch(req).then(res=>{
    if(res.ok){const copy=res.clone();event.waitUntil(caches.open(VERSION).then(cache=>cache.put('./index.html',copy)));}

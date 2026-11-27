@@ -223,7 +223,7 @@ function buildView(result,card){
  const advancedOn=state.moduleType!=='none'&&state.moduleCount>0||
   state.moduleType2!=='none'&&state.moduleCount2>0||state.machineQuality!=='normal'||state.beaconSpeed>0;
  const presetButtons=[['starter','Starter',rec.starter,'Smaller start'],['balanced','Balanced',rec.balanced,'Recommended baseline'],['expand','More',rec.expand,'Additional capacity'],['custom','Custom',state.rate,'Choose your output']].map(([key,name,rate,detail])=>
-  '<button type="button" data-ratio-preset="'+key+'" class="ratio-preset-btn" aria-pressed="'+(state.preset===key)+'"><b>'+name+'</b><span>'+number(rate)+'/min</span><small>'+detail+'</small></button>').join('');
+  '<button type="button" data-ratio-preset="'+key+'" class="ratio-preset-btn" aria-pressed="'+(state.preset===key)+'"><b>'+name+'</b><span>'+number(rate)+'/min</span></button>').join('');
 
  const selectField=(key,title,opts,value)=>'<div class="ratio-field"><label for="'+id(key)+'">'+escape(title)+'</label><select id="'+id(key)+'" data-ratio-field="'+key+'">'+select(opts,value)+'</select></div>';
  const advanced='<details class="ratio-advanced"'+(advancedOn?' open':'')+'>'+
@@ -237,29 +237,19 @@ function buildView(result,card){
    selectField('machineQuality','Crafting machine quality',[['normal','Normal · 1.0×'],['uncommon','Uncommon · 1.3×'],['rare','Rare · 1.6×'],['epic','Epic · 1.9×'],['legendary','Legendary · 2.5×']],state.machineQuality)+
   '<div class="ratio-field"><label for="'+id('beaconSpeed')+'">Effective beacon speed bonus (%)</label><input data-ratio-field="beaconSpeed" id="'+id('beaconSpeed')+'" type="number" inputmode="decimal" min="0" max="300" step="1" value="'+state.beaconSpeed+'"></div></div>'+
   '<p class="ratio-advanced-note">Use the actual additive speed bonus contributed by beacons, not the number of beacons. Factorio 2.0 beacon transmission has diminishing returns. Machine quality changes crafting speed, not the quality of products. Generic furnaces are held at 2× speed without module assumptions.</p></div></details>';
- const fieldset='<div class="ratio-picker"><label for="'+id('search')+'">Find a recipe</label>'+
-    '<input id="'+id('search')+'" data-ratio-search type="search" placeholder="Search recipes, modules, military, belts…" value="'+escape(recipeFilter)+'" autocomplete="off">'+
-    '<label for="'+id('category')+'">Browse category</label><select id="'+id('category')+'" data-recipe-category>'+select([['all','All recipes'],...RECIPE_GROUPS.map(g=>[g,g])],recipeCategory)+'</select>'+
-    '<div data-recipe-results>'+recipeResults()+'</div></div>'+
-    '<div class="ratio-fields">'+
+ const fieldset='<div class="ratio-picker ratio-primary-controls"><div class="ratio-fields ratio-primary-fields">'+
     '<div class="ratio-field"><label for="'+id('id')+'">Recipe</label><select id="'+id('id')+'" data-ratio-field="id">'+groupedOptions()+'</select></div>'+
-    '<div class="ratio-field"><label for="'+id('rate')+'">Output target / min</label><input id="'+id('rate')+'" data-ratio-field="rate" type="number" inputmode="decimal" min="0" max="25000" step="0.1" value="'+state.rate+'"></div>'+
+    '<div class="ratio-field"><label for="'+id('rate')+'">Output / min</label><input id="'+id('rate')+'" data-ratio-field="rate" type="number" inputmode="decimal" min="0" max="25000" step="0.1" value="'+state.rate+'"></div></div>'+
+    '<details class="ratio-recipe-search"'+(recipeFilter||recipeCategory!=='all'?' open':'')+'><summary>Search or browse recipes</summary><div class="ratio-search-fields"><label for="'+id('search')+'">Find a recipe</label>'+
+    '<input id="'+id('search')+'" data-ratio-search type="search" placeholder="Search recipes…" value="'+escape(recipeFilter)+'" autocomplete="off">'+
+    '<label for="'+id('category')+'">Category</label><select id="'+id('category')+'" data-recipe-category>'+select([['all','All recipes'],...RECIPE_GROUPS.map(g=>[g,g])],recipeCategory)+'</select>'+
+    '<div data-recipe-results>'+recipeResults()+'</div></div></details></div>'+
+    '<section class="ratio-preset-panel ratio-compact-presets" aria-label="Output target recommendation"><div class="ratio-preset-options">'+presetButtons+'</div></section>';
+ const settings='<details class="ratio-planning-settings" data-ratio-settings><summary>Production settings <small>'+escape(state.machine===1.25?'Assembler 3':'Assembler 2')+' · '+(state.source==='bus'?'Bus-fed':'Raw inputs')+(advancedOn?' · Upgrades active':'')+'</small></summary><div class="ratio-settings-body"><div class="ratio-fields">'+
     selectField('machine','Assembler tier',tiers,state.machine)+
-    selectField('source','Include upstream production?',[['bus','Bus-fed: produce local intermediates'],['raw','Raw: include smelting + chemicals']],state.source)+
-    selectField('belt','Belt throughput',[['900','Yellow · 900/min'],['1800','Red · 1,800/min'],['2700','Blue · 2,700/min']],state.belt)+'</div>'+
-    '<section class="ratio-preset-panel" aria-label="Output target recommendation"><div class="ratio-preset-intro"><strong>How much should I produce?</strong><small>Balanced is the default starting recommendation, not a live demand prediction.</small></div>'+
-    '<div class="ratio-preset-options">'+presetButtons+'</div><p class="ratio-preset-explanation">'+escape(rec.rationale)+'</p></section>'+advanced;
- const percentRows=result.entries.map(x=>{
-  const pct=x.exact>0?Math.min(100,Math.max(2,100*x.exact/Math.max(1,x.count))):0;
-  const color=colorFor(x.key,x.kind);
-  return '<div class="ratio-part" style="--ratio-accent:'+color+'">'+
-    '<div class="ratio-part-name">'+itemGlyph(x.key,34)+'<div><b>'+escape(x.name)+'</b><div class="ratio-muted">'+number(x.needed)+'/min required · '+machineName(x.kind)+'</div></div></div>'+
-    '<div class="ratio-part-count"><strong>'+x.count+'</strong><span>whole</span></div>'+
-    '<div class="ratio-mini-meter"><span style="width:'+pct+'%"></span></div>'+
-    '<div class="ratio-muted">Exact equivalent: '+precision(x.exact)+' machines · '+number(x.perMachine)+'/min each</div>'+
-    '</div>';
- }).join('');
- const shorthand=result.entries.map(x=>'<span class="ratio-chip" style="--ratio-accent:'+colorFor(x.key,x.kind)+'">'+itemGlyph(x.key,25)+'<b>'+x.count+'</b> '+escape(x.name)+'</span>').join('');
+    selectField('source','Upstream production',[['bus','Bus-fed: produce local intermediates'],['raw','Raw: include smelting + chemicals']],state.source)+
+    selectField('belt','Default feeder belt',[['900','Yellow · 900/min'],['1800','Red · 1,800/min'],['2700','Blue · 2,700/min']],state.belt)+'</div>'+advanced+
+    '<p class="ratio-muted">'+escape(rec.rationale)+'</p></div></details>';
  const tableRows=result.entries.map(x=>
     '<tr><td><span class="ratio-cell-item">'+itemGlyph(x.key,30)+'<strong>'+escape(x.name)+'</strong></span><div class="ratio-muted">'+machineName(x.kind)+'</div></td>'+
     '<td>'+number(x.needed)+'</td><td>'+number(x.perMachine)+'</td><td>'+precision(x.exact)+'</td><td class="ratio-rounded">'+x.count+'</td></tr>'
@@ -279,44 +269,30 @@ function buildView(result,card){
     '<p class="ratio-muted">The machine profile above is applied only where compatible. It assumes continuous ingredients and no physical routing constraints. Rounded groups can have unused capacity.</p>'+
     '</div></details>';
  }).join('');
- const supplies=result.external.map(x=>'<div class="ratio-supply">'+
-   '<div>'+itemGlyph(x.key,31)+'<span><b>'+escape(x.name)+'</b><small>'+ (x.isFluid?'Piped fluid':'Belted material')+'</small></span></div>'+
-   '<div class="ratio-supply-value">'+number(x.needed)+'/min<div class="ratio-muted">'+(x.isFluid?'Pipe flow not modeled':x.belts+' × '+(result.belt===900?'yellow':result.belt===1800?'red':'blue')+' belt'+(x.belts===1?'':'s')+' minimum')+'</div></div></div>').join('');
  const output=result.outputStream;
  const outputDesc=output.isFluid?'Output uses pipes; pipe throughput not modeled':(output.belts+' × '+(result.belt===900?'yellow':result.belt===1800?'red':'blue')+' belt'+(output.belts===1?'':'s')+' for final output');
  return fieldset+
-  '<div class="focus-only focus-planner-kpis"><div><small>BUILD MACHINES</small><strong>'+result.roundedTotal+'</strong><span>Whole machines</span></div><div><small>OUTPUT TARGET</small><strong>'+number(result.rate)+'</strong><span>items/min</span></div><div><small>EXTERNAL INPUTS</small><strong>'+result.external.length+'</strong><span>Material types</span></div></div>'+
-  (advancedOn?'<p class="ratio-effect-status"><strong>Upgrade profile active:</strong> machine counts and upstream ingredients reflect compatible module/quality bonuses. Review per-recipe effects under “Why this ratio?”.</p>':'')+
-  '<div data-ratio-flow-root class="ratio-flow-root"></div>'+lanePanel(result)+
-  '<div class="ratio-save-strip"><button class="ratio-save-project" data-ratio-logistics-preview type="button">Advanced network preview <span aria-hidden="true">→</span></button><span>Test proposed production and explicitly available existing supply without changing Inventory.</span></div>'+
-  '<div class="ratio-save-strip"><button class="ratio-save-project" data-ratio-project-save type="button">Queue construction <span aria-hidden="true">→</span></button><span>Creates a planned checklist only. Actual Inventory changes when machines are marked built.</span></div>'+
-  '<div data-ratio-legacy-table hidden>'+
-  '<div class="ratio-overview">'+
-   '<div class="ratio-number-box"><span class="ratio-kicker">ROUNDED MACHINE COUNT</span><strong>'+result.roundedTotal+'</strong><small>'+number(result.rate)+' '+escape(result.name)+'/min</small></div>'+
-   '<div class="ratio-number-box secondary"><span class="ratio-kicker">EXACT MACHINE EQUIVALENTS</span><strong>'+precision(result.exactTotal)+'</strong><small>Before whole-machine rounding</small></div>'+
-  '</div>'+
-  '<p class="ratio-caveat">Exact machine equivalents represent continuous utilization. <b>Whole machines are rounded separately for every recipe</b>, so these totals can differ. These are independent recipe groups, not machines already in your factory.</p>'+
-  '<div class="ratio-section-head"><h3>Compact build ratio</h3><span class="ratio-muted">Supporting producers → final output</span></div>'+
-  '<div class="ratio-chip-row">'+(shorthand||'<span class="ratio-muted">Set a target above zero.</span>')+'</div>'+
-  '<div class="ratio-parts">'+percentRows+'</div>'+
-  '<div class="ratio-section-head"><h3>Machine allocation ledger</h3><span class="ratio-muted">Rates per minute</span></div>'+
-  '<div class="ratio-tablewrap" tabindex="0" aria-label="Machine ratio ledger, swipe sideways on mobile">'+
+  '<div data-ratio-flow-root class="ratio-flow-root"></div>'+
+  '<div class="ratio-primary-actions"><button class="ratio-save-project" data-ratio-project-save type="button">Queue construction <span aria-hidden="true">→</span></button><button class="ratio-save-project ratio-secondary-action" data-ratio-logistics-preview type="button">Advanced network <span aria-hidden="true">→</span></button></div>'+
+  settings+lanePanel(result)+
+  '<details class="ratio-explain ratio-technical" data-ratio-legacy-table><summary><span>Machine rates &amp; recipe math <small>Exact ratios, output per machine and rounding</small></span><span>⌄</span></summary>'+
+  '<div class="ratio-explain-body"><div class="ratio-tablewrap" tabindex="0" aria-label="Machine ratio ledger, swipe sideways on mobile">'+
   '<table class="ratio-table"><thead><tr><th>Recipe</th><th>Required /min</th><th>Per machine /min</th><th>Exact machines</th><th>Build machines</th></tr></thead><tbody>'+tableRows+'</tbody></table></div>'+
-  '<div class="ratio-section-head"><h3>External ingredients and belts</h3><span class="ratio-muted">'+(state.source==='bus'?'Bus-fed':'Raw-to-production')+' boundary</span></div>'+
-  '<div class="ratio-supplies">'+(supplies||'<p class="ratio-muted">No external inputs for this selected recipe.</p>')+'</div>'+
-  '<p class="ratio-output"><b>Finished output:</b> '+number(result.rate)+'/min '+escape(result.name)+'. '+outputDesc+'. Belts assume a dedicated full belt, both lanes and no stacking. Fluids are calculated in fluid units/min.</p>'+
-  '</div>'+
-  '<details class="ratio-explain"><summary><span>Why this ratio? <small>Show recipe math and rounding for each machine group</small></span><span>⌄</span></summary>'+
-  '<div class="ratio-explain-body"><p class="ratio-caveat">Machine output = items per craft × crafting speed × 60 ÷ recipe seconds. Divide needed items/min by output per machine/min, then round each group up.</p>'+detailed+'</div></details>'+
-  '<div class="ratio-actions"><button type="button" class="ratio-send" data-ratio-send>Open detailed planner with this goal <span aria-hidden="true">→</span></button><small>Updates the hypothetical planning goal only. Your Existing Factory inventory remains untouched.</small></div>'+
-  '<p class="ratio-caveat">Scope: 182 deterministic Nauvis base recipes; normal-quality speed, efficiency and productivity modules (tiers 1–3; two types per machine), supported machine quality speed, and user-entered effective beacon speed are calculated on compatible machines. No probabilistic product-quality output, beacon count/placement geometry, uranium byproducts, planetary Space Age recipe chains, inserter constraints, mining supply or physical routing. Chemical plants have base speed 1×; generic furnaces remain 2×.</p>';
+  '<p class="ratio-output"><b>Finished output:</b> '+number(result.rate)+'/min '+escape(result.name)+'. '+outputDesc+'.</p>'+
+  '<p class="ratio-caveat">Machine output = items per craft × crafting speed × 60 ÷ recipe seconds. Divide required output by per-machine output, then round each recipe group up.</p>'+detailed+
+  '<p class="ratio-caveat">Scope: 182 deterministic Nauvis base recipes. Assumes continuous supply and power; supported modules, quality and effective beacon speed are included. No physical inserter, stacking, pipe throughput, fuel or beacon geometry constraints; no probabilistic quality outputs or planetary recipe chains.</p></div></details>'+
+  '<div class="ratio-actions full-only-classic"><button type="button" class="ratio-send" data-ratio-send>Open legacy detailed calculator <span aria-hidden="true">→</span></button><small>Full mode only. Updates the hypothetical goal, not Inventory.</small></div>';
 }
+
 function renderCard(card){
  if(!card.open)return;
  const target=card.querySelector('.ratio-content');
  try{
   const result=analyzeRecipeRatios(recipes,state,contexts);
+  const settingsOpen=target.querySelector('[data-ratio-settings]')?.open||false,technicalOpen=target.querySelector('[data-ratio-legacy-table]')?.open||false;
   target.innerHTML=buildView(result,card);
+  target.querySelector('[data-ratio-settings]').open=settingsOpen;
+  target.querySelector('[data-ratio-legacy-table]').open=technicalOpen;
   root.NauvisRatioFlow?.mount(target,result,card.dataset.ratioExplorer);
   const search=target.querySelector('[data-ratio-search]');
   const updatePicker=()=>{

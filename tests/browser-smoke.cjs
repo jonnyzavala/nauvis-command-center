@@ -19,11 +19,19 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(w.NauvisLocal&&w.NauvisLogistics&&w.NauvisRecipeMath&&w.NauvisSensory,'Application and deferred modules initialized');
   assert(w.NauvisFocus.getMode()==='focus'&&w.document.querySelector('#build.active'),'Focus is the default and opens Planner');
   const initial=JSON.stringify(snap(w));
+  click(w,'#versionHistory');assert(w.document.querySelector('#versionDialog').open&&w.document.querySelector('#checkRelease')&&w.document.querySelector('#versionDialog details').open,'Version menu exposes manual updates and latest changelog');click(w,'#versionClose');
+  click(w,'#cloudStatus');assert(w.document.querySelector('#cloudDialog').open&&!w.document.querySelector('#cloudConnectForm').hidden&&w.document.querySelector('#cloudPairedControls').hidden,'Unpaired sync menu shows pairing only');click(w,'#cloudClose');
   w.activateWorkspace('flow',true);
   assert(w.document.querySelector('#build.active')&&!w.document.querySelector('#plannerQuickCheck,#flow'),'Legacy Flow navigation returns to the blueprint; split checker removed');
   const beltRoot='#build [data-ratio-flow-root]';
+  assert(!w.document.querySelector('#build [data-flow-mode],#build .ratio-flow-build-list,#build .focus-planner-kpis'),'Duplicate list and table switch removed');
+  assert(!w.document.querySelector('#build [data-ratio-legacy-table]').open&&!w.document.querySelector('#build [data-ratio-settings]').open,'Technical reference and settings start collapsed');
+  assert(w.getComputedStyle(w.document.querySelector('#buildClassic')).display==='none','Legacy calculator hidden in Focus mode');
+  assert(w.document.querySelector(beltRoot+' [data-flow-display]').compareDocumentPosition(w.document.querySelector('#build [data-ratio-settings]'))&w.Node.DOCUMENT_POSITION_FOLLOWING,'Production diagram comes before optional settings');
   const beltToggle=w.document.querySelector(beltRoot+' [data-flow-belt-toggle]');
   if(!beltToggle.checked)beltToggle.click();
+  assert(!w.document.querySelector(beltRoot+' [data-flow-belt-allocation]').open,'Allocation controls start collapsed');
+  w.document.querySelector(beltRoot+' [data-flow-belt-allocation]').open=true;
   const beltCard=()=>w.document.querySelector(beltRoot+' .flow-belt-resource');
   assert(beltCard()&&beltCard().textContent.includes('required'),'Blueprint belt view shows physical requirements and capacity');
   const assigned=()=>beltCard().querySelector('.flow-capacity-assign span b').textContent;
@@ -156,6 +164,8 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   // Simulate a nonzero iOS safe-area inset.
   w.NauvisFocus.setMode('focus');w.activateWorkspace('build');
   frame.style.width='440px';await new Promise(r=>setTimeout(r,100));
+  const graphTop=w.document.querySelector('#build .ratio-flow-viewport').getBoundingClientRect().top+w.scrollY;
+  assert(graphTop<760,'Blueprint diagram begins within 760px at phone width: '+graphTop);
   w.document.documentElement.style.setProperty('--nauvis-safe-top','62px');
   await new Promise(r=>setTimeout(r,100));
   const head=w.document.querySelector('.command-top');
