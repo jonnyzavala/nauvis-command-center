@@ -110,7 +110,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(snap(w).setup.logisticsDrafts.length===1,'Draft survives browser reload');
   w.NauvisFocus.setMode('focus');
   w.activateWorkspace('logistics');
-  assert(w.document.body.dataset.workspace==='build'&&w.document.querySelector('#plannerNetwork').open&&w.document.querySelector('#plannerNetworkHost #logisticsEditor'),'Focus network opens within Planner');
+  assert(w.document.body.dataset.workspace==='logistics'&&w.NauvisFocus.getMode()==='full'&&!w.document.querySelector('#plannerNetwork'),'Network stays in Full mode only');
   click(w,'[data-log-mode="drafts"]');
   click(w,'[data-log-draft-open]');
   assert(w.document.querySelectorAll('[data-proposal-field]').length>0,'Saved draft restores editable route plan');
@@ -156,7 +156,8 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   w.NauvisLocal.apply(baseline);
   const beforeFocus=JSON.stringify(snap(w));
   w.NauvisFocus.setMode('focus');w.activateWorkspace('factory');
-  assert(w.document.querySelector('#focusConstructionSummary .focus-ring')&&w.document.querySelector('.focus-project-ring'),'Construction has aggregate and project progress rings');
+  assert(w.document.querySelector('#projectsOverview #focusConstructionSummary .focus-ring')&&w.document.querySelector('#projectsOverview #projectsList .focus-project-ring'),'Construction summary and project cards share one section');
+  assert(w.document.querySelector('#focusConstructionSummary').textContent.includes('1 project'),'Summary counts the visible saved project');
   w.activateWorkspace('build');
   assert(!w.document.querySelector('[data-ratio-focus-flow],.focus-check-material,#focusQuickSplit,#plannerQuickCheck'),'No standalone checker or obsolete links remain');
   assert(w.document.querySelector('#build [data-flow-belt-toggle]'),'Blueprint belt controls remain');
@@ -170,6 +171,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   await new Promise(r=>setTimeout(r,100));
   const head=w.document.querySelector('.command-top');
   assert(head.getBoundingClientRect().top>=62,'Header content clears simulated 62px status-bar inset');
+  click(w,'#sensoryLaunch');assert(w.document.querySelector('#sensoryDialog').getBoundingClientRect().top>=70,'Sound dialog clears simulated iPhone safe area');click(w,'#sensoryClose');
   const rail=w.getComputedStyle(w.document.querySelector('.nav-track'),'::after');
   assert(rail.display!=='none'&&rail.backgroundImage.includes('linear-gradient')&&rail.content!=='none','One continuous gradient rail is visible');
   assert([...w.document.querySelectorAll('[data-focus-view]')].every(b=>w.getComputedStyle(b,'::after').display==='none'),'Legacy segmented rails are suppressed');
@@ -239,10 +241,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(w.NauvisCoach.state().index===2,'Real target input advances guided exercise');
   click(w,'#nauvisCoach [data-coach-action="next"]');
   click(w,'#nauvisCoach [data-coach-action="next"]');
-  click(w,'#build [data-ratio-logistics-preview]');
-  await new Promise(r=>setTimeout(r,150));
-  assert(w.NauvisCoach.state().index===5&&w.document.querySelector('#logistics.active'),'Actual Logistics preview advances exercise');
-  click(w,'#nauvisCoach [data-coach-action="next"]');
+  assert(!w.document.querySelector('#build [data-ratio-logistics-preview],#plannerNetwork'),'Planner has no network shortcuts');
   click(w,'#nauvisCoach [data-coach-action="finish"]');
   assert(count(w)===4&&snap(w).plan.projects.length===0&&!snap(w).setup.logistics,'Practice example leaves actual inventory, projects and routes untouched');
   w.NauvisCoach.start('setup');click(w,'#setupAddMachine');
