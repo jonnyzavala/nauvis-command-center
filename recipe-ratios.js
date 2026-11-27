@@ -334,7 +334,7 @@ function renderCard(card){
   target.querySelector('[data-ratio-lane-panel]')?.addEventListener('toggle',e=>{laneOpen=e.target.open});
   target.querySelector('[data-ratio-lane-array]')?.addEventListener('change',e=>{laneArray=e.target.value;laneOpen=true;renderAll()});
   target.querySelector('[data-ratio-lane-rounded]')?.addEventListener('change',e=>{laneRounded=e.target.checked;laneOpen=true;renderAll()});
-  target.querySelector('[data-ratio-project-save]')?.addEventListener('click',()=>root.NauvisProjects?.createFromRatio(result));
+  target.querySelector('[data-ratio-project-save]')?.addEventListener('click',()=>root.NauvisProjects?.createFromRatio(result,{beltPlan:root.NauvisRatioFlow?.captureBeltPlan(card.dataset.ratioExplorer,result)}));
   const button=target.querySelector('[data-ratio-send]');
   button.addEventListener('click',()=>{
    guide.goal=state.id;guide.rate=state.rate;guide.machine=state.machine;guide.source=state.source;guide.belt=state.belt;

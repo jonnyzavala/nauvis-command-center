@@ -45,7 +45,7 @@ function freezeDesign(analysis){
  if(!Number.isSafeInteger(analysis.baselineMachines)||analysis.baselineMachines<analysis.entries.reduce((n,e)=>n+e.count,0))throw Error('Invalid original machine total.');
  return JSON.parse(JSON.stringify({analysis, reuseClaims:analysis.reuseClaims||[], baselineMachines:analysis.baselineMachines}));
 }
-function buildProject(name,analysis,id,createdAt,furnaceItem=null){
+function buildProject(name,analysis,id,createdAt,furnaceItem=null,beltPlan=null){
  validateProjectName(name);
  if(!analysis||!analysis.id||!Number.isFinite(analysis.rate)||!Array.isArray(analysis.entries)||!analysis.entries.length)
   throw Error('Choose a production goal above zero before saving a project.');
@@ -59,7 +59,8 @@ function buildProject(name,analysis,id,createdAt,furnaceItem=null){
  });
  if(new Set(tasks.map(x=>x.recipe)).size!==tasks.length)throw Error('Duplicate recipe in project.');
  const design=freezeDesign(analysis);
- return {id,name:validateProjectName(name),status:'active',createdAt:String(createdAt),...(design?{design}:{}),...(hasFurnaces?{furnaceItem}:{}),
+ const savedBelts=beltPlan?JSON.parse(JSON.stringify(beltPlan)):null;
+ return {...(savedBelts?{beltPlan:savedBelts}:{}),id,name:validateProjectName(name),status:'active',createdAt:String(createdAt),...(design?{design}:{}),...(hasFurnaces?{furnaceItem}:{}),
   goal:{id:analysis.id,rate:analysis.rate,machine:analysis.machine,source:analysis.source,belt:analysis.belt,
    moduleType:analysis.moduleType||'none',moduleCount:analysis.moduleCount||0,moduleType2:analysis.moduleType2||'none',moduleCount2:analysis.moduleCount2||0,
    machineQuality:analysis.machineQuality||'normal',beaconSpeed:analysis.beaconSpeed||0},
@@ -420,7 +421,7 @@ function render(){
   $('projectsArchivedWrapper').open=showArchived;
  }
  restoreDetails(states);
- for(const p of active){const card=cardFor(p.id),panel=card?.querySelector('.project-flow-panel');if(!panel)continue;const show=()=>{if(!panel.open||projectFlowKeys.has('project:'+p.id))return;try{const analysis=p.design?.analysis||root.NauvisRecipeMath(R,p.goal,{stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names});if(analysis.entries.length!==p.tasks.length||analysis.entries.some(e=>!p.tasks.some(t=>t.recipe===e.key&&t.planned===e.count)))throw Error('Historical recipe differs from current model');const key='project:'+p.id;root.NauvisRatioFlow.mount(panel,analysis,key,{progress:Object.fromEntries(p.tasks.map(t=>[t.recipe,t.built]))});projectFlowKeys.add(key)}catch(err){panel.querySelector('[data-ratio-flow-root]').textContent='Saved checklist preserved; a matching historical flowchart is unavailable.';console.warn('Construction flow:',err.message)}};panel.addEventListener('toggle',show);show()}
+ for(const p of active){const card=cardFor(p.id),panel=card?.querySelector('.project-flow-panel');if(!panel)continue;const show=()=>{if(!panel.open||projectFlowKeys.has('project:'+p.id))return;try{const analysis=p.design?.analysis||root.NauvisRecipeMath(R,p.goal,{stopBus:STOP_BUS,stopRaw:STOP_RAW,fluids:FLUID,names});if(analysis.entries.length!==p.tasks.length||analysis.entries.some(e=>!p.tasks.some(t=>t.recipe===e.key&&t.planned===e.count)))throw Error('Historical recipe differs from current model');const key='project:'+p.id;root.NauvisRatioFlow.mount(panel,analysis,key,{progress:Object.fromEntries(p.tasks.map(t=>[t.recipe,t.built])),beltPlan:p.beltPlan||null});projectFlowKeys.add(key)}catch(err){panel.querySelector('[data-ratio-flow-root]').textContent='Saved checklist preserved; a matching historical flowchart is unavailable.';console.warn('Construction flow:',err.message)}};panel.addEventListener('toggle',show);show()}
 
  if($('projectsNotice')){$('projectsNotice').textContent=notice;$('projectsNotice').hidden=!notice}
  root.NauvisFocus?.refresh?.();
@@ -454,7 +455,7 @@ function saveDialog(event){
    if(!pending)throw Error('No production calculation selected.');
    if(pendingOptions?.validate)pendingOptions.validate(pending);
    if(pending.entries.some(r=>r.kind==='furnace')){root.NauvisEffects.smeltOwnership(setup.smelt,allProjects());if(Number(setup.smelt.furnaceSpeed)!==2)throw Error('Raw plans require actual smelting speed 2×.');}
-   const project=buildProject(name,pending,uniqueId(),new Date().toISOString(),$('projectsFurnaceItem').value);
+   const project=buildProject(name,pending,uniqueId(),new Date().toISOString(),$('projectsFurnaceItem').value,pendingOptions?.beltPlan||null);
    setProjects([...allProjects(),project],{
     type:'project',source:project.design?'Logistics preview':'Blueprint Designer',projectId:project.id,
     recipe:project.goal.id,title:'Saved construction project',
