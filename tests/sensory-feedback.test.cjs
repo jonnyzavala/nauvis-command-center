@@ -76,10 +76,10 @@ test('startup music is an original timed score with a separate opt-out and maste
  assert.equal(canPlay(normalize(null),'startup'),false);
  assert.ok(STARTUP_DURATION>=5.6&&STARTUP_DURATION<6);
  for(const reveal of [0,.94,1.84])assert.ok(STARTUP_NOTES.some(n=>Math.abs(n[3]-reveal)<.07));
- const melody=STARTUP_NOTES.filter(n=>n[4]==='triangle'&&n[5]===.62);assert.equal(melody.length,11);assert.ok(melody.every((n,i)=>!i||n[3]>melody[i-1][3]));assert.equal(melody[0][0],melody.at(-1)[0]);
- assert.ok(new Set(melody.map(n=>n[2])).size>=8);assert.ok(melody.at(-1)[2]>=1.4);assert.ok(melody.some((n,i)=>i>0&&n[3]-melody[i-1][3]-melody[i-1][2]>.09));
+ const melody=STARTUP_NOTES.filter(n=>n[4]==='triangle'&&n[5]===.62);assert.equal(melody.length,15);assert.ok(melody.every((n,i)=>!i||n[3]>melody[i-1][3]));assert.equal(melody[0][0],melody.at(-1)[0]);
+ assert.ok(new Set(melody.map(n=>n[2])).size>=8);assert.ok(melody.at(-1)[2]>=1.4);assert.ok(melody.some((n,i)=>i>0&&n[3]-melody[i-1][3]-melody[i-1][2]>.05));
  const midi=f=>Math.round(69+12*Math.log2(f/440));assert.deepEqual(melody.slice(-2).map(n=>midi(n[0])),[61,62]);const chord=STARTUP_NOTES.filter(n=>n[3]===4.34&&n[0]===n[1]).map(n=>midi(n[0])%12);assert.ok([2,5,9].every(n=>chord.includes(n)));assert.ok(!chord.includes(6));
- assert.ok(STARTUP_NOTES.some(n=>n[4]==='square'));
+ assert.ok(STARTUP_NOTES.some(n=>n[4]==='sawtooth'));
  assert.deepEqual(soundDefinition(p,'startup'),soundDefinition(normalize({enabled:true,palette:'electronic'}),'startup'));
  const wav=renderWav(p,'startup'),view=new DataView(wav.buffer);
  assert.ok(Math.abs((wav.length-44)/48000-STARTUP_DURATION)<.04);
@@ -107,4 +107,16 @@ test('startup percussion has distinct kick, snare and offbeat metallic hits with
  assert.ok(STARTUP_PERCUSSION_NOISE.filter(n=>n[2]>900&&n[2]<2000).length>=5);
  assert.ok(STARTUP_PERCUSSION_NOISE.some(n=>n[1]===4.23));
  assert.ok(Math.max(...STARTUP_PERCUSSION_NOISE.map(n=>n[0]+n[1]))<STARTUP_DURATION-.8);
+});
+
+test('startup remix gives percussion foreground energy and identical synthesized output for both backends',async()=>{
+ const {renderStartupMix}=require('../sensory-feedback.js'),mix=renderStartupMix(24000);
+ assert.ok(mix.drumRms>mix.musicRms*.85);
+ assert.ok(mix.samples.every(Number.isFinite));
+ assert.ok(mix.samples.every(n=>Math.abs(n)<=.911));
+ let started=0,stopped=0,pcm;
+ class Audio{constructor(){this.state='running';this.currentTime=0;this.sampleRate=24000;this.destination={}}createBuffer(c,n){pcm=new Float32Array(n);return{getChannelData:()=>pcm}}createBufferSource(){return{connect(){},disconnect(){},start(){started++},stop(){stopped++}}}createGain(){return{gain:{setValueAtTime(){}},connect(){},disconnect(){}}}}
+ const p=normalize({enabled:true,volume:100}),e=makeEngine(Audio,()=>p);await e.unlock();assert.ok(e.play('startup',true));assert.equal(started,1);assert.deepEqual(pcm,mix.samples);e.stop();assert.equal(stopped,1);
+ const wav=renderWav(p,'startup'),view=new DataView(wav.buffer);
+ for(let i=0;i<pcm.length;i+=101)assert.ok(Math.abs(view.getInt16(44+i*2,true)/32767-pcm[i]*.84)<.00004);
 });
