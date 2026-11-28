@@ -17,7 +17,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,25));const d=frame.contentDocument;if(d?.documentElement?.hasAttribute('data-intro-boot')&&d.querySelector('.shell')){sawCurtain=frame.contentWindow.getComputedStyle(d.querySelector('.shell')).visibility==='hidden';break}}
   let w=prep(await loading);
   assert(sawCurtain,'First paint hides app shell while intro script is still loading');
-  w=await load('&nauvis-update=1.1.22');
+  w=await load('&nauvis-update=1.1.23');
   assert(!w.NauvisIntro.active()&&!w.document.documentElement.hasAttribute('data-intro-boot'),'Update navigation skips intro and leaves no curtain');prep(w);
   w=await load('&recover=1');
   assert(!w.NauvisIntro.active()&&!w.document.documentElement.hasAttribute('data-intro-boot'),'Recovery navigation skips intro and leaves no curtain');prep(w);
@@ -106,6 +106,11 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(w.document.querySelector(savedRoot+' [data-flow-belt-count]').disabled,'Saved construction belt controls are read-only');
   w.NauvisProjects.refresh();
   assert(w.document.querySelector(savedRoot+' [data-flow-belt-toggle]').checked,'Construction belt overlay survives checklist rerender');
+  const checkSection=w.document.querySelector(savedRoot+' [data-logistics-checklist]'),referenceSection=w.document.querySelector(savedRoot+' [data-logistics-reference]');
+  assert(checkSection&&referenceSection&&!!(checkSection.compareDocumentPosition(referenceSection)&w.Node.DOCUMENT_POSITION_FOLLOWING),'Incoming checklist precedes transport reference');
+  assert(checkSection.querySelectorAll('[data-project-logistics-built]').length===snap(w).plan.projects[0].logisticsTasks.length&&!referenceSection.querySelector('[data-project-logistics-built],[data-project-logistics-check]'),'Only incoming group has completion controls');
+  assert(referenceSection.querySelector('[data-flow-rates]')&&referenceSection.querySelector('[data-flow-status]')&&referenceSection.querySelector('[data-flow-assigned]'),'Compact reference retains rate, capacity and belt count');
+  assert(referenceSection.querySelector('.flow-logistics-reference').getBoundingClientRect().height<checkSection.querySelector('.flow-logistics-task').getBoundingClientRect().height,'Transport reference is physically more compact');
   const incoming=snap(w).plan.projects[0].logisticsTasks;
   assert(incoming.length>0&&incoming.every(t=>/^[sr]:/.test(t.key)),'Only incoming supply nodes have logistics checklists');
   const beltTask=incoming.find(t=>t.kind==='belt');
