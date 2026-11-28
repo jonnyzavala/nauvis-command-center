@@ -126,11 +126,11 @@ const STARTUP_SCORE=[
 // Original percussion arrangement: low kick-like pitch drops, muted metallic
 // snare textures and short offbeat hats. No sampled or transcribed soundtrack.
 const STARTUP_DRUMS=[
- ...[0,.60,1.34,1.80,2.40,2.94,3.12,3.69,3.98,4.34].map(t=>[.18,t,105,39,'sine',.48]),
- ...[.89,1.61,2.23,3.32,4.13].map(t=>[.10,t,174,68,'triangle',.16]),
- ...[.43,1.09,1.49,1.97,2.70,3.49,3.84].map(t=>[.038,t,4100,1.2,.10,'white','impact']),
- ...[.89,1.61,2.23,3.32,4.13].map(t=>[.12,t,1350,.85,.26,'white','impact']),
- [.28,4.34,680,.85,.24,'white','impact']
+ ...[0,.60,1.34,1.80,2.40,2.94,3.12,3.69,3.98,4.34].map(t=>[.18,t,118,43,'sine',.56]),
+ ...[.89,1.61,2.23,3.32,4.13].map(t=>[.10,t,185,76,'triangle',.22]),
+ ...[.29,.43,.75,1.09,1.49,1.97,2.08,2.70,3.49,3.84].map(t=>[.035,t,4100,1.2,.11,'white','impact']),
+ ...[.89,1.61,2.23,3.32,4.13].map(t=>[.12,t,1450,.85,.34,'white','impact']),
+ [.065,4.04,950,1.1,.19,'white','impact'],[.065,4.23,1550,1.1,.24,'white','impact'],[.28,4.34,680,.85,.30,'white','impact']
 ];
 const STARTUP_PERCUSSION_TONES=STARTUP_DRUMS.filter(n=>n.length===6).map(([d,t,f,to,w,g])=>[f,to,d,t,w,g]);
 const STARTUP_PERCUSSION_NOISE=STARTUP_DRUMS.filter(n=>n.length===7);
