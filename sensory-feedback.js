@@ -91,21 +91,30 @@ const NOISE={
  sync:[[.028,0,1600,.8,.08,'white','impact']],
  warning:[[.07,0,480,1.2,.13,'white','impact']]
 };
-// Original Nauvis boot motif: D minor/add9, rising through the title reveals,
- // resolving into a suspended D-major color as the interface comes online.
- // MIDI pitch, offset, duration, wave, relative gain. Shared by both backends.
+// Two-bar original chiptune at 109 BPM. A distinct foreground melody,
+// repeating rhythmic motif, broken-chord accompaniment and steady bass.
+// The final D-major chord resolves the minor opening during the header morph.
 const hz=m=>440*Math.pow(2,(m-69)/12);
+const beat=.55;
+const lead=[
+ [74,0,.5],[77,.5,.5],[81,1,1],
+ [82,2,.5],[81,2.5,.5],[77,3,1],
+ [79,4,.5],[81,4.5,.5],[82,5,1],
+ [78,6,.5],[76,6.5,.5],[74,7,.94]
+];
+const harmony=[
+ {at:0,bass:38,arp:[62,65,69,65],chord:[50,57,65]},
+ {at:2,bass:34,arp:[58,62,65,62],chord:[46,53,62]},
+ {at:4,bass:43,arp:[55,58,62,58],chord:[55,58,62]},
+ {at:6,bass:38,arp:[57,66,69,74],chord:[50,57,66]}
+];
 const STARTUP_SCORE=[
- [38,0,1.14,'triangle',.39],[50,0,.48,'sine',.24],[57,.08,.40,'triangle',.19],
- [62,.13,.16,'triangle',.28],[65,.30,.19,'triangle',.31],
- [69,.55,.24,'square',.16],[72,.80,.18,'triangle',.33],[74,.99,.27,'square',.14],
- [46,.55,.68,'triangle',.30],[53,.55,.66,'sine',.19],
- [38,1.15,1.07,'triangle',.30],[57,1.15,.68,'sine',.17],
- [76,1.15,.23,'triangle',.38],[74,1.40,.19,'square',.13],[69,1.60,.23,'triangle',.35],[65,1.85,.28,'triangle',.30],
- [43,2.10,.90,'triangle',.27],[55,2.10,.72,'sine',.18],
- [67,2.10,.20,'triangle',.31],[69,2.33,.19,'square',.12],[73,2.55,.25,'triangle',.33],
- [38,2.85,1.18,'triangle',.32],[50,2.85,1.12,'sine',.20],[57,2.85,1.09,'triangle',.18],
- [66,2.85,1.02,'sine',.21],[76,2.85,.90,'triangle',.29],[81,3.07,.71,'sine',.14],[86,3.29,.55,'sine',.08]
+ ...lead.flatMap(([pitch,at,length])=>[[pitch,at*beat,length*beat*.96,'triangle',.57],[pitch,at*beat,length*beat*.96,'square',.10]]),
+ ...harmony.flatMap(({at,bass,arp,chord})=>[
+  [bass,at*beat,beat*.91,'triangle',.25],[bass+12,(at+1)*beat,beat*.88,'triangle',.17],
+  ...arp.map((pitch,i)=>[pitch,(at+i*.5)*beat,beat*.44,'triangle',.13]),
+  ...chord.map(pitch=>[pitch,at*beat,beat*1.96,'sine',.075])
+ ])
 ];
 const STARTUP_NOTES=STARTUP_SCORE.map(([m,offset,duration,wave,gain])=>[hz(m),hz(m),duration,offset,wave,gain]);
 const STARTUP_DURATION=Math.max(...STARTUP_NOTES.map(n=>n[2]+n[3]));
