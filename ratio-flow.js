@@ -520,11 +520,18 @@ function mount(target,result,cardKey,options={}){
     '<div class="flow-logistics-stats">'+(pipe?'':'<div class="flow-resource-ring" aria-label="Planned capacity utilization"><b data-flow-util></b></div>')+'<div class="flow-resource-main"><small data-flow-rates></small><small data-flow-status></small></div></div>'+
     '<div class="project-task-controls project-slider-controls"><label class="project-built-slider"><span class="project-task-counter"><b data-built-preview>'+task.built+'</b><small>/ '+task.planned+' built</small></span><input type="range" min="0" max="'+task.planned+'" step="1" value="'+task.built+'" data-sound-value="'+task.built+'" data-project-logistics-built="'+escapeHTML(options.projectId)+'" data-logistics-key="'+escapeHTML(key)+'" aria-label="Built incoming '+escapeHTML(node.label)+' '+(pipe?'pipe connection':'belts')+'"></label><label class="project-check"><input type="checkbox" data-project-logistics-check="'+escapeHTML(options.projectId)+'" data-logistics-key="'+escapeHTML(key)+'" '+(done?'checked':'')+'> Done</label></div></div>';
    }
+   if(options.progress)return '<div class="flow-belt-resource flow-logistics-reference" data-flow-resource="'+escapeHTML(key)+'"><div class="flow-resource-ring" aria-label="Capacity utilization"><b data-flow-util></b></div><div class="flow-resource-main"><b>'+itemGlyph(node.recipe,20)+escapeHTML(node.label)+'<span class="flow-reference-count"><b data-flow-assigned></b> '+(allocation.get(key)===1?'belt':'belts')+'</span></b><small data-flow-rates></small><small data-flow-status></small><input type="range" min="0" step="1" data-flow-belt-count data-flow-material="'+escapeHTML(key)+'" hidden disabled aria-label="Saved belt count for '+escapeHTML(node.label)+'"></div></div>';
    return '<div class="flow-belt-resource" data-flow-resource="'+escapeHTML(key)+'"><div class="flow-resource-ring" aria-label="Capacity utilization"><b data-flow-util></b></div><div class="flow-resource-main"><b>'+itemGlyph(node.recipe,20)+escapeHTML(node.label)+'</b><small data-flow-rates></small><small data-flow-status></small><label class="flow-resource-slider"><input type="range" min="0" step="1" data-flow-belt-count data-flow-material="'+escapeHTML(key)+'" aria-label="Assigned belts for '+escapeHTML(node.label)+'"><span><b data-flow-assigned></b> belts</span></label></div></div>';
   };
   const entries=[...totals];
   if(options.progress)for(const task of logistics.values())if(task.kind==='pipe')entries.push([task.key,task.rate]);
-  if(!summary.children.length)summary.innerHTML='<div class="flow-capacity-grid">'+entries.map(row).join('')+'</div>';
+  if(!summary.children.length){
+   if(options.progress){
+    const incoming=entries.filter(([key])=>logistics.has(key)),reference=entries.filter(([key])=>!logistics.has(key));
+    summary.innerHTML=(incoming.length?'<section class="flow-logistics-group" data-logistics-checklist><h4>Incoming supply checklist</h4><div class="flow-capacity-grid">'+incoming.map(row).join('')+'</div></section>':'')+
+     (reference.length?'<section class="flow-logistics-group flow-reference-group" data-logistics-reference><h4>Transport reference <small>Internal belts &amp; unassigned supplies</small></h4><div class="flow-capacity-grid">'+reference.map(row).join('')+'</div></section>':'');
+   }else summary.innerHTML='<div class="flow-capacity-grid">'+entries.map(row).join('')+'</div>';
+  }
   for(const el of summary.querySelectorAll('[data-flow-resource]')){
    const key=el.dataset.flowResource,task=logistics.get(key),rate=totals.get(key)??task?.rate??0;
    if(task?.kind==='pipe'){el.querySelector('[data-flow-rates]').textContent=formatted(rate)+'/min required flow';el.querySelector('[data-flow-status]').textContent='One incoming pipe connection · capacity not modeled';continue}
@@ -532,7 +539,7 @@ function mount(target,result,cardKey,options={}){
    el.dataset.capacityStatus=r.status;
    el.querySelector('[data-flow-util]').textContent=pct===null?'—':formatted(Math.round(pct))+'%';
    el.querySelector('.flow-resource-ring').style.setProperty('--ring-p',Math.min(100,pct??(rate?100:0))+'%');
-   el.querySelector('[data-flow-rates]').textContent=task?'Required '+formatted(rate)+'/min · capacity '+formatted(r.capacity)+'/min · '+r.required+' belts required':formatted(rate)+' / '+formatted(r.capacity)+'/min · '+r.required+' required';
+   el.querySelector('[data-flow-rates]').textContent=task?'Required '+formatted(rate)+'/min · capacity '+formatted(r.capacity)+'/min · '+r.required+' belt'+(r.required===1?'':'s')+' required':formatted(rate)+' / '+formatted(r.capacity)+'/min · '+r.required+' required';
    el.querySelector('[data-flow-status]').textContent=capacityLabel(r.status)+' · '+(r.status==='starving'?formatted(-r.delta)+'/min short':r.status==='excess'?formatted(r.delta)+'/min spare':'Demand matched');
    if(task)continue;
    el.querySelector('[data-flow-assigned]').textContent=r.assigned;
