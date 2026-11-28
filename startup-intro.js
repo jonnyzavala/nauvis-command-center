@@ -31,7 +31,7 @@ function settle(){
 }
 function start(preview=false){
  if(running||(!preview&&(root.NauvisSkipStartupIntro||!enabled()))||matchMedia('(prefers-reduced-motion: reduce)').matches||root.NauvisSensory?.getPrefs?.().motion==='off'){releaseBoot();return;}
- running=true;try{prepare();dialog.showModal();releaseBoot();root.NauvisSensory?.startStartup?.();timer=setTimeout(settle,4250);safety=setTimeout(finish,6850)}catch{finish()}
+ running=true;try{prepare();dialog.showModal();releaseBoot();root.NauvisSensory?.startStartup?.();timer=setTimeout(settle,4286);safety=setTimeout(finish,6850)}catch{finish()}
 }
 $('introEnabled').checked=enabled();$('introEnabled').addEventListener('change',e=>{try{localStorage.setItem(key,e.target.checked?'on':'off')}catch{}});
 $('previewIntro').addEventListener('click',()=>{$('sensoryDialog').close();root.scrollTo({top:0,behavior:'instant'});start(true)});
