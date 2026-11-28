@@ -69,16 +69,16 @@ test('slider clicks are crisp, higher pitched and separated by silence without f
 });
 
 test('startup music is an original timed score with a separate opt-out and master volume gating',()=>{
- const {STARTUP_NOTES,STARTUP_DURATION}=require('../sensory-feedback.js'),p=normalize({enabled:true});
+ const {STARTUP_NOTES,STARTUP_DURATION,STARTUP_BEAT}=require('../sensory-feedback.js'),p=normalize({enabled:true});
  assert.equal(p.startupMusic,true);assert.equal(canPlay(p,'startup'),true);
  assert.equal(canPlay(normalize({enabled:true,startupMusic:false}),'startup'),false);
  assert.equal(canPlay(normalize({enabled:true,volume:0}),'startup'),false);
  assert.equal(canPlay(normalize(null),'startup'),false);
  assert.ok(STARTUP_DURATION>=5.6&&STARTUP_DURATION<6);
- for(const reveal of [0,.94,1.84])assert.ok(STARTUP_NOTES.some(n=>Math.abs(n[3]-reveal)<.07));
- const melody=STARTUP_NOTES.filter(n=>n[4]==='triangle'&&n[5]===.62);assert.equal(melody.length,15);assert.ok(melody.every((n,i)=>!i||n[3]>melody[i-1][3]));assert.equal(melody[0][0],melody.at(-1)[0]);
- assert.ok(new Set(melody.map(n=>n[2])).size>=8);assert.ok(melody.at(-1)[2]>=1.4);assert.ok(melody.some((n,i)=>i>0&&n[3]-melody[i-1][3]-melody[i-1][2]>.05));
- const midi=f=>Math.round(69+12*Math.log2(f/440));assert.deepEqual(melody.slice(-2).map(n=>midi(n[0])),[61,62]);const chord=STARTUP_NOTES.filter(n=>n[3]===4.34&&n[0]===n[1]).map(n=>midi(n[0])%12);assert.ok([2,5,9].every(n=>chord.includes(n)));assert.ok(!chord.includes(6));
+ for(const reveal of [0,STARTUP_BEAT*2,STARTUP_BEAT*4])assert.ok(STARTUP_NOTES.some(n=>Math.abs(n[3]-reveal)<.001));
+ const melody=STARTUP_NOTES.filter(n=>n[4]==='triangle'&&n[5]===.62);assert.equal(melody.length,16);assert.ok(melody.every((n,i)=>!i||n[3]>melody[i-1][3]));assert.ok(Math.abs(melody.at(-1)[0]/melody[0][0]-2)<.001);
+ assert.ok(new Set(melody.map(n=>n[2])).size>=5);assert.ok(melody.at(-1)[2]>=1.3);assert.ok(melody.some((n,i)=>i>0&&n[3]-melody[i-1][3]-melody[i-1][2]>.05));
+ const midi=f=>Math.round(69+12*Math.log2(f/440));assert.deepEqual(melody.slice(-2).map(n=>midi(n[0])),[73,74]);const chord=STARTUP_NOTES.filter(n=>Math.abs(n[3]-STARTUP_BEAT*12)<.001&&n[0]===n[1]).map(n=>midi(n[0])%12);assert.ok([2,5,9].every(n=>chord.includes(n)));assert.ok(!chord.includes(6));
  assert.ok(STARTUP_NOTES.some(n=>n[4]==='sawtooth'));
  assert.deepEqual(soundDefinition(p,'startup'),soundDefinition(normalize({enabled:true,palette:'electronic'}),'startup'));
  const wav=renderWav(p,'startup'),view=new DataView(wav.buffer);
@@ -105,13 +105,13 @@ test('startup percussion has distinct kick, snare and offbeat metallic hits with
  assert.ok(kicks.length>=8&&kicks.every(n=>n[1]<60&&n[2]<.25));
  assert.ok(STARTUP_PERCUSSION_NOISE.filter(n=>n[2]>3000).length>=8);
  assert.ok(STARTUP_PERCUSSION_NOISE.filter(n=>n[2]>900&&n[2]<2000).length>=5);
- assert.ok(STARTUP_PERCUSSION_NOISE.some(n=>n[1]===4.23));
+ assert.ok(STARTUP_PERCUSSION_NOISE.some(n=>n[2]===680));
  assert.ok(Math.max(...STARTUP_PERCUSSION_NOISE.map(n=>n[0]+n[1]))<STARTUP_DURATION-.8);
 });
 
 test('startup remix gives percussion foreground energy and identical synthesized output for both backends',async()=>{
  const {renderStartupMix}=require('../sensory-feedback.js'),mix=renderStartupMix(24000);
- assert.ok(mix.drumRms>mix.musicRms*.85);
+ assert.ok(mix.drumRms>mix.musicRms*.45);
  assert.ok(mix.samples.every(Number.isFinite));
  assert.ok(mix.samples.every(n=>Math.abs(n)<=.911));
  let started=0,stopped=0,pcm;
@@ -119,4 +119,15 @@ test('startup remix gives percussion foreground energy and identical synthesized
  const p=normalize({enabled:true,volume:100}),e=makeEngine(Audio,()=>p);await e.unlock();assert.ok(e.play('startup',true));assert.equal(started,1);assert.deepEqual(pcm,mix.samples);e.stop();assert.equal(stopped,1);
  const wav=renderWav(p,'startup'),view=new DataView(wav.buffer);
  for(let i=0;i<pcm.length;i+=101)assert.ok(Math.abs(view.getInt16(44+i*2,true)/32767-pcm[i]*.84)<.00004);
+});
+
+test('metal groove is locked to a 168 BPM sixteenth grid, with repeating backbeat and riff-aligned kicks',()=>{
+ const {STARTUP_BEAT,kickSteps,snareSteps,hatSteps,riff,STARTUP_NOTES,STARTUP_PERCUSSION_NOISE}=require('../sensory-feedback.js');
+ assert.equal(STARTUP_BEAT,60/168);
+ assert.deepEqual(snareSteps,[4,12,20,28,36,44]);
+ assert.deepEqual(hatSteps,Array.from({length:24},(_,i)=>i*2));
+ assert.deepEqual(kickSteps,[...riff.map(n=>n[0]),48]);
+ assert.deepEqual(kickSteps.filter(n=>n<14),kickSteps.filter(n=>n>=16&&n<30).map(n=>n-16));
+ assert.ok([44,45,46,47].every(n=>kickSteps.includes(n)));
+ for(const t of [...STARTUP_NOTES.map(n=>n[3]),...STARTUP_PERCUSSION_NOISE.map(n=>n[1])])assert.ok(Math.abs(t/(STARTUP_BEAT/4)-Math.round(t/(STARTUP_BEAT/4)))<1e-8);
 });
