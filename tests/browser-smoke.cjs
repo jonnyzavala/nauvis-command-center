@@ -17,7 +17,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,25));const d=frame.contentDocument;if(d?.documentElement?.hasAttribute('data-intro-boot')&&d.querySelector('.shell')){sawCurtain=frame.contentWindow.getComputedStyle(d.querySelector('.shell')).visibility==='hidden';break}}
   let w=prep(await loading);
   assert(sawCurtain,'First paint hides app shell while intro script is still loading');
-  w=await load('&nauvis-update=1.1.23');
+  w=await load('&nauvis-update=1.1.24');
   assert(!w.NauvisIntro.active()&&!w.document.documentElement.hasAttribute('data-intro-boot'),'Update navigation skips intro and leaves no curtain');prep(w);
   w=await load('&recover=1');
   assert(!w.NauvisIntro.active()&&!w.document.documentElement.hasAttribute('data-intro-boot'),'Recovery navigation skips intro and leaves no curtain');prep(w);
@@ -33,10 +33,10 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   assert(w.getComputedStyle(headerWelcome).visibility==='hidden','Header counterpart is hidden during transition');
   assert(w.getComputedStyle(introWelcome).color==='rgb(235, 191, 121)','Greeting begins in engineer gold');
   assert(w.getComputedStyle(introWelcome).textShadow!=='none','Greeting has luminous text shadow');
-  await new Promise(r=>setTimeout(r,3450));
+  await new Promise(r=>setTimeout(r,4700));
   assert(w.NauvisIntro.active()&&introWelcome.getAnimations().some(a=>a.effect.getKeyframes().some(k=>k.left!==undefined)),'Text is animated toward header coordinates');
   assert(introWelcome.getAnimations().some(a=>a.effect.getKeyframes().some(k=>k.color===w.getComputedStyle(headerWelcome).color)),'Greeting morphs to current workspace color');
-  await new Promise(r=>setTimeout(r,1750));
+  await new Promise(r=>setTimeout(r,2000));
   assert(!w.NauvisIntro.active()&&w.getComputedStyle(headerWelcome).visibility==='visible','Intro completes and restores real header');
   assert(JSON.stringify(snap(w))===initial,'Intro does not change factory data');
   // Stub only media output, so real click wiring can be checked without relying on autoplay policy.

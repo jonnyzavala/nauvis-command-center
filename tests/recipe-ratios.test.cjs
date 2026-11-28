@@ -109,8 +109,8 @@ test('recipe ratio panels exist on existing workspaces without a sixth tab',()=>
  for(const page of ['build','setup','balance'])assert.match(html,new RegExp('data-ratio-explorer="'+page+'"'));
  assert.equal((html.match(/<details[^>]*data-ratio-explorer="/g)||[]).length,3);
  assert.equal((html.match(/<button data-view=/g)||[]).length,3);
- assert.match(html,/href="\.\/recipe-ratios\.css\?v=1\.1\.23"/);
- assert.match(html,/src="\.\/recipe-ratios\.js\?v=1\.1\.23" defer/);
+ assert.match(html,/href="\.\/recipe-ratios\.css\?v=1\.1\.24"/);
+ assert.match(html,/src="\.\/recipe-ratios\.js\?v=1\.1\.24" defer/);
 });
 test('send is an explicit hypothetical Build Next update, never a machine inventory write',()=>{
  const source=fs.readFileSync(path.join(__dirname,'..','recipe-ratios.js'),'utf8');

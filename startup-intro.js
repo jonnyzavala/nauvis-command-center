@@ -18,20 +18,20 @@ function settle(){
   if(!pairs.every(({line})=>line.animate))return finish();
   const measurements=pairs.map(({line,target})=>({line,target,a:line.getBoundingClientRect(),b:target.getBoundingClientRect(),from:typography(line),to:typography(target)}));
   if(measurements.some(({a,b})=>!a.width||!b.width||!a.height||!b.height||b.top<0||b.bottom>innerHeight))return finish();
-  const origin=dialog.getBoundingClientRect(),opts={duration:1450,easing:'cubic-bezier(.22,.78,.22,1)',fill:'forwards'};
+  const origin=dialog.getBoundingClientRect(),opts={duration:1900,easing:'cubic-bezier(.22,.78,.22,1)',fill:'forwards'};
   for(const [i,{line,a,b,from,to}] of measurements.entries()){
    // Move the same text, not a logo or a fading duplicate. Font sizes end at computed header values.
    Object.assign(line.style,{position:'absolute',left:(a.left-origin.left)+'px',top:(a.top-origin.top)+'px',margin:'0',whiteSpace:'nowrap',zIndex:'2',textAlign:'left'});
    const animation=line.animate([{left:(a.left-origin.left)+'px',top:(a.top-origin.top)+'px',...from,textShadow:getComputedStyle(line).textShadow},{left:(b.left-origin.left)+'px',top:(b.top-origin.top)+'px',...to,textShadow:'0 0 0 transparent'}],opts);
    animations.push(animation);
   }
-  animations.push(dialog.querySelector('.intro-back').animate([{opacity:1},{opacity:0}],{duration:1250,delay:200,fill:'forwards'}),$('skipIntro').animate([{opacity:1},{opacity:0}],{duration:450,fill:'forwards'}));
+  animations.push(dialog.querySelector('.intro-back').animate([{opacity:1},{opacity:0}],{duration:1700,delay:200,fill:'forwards'}),$('skipIntro').animate([{opacity:1},{opacity:0}],{duration:450,fill:'forwards'}));
   Promise.all(animations.map(a=>a.finished)).then(finish,finish);
  }catch{finish()}
 }
 function start(preview=false){
  if(running||(!preview&&(root.NauvisSkipStartupIntro||!enabled()))||matchMedia('(prefers-reduced-motion: reduce)').matches||root.NauvisSensory?.getPrefs?.().motion==='off'){releaseBoot();return;}
- running=true;try{prepare();dialog.showModal();releaseBoot();root.NauvisSensory?.startStartup?.();timer=setTimeout(settle,3000);safety=setTimeout(finish,5100)}catch{finish()}
+ running=true;try{prepare();dialog.showModal();releaseBoot();root.NauvisSensory?.startStartup?.();timer=setTimeout(settle,4250);safety=setTimeout(finish,6850)}catch{finish()}
 }
 $('introEnabled').checked=enabled();$('introEnabled').addEventListener('change',e=>{try{localStorage.setItem(key,e.target.checked?'on':'off')}catch{}});
 $('previewIntro').addEventListener('click',()=>{$('sensoryDialog').close();root.scrollTo({top:0,behavior:'instant'});start(true)});
