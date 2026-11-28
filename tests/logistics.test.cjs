@@ -45,7 +45,7 @@ test('editor is wired into factory modes, snapshot restore and offline shell',()
  const html=read('index.html'),ui=read('workspace-ui.js'),sw=read('service-worker.js'),js=read('logistics.js');
  assert.match(html,/id="logisticsEditor"/);assert.match(ui,/data-factory-target="logistics"/);assert.match(html,/if\(data\.setup\.logistics\)setup\.logistics=data\.setup\.logistics;else delete setup\.logistics/);
  assert.match(js,/setup\.logistics=normalize\(next\);saveSetup\(\)/);
- assert.match(sw,/'\.\/logistics\.js','\.\/logistics\.css'/);assert.match(html,/src="\.\/logistics\.js\?v=1\.1\.25" defer/);
+ assert.match(sw,/'\.\/logistics\.js','\.\/logistics\.css'/);assert.match(html,/src="\.\/logistics\.js\?v=1\.1\.26" defer/);
 });
 
 test('six and two yellow belts render eight separate physical routes',()=>{
