@@ -91,46 +91,42 @@ const NOISE={
  sync:[[.028,0,1600,.8,.08,'white','impact']],
  warning:[[.07,0,480,1.2,.13,'white','impact']]
 };
-// Original Nauvis: Awakening. Dark minor-key cinematic chiptune.
- // Dm(add9) -> Bb -> Gm -> A7 -> Dm: a real dominant-to-tonic cadence.
- // Phrased lead, rests, syncopated bass pulses and low, restrained harmony.
- // MIDI pitch, onset in seconds, duration, oscillator, relative amplitude.
+// Original Nauvis metal boot sting, 168 BPM, four bars of 4/4.
+// Every instrument is composed on the same sixteenth-note grid.
+// Three bars of pedal-tone power-chord riffs, then a D-minor landing.
 const hz=m=>440*Math.pow(2,(m-69)/12);
+const STARTUP_BEAT=60/168,step=STARTUP_BEAT/4,at=n=>n*step;
+const riff=[
+ [0,38,2],[2,38,2],[6,38,2],[8,41,2],[10,38,2],[14,36,1],[15,38,1],
+ [16,34,2],[18,34,2],[22,34,2],[24,36,2],[26,34,2],[30,36,1],[31,37,1],
+ [32,33,2],[34,33,2],[38,33,2],[40,40,2],[42,37,2],[44,33,1],[45,33,1],[46,37,1],[47,37,1]
+];
 const lead=[
- [62,.06,.43],[69,.53,.15],[67,.71,.16],[65,.90,.33],
- [74,1.34,.46],[72,1.84,.13],[69,2.01,.23],[70,2.40,.39],
- [67,2.84,.17],[76,3.12,.24],[74,3.43,.14],[73,3.61,.30],
- [69,3.98,.12],[61,4.12,.15],[62,4.34,1.40]
+ [62,0,3],[65,4,2],[69,6,5],[67,12,2],[65,14,2],
+ [65,16,3],[69,20,2],[74,22,5],[72,28,2],[70,30,2],
+ [69,32,3],[64,36,2],[67,38,3],[69,42,2],[73,46,2],
+ [74,48,15.8]
 ];
 const STARTUP_SCORE=[
- // Lead voice: broad triangle, with a quiet square edge rather than a bell.
- ...lead.map(([m,t,d])=>[m,t,d,'triangle',.62]),
- // A low, slightly gritty engine-like pulse with deliberate gaps.
- ...[
- [38,0,.43],[38,.60,.16],[45,.89,.36],[38,1.34,.19],
- [34,1.80,.36],[46,2.23,.14],[43,2.40,.39],[43,2.94,.17],
- [33,3.12,.42],[45,3.69,.17],[33,3.98,.25],[38,4.34,1.42]
- ].flatMap(([m,t,d])=>[[m,t,d,'triangle',.32],[m,t,d,'sawtooth',.045]]),
- // Slow-moving inner voices: no uniform upper-register arpeggio.
- [50,0,1.65,'sine',.14],[57,0,1.65,'triangle',.10],
- [65,.15,1.46,'sine',.10],[64,.92,.66,'sine',.07],
- [46,1.80,.56,'triangle',.13],[53,1.80,.55,'sine',.10],[62,1.80,.56,'sine',.10],
- [55,2.40,.64,'triangle',.13],[58,2.40,.64,'sine',.10],[62,2.40,.64,'sine',.08],
- // A7 tension: C# and G resolve down/up to D and F.
- [45,3.12,1.12,'triangle',.16],[49,3.12,1.12,'sine',.13],
- [55,3.12,1.12,'triangle',.12],[64,3.56,.64,'sine',.08],
- // Final tonic: sustained D minor, root in three registers; no major lift.
- [50,4.34,1.42,'triangle',.19],[57,4.34,1.42,'sine',.13],
- [65,4.34,1.42,'triangle',.12],[74,4.34,1.20,'sine',.055]
+ ...lead.map(([m,t,d])=>[m,at(t),at(d)*.94,'triangle',.62]),
+ // Palm-muted fifth chords plus a separate octave bass, in lockstep with kicks.
+ ...riff.flatMap(([t,m,d])=>[[m,at(t),at(d)*.85,'sawtooth',.32],[m+7,at(t),at(d)*.85,'sawtooth',.23],[m-12,at(t),at(d)*.9,'triangle',.18]]),
+ [38,at(48),at(16),'sawtooth',.32],[45,at(48),at(16),'sawtooth',.23],
+ [26,at(48),at(16),'triangle',.18],[53,at(48),at(16),'triangle',.13],
+ [62,at(48),at(16),'sine',.10],[65,at(48),at(16),'sine',.12],
+ [69,at(48),at(16),'sine',.10]
 ];
-// Original percussion arrangement: low kick-like pitch drops, muted metallic
-// snare textures and short offbeat hats. No sampled or transcribed soundtrack.
+// Backbeat on beats 2 and 4, eighth-note hats, and double-kick pickups.
+// No unsynchronized percussion events; the final bar is a single crash.
+const kickSteps=[...riff.map(n=>n[0]),48];
+const snareSteps=[4,12,20,28,36,44];
+const hatSteps=Array.from({length:24},(_,i)=>i*2);
 const STARTUP_DRUMS=[
- ...[0,.60,1.34,1.80,2.40,2.94,3.12,3.69,3.98,4.34].map(t=>[.18,t,118,43,'sine',.56]),
- ...[.89,1.61,2.23,3.32,4.13].map(t=>[.10,t,185,76,'triangle',.22]),
- ...[.29,.43,.75,1.09,1.49,1.97,2.08,2.70,3.49,3.84].map(t=>[.035,t,4100,1.2,.11,'white','impact']),
- ...[.89,1.61,2.23,3.32,4.13].map(t=>[.12,t,1450,.85,.34,'white','impact']),
- [.065,4.04,950,1.1,.19,'white','impact'],[.065,4.23,1550,1.1,.24,'white','impact'],[.28,4.34,680,.85,.30,'white','impact']
+ ...kickSteps.map(t=>[.12,at(t),118,43,'sine',.56]),
+ ...snareSteps.map(t=>[.10,at(t),185,76,'triangle',.22]),
+ ...hatSteps.map(t=>[.035,at(t),4100,1.2,t%4===0?.14:.095,'white','impact']),
+ ...snareSteps.map(t=>[.12,at(t),1450,.85,.34,'white','impact']),
+ [.24,at(48),680,.85,.30,'white','impact']
 ];
 const STARTUP_PERCUSSION_TONES=STARTUP_DRUMS.filter(n=>n.length===6).map(([d,t,f,to,w,g])=>[f,to,d,t,w,g]);
 const STARTUP_PERCUSSION_NOISE=STARTUP_DRUMS.filter(n=>n.length===7);
@@ -181,22 +177,25 @@ function renderStartupMix(sr=24000){
  const env=(t,d,a=.012,r=.10)=>Math.min(1,t/a)*Math.min(1,Math.max(0,(d-t)/Math.min(r,d*.5)));
  for(const [m,at,d,w,g] of STARTUP_SCORE){
   const f=hz(m);let phase=0,phase2=0;
+  // Band-limited additive pulse/saw voices; distorted through soft saturation.
+  const saw=(p,freq)=>{let v=0;for(let k=1;k<=Math.min(9,Math.floor(sr*.45/freq));k++)v+=Math.sin(p*k)/k;return v*.64};
   if(g===.62){
-   // Expressive pulse-width lead: a short pitch scoop, delayed vibrato,
-   // detuned octave shadow and a bright attack that darkens with each note.
-   add(music,at,d,(t)=>{
-    const bend=1-.023*Math.exp(-t/.028),vib=1+.009*Math.sin(tau*6.3*t)*Math.min(1,Math.max(0,(t-.10)/.15));
-    phase+=tau*f*bend*vib/sr;phase2+=tau*f*1.006/sr;
-    const duty=.33+.09*Math.sin(tau*1.8*t);
-    const pulse=(p)=>((p/tau)%1<duty?1:-1)-(2*duty-1);
-    const bright=.18+.27*Math.exp(-t/.075);
-    const v=.50*Math.sin(phase)+bright*pulse(phase)+.16*Math.sin(phase*2)+.16*Math.sin(phase2);
-    return v*.48*env(t,d,.008,d>1?.55:.085)*(1-.14*t/d);
+   add(music,at,d,t=>{
+    const bend=1-.026*Math.exp(-t/.018),vib=1+.008*Math.sin(tau*5.8*t)*Math.min(1,Math.max(0,(t-.12)/.14));
+    phase+=tau*f*bend*vib/sr;phase2+=tau*f*1.004/sr;
+    const v=.64*saw(phase,f)+.28*Math.sin(phase*2)+.27*saw(phase2,f);
+    return Math.tanh(v*2.7)*.30*env(t,d,.004,d>1?.48:.035);
    });
-   if(d<1) add(music,at+.16,Math.min(d,.30),(t)=>Math.sin(tau*f*t)*.055*env(t,Math.min(d,.30),.009,.12));
+  }else if(w==='sawtooth'){
+   add(music,at,d,t=>{
+    const palm=d<.5?Math.exp(-t/.105):Math.exp(-t/2.0);
+    const p=tau*f*t,detune=tau*f*1.006*t;
+    const v=saw(p,f)*.65+saw(detune,f)*.35;
+    return Math.tanh(v*3.7)*g*.74*palm*env(t,d,.003,d>1?.46:.018);
+   });
   }else{
-   add(music,at,d,t=>{const p=tau*f*t,v=w==='triangle'?2/Math.PI*Math.asin(Math.sin(p)):w==='sawtooth'?2*(p/tau-Math.floor(p/tau+.5)):Math.sin(p);
-    return v*g*.64*env(t,d,.016,d>1?.55:.12)});
+   add(music,at,d,t=>{const p=tau*f*t,v=w==='triangle'?2/Math.PI*Math.asin(Math.sin(p)):Math.sin(p);
+    return v*g*.72*env(t,d,.008,d>1?.46:.04)});
   }
  }
  let seed=0x6e617576;
@@ -204,11 +203,11 @@ function renderStartupMix(sr=24000){
  for(const [from,to,d,at,w,g] of STARTUP_PERCUSSION_TONES){
   let phase=0;
   const kick=w==='sine';
-  add(drums,at,kick?.24:.15,(t)=>{
+  add(drums,at,kick?.105:.13,(t)=>{
    const f=to+(from*1.8-to)*Math.exp(-t/(kick?.033:.024));phase+=tau*f/sr;
-   const decay=Math.exp(-t/(kick?.073:.042)),click=random()*Math.exp(-t/.009);
+   const decay=Math.exp(-t/(kick?.032:.042)),click=random()*Math.exp(-t/.009);
    // Harmonics translate the drum body into audible midrange on a phone.
-   return Math.tanh((Math.sin(phase)+.48*Math.sin(phase*2)+.20*Math.sin(phase*3))*1.5)*decay*(kick?1.22:.60)+click*(kick?.27:.18);
+   return Math.tanh((Math.sin(phase)+.48*Math.sin(phase*2)+.20*Math.sin(phase*3))*1.5)*decay*(kick?.98:.58)+click*(kick?.27:.18);
   });
  }
  for(const [d,at,f,q,g] of STARTUP_PERCUSSION_NOISE){
@@ -218,14 +217,14 @@ function renderStartupMix(sr=24000){
    const decay=Math.exp(-t/(hat?.020:fill?.075:.060));
    const noise=hat?high*.45:(x-lp)*.75+lp*.42;
    const body=hat?0:Math.sin(tau*(fill?185:205)*t)*Math.exp(-t/.028)*.34;
-   return (noise+body)*decay*(hat?.39:fill?.86:1.22);
+   return (noise+body)*decay*(hat?.27:fill?.86:1.13);
   });
  }
  // Sidechain-like ducking lets each drum transient cut through the lead.
  const mix=new Float32Array(length);let follower=0,peak=0,drumEnergy=0,musicEnergy=0;
  for(let i=0;i<length;i++){
-  follower=Math.max(Math.abs(drums[i]),follower*.9992);
-  const m=music[i]/(1+.78*follower),d=drums[i]*1.05;
+  follower=Math.max(Math.abs(drums[i]),follower*.997);
+  const m=music[i]/(1+.18*follower),d=drums[i]*.85;
   drumEnergy+=d*d;musicEnergy+=m*m;
   const x=Math.tanh((m+d)*1.05);mix[i]=x;peak=Math.max(peak,Math.abs(x));
  }
@@ -401,7 +400,7 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
  }
  return {unlock,play,playSlider,sliderDelay:()=>context?Math.max(0,tickTail-context.currentTime)*1000:0,stop,reset,testTone,error:()=>lastError,state:()=>context?.state||'locked'};
 }
-if(typeof module==='object'&&module.exports)module.exports={renderStartupMix,STARTUP_NOTES,STARTUP_DURATION,STARTUP_PERCUSSION_NOISE,normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine,renderWav,makeMediaEngine,makeCueGate,makeAwardTracker,sliderPitches,sliderNotes};
+if(typeof module==='object'&&module.exports)module.exports={renderStartupMix,STARTUP_BEAT,kickSteps,snareSteps,hatSteps,riff,STARTUP_NOTES,STARTUP_DURATION,STARTUP_PERCUSSION_NOISE,normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine,renderWav,makeMediaEngine,makeCueGate,makeAwardTracker,sliderPitches,sliderNotes};
 if(typeof document==='undefined')return;
 let prefs=normalize(null);try{prefs=normalize(JSON.parse(localStorage.getItem(KEY)||'null'))}catch{}
 const $=id=>document.getElementById(id),dialog=$('sensoryDialog'),launcher=$('sensoryLaunch');
