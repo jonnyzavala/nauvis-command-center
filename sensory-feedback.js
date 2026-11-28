@@ -97,14 +97,14 @@ const NOISE={
  // MIDI pitch, onset in seconds, duration, oscillator, relative amplitude.
 const hz=m=>440*Math.pow(2,(m-69)/12);
 const lead=[
- [62,.06,.60],[65,.75,.14],[69,.94,.58],
- [72,1.61,.16],[70,1.84,.40],[67,2.38,.66],
- [64,3.12,.16],[67,3.32,.18],[69,3.56,.38],
- [61,3.99,.24],[62,4.34,1.40]
+ [62,.06,.43],[69,.53,.15],[67,.71,.16],[65,.90,.33],
+ [74,1.34,.46],[72,1.84,.13],[69,2.01,.23],[70,2.40,.39],
+ [67,2.84,.17],[76,3.12,.24],[74,3.43,.14],[73,3.61,.30],
+ [69,3.98,.12],[61,4.12,.15],[62,4.34,1.40]
 ];
 const STARTUP_SCORE=[
  // Lead voice: broad triangle, with a quiet square edge rather than a bell.
- ...lead.flatMap(([m,t,d])=>[[m,t,d,'triangle',.62],[m,t,d,'square',.065]]),
+ ...lead.map(([m,t,d])=>[m,t,d,'triangle',.62]),
  // A low, slightly gritty engine-like pulse with deliberate gaps.
  ...[
  [38,0,.43],[38,.60,.16],[45,.89,.36],[38,1.34,.19],
@@ -172,14 +172,75 @@ function sliderPitches(from,to,min,max,step=1){
 }
 const SLIDER_SPACING=.048;
 function sliderNotes(pitches){return pitches.map((hz,i)=>[hz,hz,.011,i*SLIDER_SPACING,'triangle',.36])}
+// Dedicated, deterministic startup mix. Separate drum and music buses keep
+// the beat audible even through small phone speakers. No external samples.
+function renderStartupMix(sr=24000){
+ const length=Math.ceil((STARTUP_DURATION+.025)*sr),music=new Float32Array(length),drums=new Float32Array(length);
+ const add=(bus,t,d,fn)=>{const start=Math.round(t*sr),n=Math.min(length-start,Math.ceil(d*sr));for(let i=0;i<n;i++)bus[start+i]+=fn(i/sr,i)};
+ const tau=2*Math.PI;
+ const env=(t,d,a=.012,r=.10)=>Math.min(1,t/a)*Math.min(1,Math.max(0,(d-t)/Math.min(r,d*.5)));
+ for(const [m,at,d,w,g] of STARTUP_SCORE){
+  const f=hz(m);let phase=0,phase2=0;
+  if(g===.62){
+   // Expressive pulse-width lead: a short pitch scoop, delayed vibrato,
+   // detuned octave shadow and a bright attack that darkens with each note.
+   add(music,at,d,(t)=>{
+    const bend=1-.023*Math.exp(-t/.028),vib=1+.009*Math.sin(tau*6.3*t)*Math.min(1,Math.max(0,(t-.10)/.15));
+    phase+=tau*f*bend*vib/sr;phase2+=tau*f*1.006/sr;
+    const duty=.33+.09*Math.sin(tau*1.8*t);
+    const pulse=(p)=>((p/tau)%1<duty?1:-1)-(2*duty-1);
+    const bright=.18+.27*Math.exp(-t/.075);
+    const v=.50*Math.sin(phase)+bright*pulse(phase)+.16*Math.sin(phase*2)+.16*Math.sin(phase2);
+    return v*.48*env(t,d,.008,d>1?.55:.085)*(1-.14*t/d);
+   });
+   if(d<1) add(music,at+.16,Math.min(d,.30),(t)=>Math.sin(tau*f*t)*.055*env(t,Math.min(d,.30),.009,.12));
+  }else{
+   add(music,at,d,t=>{const p=tau*f*t,v=w==='triangle'?2/Math.PI*Math.asin(Math.sin(p)):w==='sawtooth'?2*(p/tau-Math.floor(p/tau+.5)):Math.sin(p);
+    return v*g*.64*env(t,d,.016,d>1?.55:.12)});
+  }
+ }
+ let seed=0x6e617576;
+ const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/2147483648-1};
+ for(const [from,to,d,at,w,g] of STARTUP_PERCUSSION_TONES){
+  let phase=0;
+  const kick=w==='sine';
+  add(drums,at,kick?.24:.15,(t)=>{
+   const f=to+(from*1.8-to)*Math.exp(-t/(kick?.033:.024));phase+=tau*f/sr;
+   const decay=Math.exp(-t/(kick?.073:.042)),click=random()*Math.exp(-t/.009);
+   // Harmonics translate the drum body into audible midrange on a phone.
+   return Math.tanh((Math.sin(phase)+.48*Math.sin(phase*2)+.20*Math.sin(phase*3))*1.5)*decay*(kick?1.22:.60)+click*(kick?.27:.18);
+  });
+ }
+ for(const [d,at,f,q,g] of STARTUP_PERCUSSION_NOISE){
+  let prev=0,lp=0;const hat=f>3000,fill=f<1200;
+  add(drums,at,hat?d*1.3:d*1.55,t=>{
+   const x=random();lp+=.23*(x-lp);const high=x-prev;prev=x;
+   const decay=Math.exp(-t/(hat?.020:fill?.075:.060));
+   const noise=hat?high*.45:(x-lp)*.75+lp*.42;
+   const body=hat?0:Math.sin(tau*(fill?185:205)*t)*Math.exp(-t/.028)*.34;
+   return (noise+body)*decay*(hat?.39:fill?.86:1.22);
+  });
+ }
+ // Sidechain-like ducking lets each drum transient cut through the lead.
+ const mix=new Float32Array(length);let follower=0,peak=0,drumEnergy=0,musicEnergy=0;
+ for(let i=0;i<length;i++){
+  follower=Math.max(Math.abs(drums[i]),follower*.9992);
+  const m=music[i]/(1+.78*follower),d=drums[i]*1.05;
+  drumEnergy+=d*d;musicEnergy+=m*m;
+  const x=Math.tanh((m+d)*1.05);mix[i]=x;peak=Math.max(peak,Math.abs(x));
+ }
+ const scale=peak>0?.91/peak:1;for(let i=0;i<length;i++)mix[i]*=scale;
+ return {samples:mix,drumRms:Math.sqrt(drumEnergy/length),musicRms:Math.sqrt(musicEnergy/length)};
+}
 function renderWav(p,event,sr=24000,pitches=null){
  const diagnostic=event==='test';
  const notes=pitches?.length?sliderNotes(pitches):diagnostic?[[660,660,.16,0,'sine',.65],[880,880,.24,.18,'sine',.65]]:soundDefinition(p,event)[1];
  const layers=event==='startup'?STARTUP_PERCUSSION_NOISE:!pitches&&!diagnostic&&p.palette==='industrial'?NOISE[event]||[]:[];
  const length=Math.ceil((Math.max(...notes.map(n=>n[2]+n[3]),...layers.map(n=>n[0]+n[1]))+.025)*sr),samples=new Float32Array(length);
+ if(event==='startup')samples.set(renderStartupMix(sr).samples);
  const envelope=(t,d,a)=>Math.min(1,t/a)*Math.pow(Math.max(0,1-t/d),2);
  const musicEnvelope=(t,d)=>Math.min(1,t/Math.min(.018,d/5))*Math.min(1,Math.max(0,(d-t)/Math.min(.62,d*.55)))*(1-.22*t/d);
- for(const [from,to,d,offset,wave,gain] of notes){
+ for(const [from,to,d,offset,wave,gain] of event==='startup'?[]:notes){
   let phase=0;const start=Math.round(offset*sr);
   for(let i=0;i<Math.ceil(d*sr)&&start+i<length;i++){
    const t=i/sr;phase+=2*Math.PI*from*Math.pow(to/from,t/d)/sr;
@@ -188,7 +249,7 @@ function renderWav(p,event,sr=24000,pitches=null){
   }
  }
  let seed=0x6e617576;
- for(const [d,offset,hz,q,gain,,shape] of layers){
+ for(const [d,offset,hz,q,gain,,shape] of event==='startup'?[]:layers){
   const start=Math.round(offset*sr),w=2*Math.PI*Math.min(hz,sr*.45)/sr,alpha=Math.sin(w)/(2*q),a0=1+alpha,b0=alpha/a0,b2=-b0,a1=-2*Math.cos(w)/a0,a2=(1-alpha)/a0;
   let x1=0,x2=0,y1=0,y2=0;
   for(let i=0;i<Math.ceil(d*sr)&&start+i<length;i++){
@@ -201,7 +262,7 @@ function renderWav(p,event,sr=24000,pitches=null){
  const str=(offset,s)=>{for(let i=0;i<s.length;i++)v.setUint8(offset+i,s.charCodeAt(i))};
  str(0,'RIFF');v.setUint32(4,36+length*2,true);str(8,'WAVE');str(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);str(36,'data');v.setUint32(40,length*2,true);
  // iOS may ignore HTMLMediaElement.volume, so encode the master volume in PCM.
- const amp=clamp(p.volume,0,100)/100*(diagnostic?.65:event==='startup'?.28:.48);
+ const amp=clamp(p.volume,0,100)/100*(diagnostic?.65:event==='startup'?.84:.48);
  for(let i=0;i<length;i++)v.setInt16(44+i*2,Math.round(clamp(samples[i]*amp,-1,1)*32767),true);
  return new Uint8Array(buf);
 }
@@ -302,6 +363,10 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
   if(voices.length>24&&!followsTicks)stop();
   last=now;
   try{const start=followsTicks?tickTail:context.currentTime+.008;
+   if(event==='startup'&&context.createBuffer&&context.createBufferSource){
+    const sr=context.sampleRate||44100,mix=renderStartupMix(sr).samples,b=context.createBuffer(1,mix.length,sr),data=b.getChannelData(0),g=context.createGain(),src=context.createBufferSource();
+    for(let i=0;i<mix.length;i++)data[i]=mix[i];src.buffer=b;g.gain.setValueAtTime(p.volume/100*.84,start);src.connect(g);g.connect(context.destination);voices.push(src);src.onended=()=>{voices=voices.filter(v=>v!==src);try{src.disconnect();g.disconnect()}catch{}};src.start(start);return true;
+   }
    for(const [from,to,length,offset,wave,level] of soundDefinition(p,event)[1]){
     const o=context.createOscillator(),g=context.createGain(),t=start+offset,end=t+length;
     o.type=wave;o.frequency.setValueAtTime(from,t);o.frequency.exponentialRampToValueAtTime(to,end);
@@ -336,7 +401,7 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
  }
  return {unlock,play,playSlider,sliderDelay:()=>context?Math.max(0,tickTail-context.currentTime)*1000:0,stop,reset,testTone,error:()=>lastError,state:()=>context?.state||'locked'};
 }
-if(typeof module==='object'&&module.exports)module.exports={STARTUP_NOTES,STARTUP_DURATION,STARTUP_PERCUSSION_NOISE,normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine,renderWav,makeMediaEngine,makeCueGate,makeAwardTracker,sliderPitches,sliderNotes};
+if(typeof module==='object'&&module.exports)module.exports={renderStartupMix,STARTUP_NOTES,STARTUP_DURATION,STARTUP_PERCUSSION_NOISE,normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine,renderWav,makeMediaEngine,makeCueGate,makeAwardTracker,sliderPitches,sliderNotes};
 if(typeof document==='undefined')return;
 let prefs=normalize(null);try{prefs=normalize(JSON.parse(localStorage.getItem(KEY)||'null'))}catch{}
 const $=id=>document.getElementById(id),dialog=$('sensoryDialog'),launcher=$('sensoryLaunch');
