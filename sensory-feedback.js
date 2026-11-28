@@ -91,30 +91,37 @@ const NOISE={
  sync:[[.028,0,1600,.8,.08,'white','impact']],
  warning:[[.07,0,480,1.2,.13,'white','impact']]
 };
-// Two-bar original chiptune at 109 BPM. A distinct foreground melody,
-// repeating rhythmic motif, broken-chord accompaniment and steady bass.
-// The final D-major chord resolves the minor opening during the header morph.
+// Original Nauvis: Awakening. Dark minor-key cinematic chiptune.
+ // Dm(add9) -> Bb -> Gm -> A7 -> Dm: a real dominant-to-tonic cadence.
+ // Phrased lead, rests, syncopated bass pulses and low, restrained harmony.
+ // MIDI pitch, onset in seconds, duration, oscillator, relative amplitude.
 const hz=m=>440*Math.pow(2,(m-69)/12);
-const beat=.55;
 const lead=[
- [74,0,.5],[77,.5,.5],[81,1,1],
- [82,2,.5],[81,2.5,.5],[77,3,1],
- [79,4,.5],[81,4.5,.5],[82,5,1],
- [78,6,.5],[76,6.5,.5],[74,7,.94]
-];
-const harmony=[
- {at:0,bass:38,arp:[62,65,69,65],chord:[50,57,65]},
- {at:2,bass:34,arp:[58,62,65,62],chord:[46,53,62]},
- {at:4,bass:43,arp:[55,58,62,58],chord:[55,58,62]},
- {at:6,bass:38,arp:[57,66,69,74],chord:[50,57,66]}
+ [62,.06,.60],[65,.75,.14],[69,.94,.58],
+ [72,1.61,.16],[70,1.84,.40],[67,2.38,.66],
+ [64,3.12,.16],[67,3.32,.18],[69,3.56,.38],
+ [61,3.99,.24],[62,4.34,1.40]
 ];
 const STARTUP_SCORE=[
- ...lead.flatMap(([pitch,at,length])=>[[pitch,at*beat,length*beat*.96,'triangle',.57],[pitch,at*beat,length*beat*.96,'square',.10]]),
- ...harmony.flatMap(({at,bass,arp,chord})=>[
-  [bass,at*beat,beat*.91,'triangle',.25],[bass+12,(at+1)*beat,beat*.88,'triangle',.17],
-  ...arp.map((pitch,i)=>[pitch,(at+i*.5)*beat,beat*.44,'triangle',.13]),
-  ...chord.map(pitch=>[pitch,at*beat,beat*1.96,'sine',.075])
- ])
+ // Lead voice: broad triangle, with a quiet square edge rather than a bell.
+ ...lead.flatMap(([m,t,d])=>[[m,t,d,'triangle',.62],[m,t,d,'square',.065]]),
+ // A low, slightly gritty engine-like pulse with deliberate gaps.
+ ...[
+ [38,0,.43],[38,.60,.16],[45,.89,.36],[38,1.34,.19],
+ [34,1.80,.36],[46,2.23,.14],[43,2.40,.39],[43,2.94,.17],
+ [33,3.12,.42],[45,3.69,.17],[33,3.98,.25],[38,4.34,1.42]
+ ].flatMap(([m,t,d])=>[[m,t,d,'triangle',.32],[m,t,d,'sawtooth',.045]]),
+ // Slow-moving inner voices: no uniform upper-register arpeggio.
+ [50,0,1.65,'sine',.14],[57,0,1.65,'triangle',.10],
+ [65,.15,1.46,'sine',.10],[64,.92,.66,'sine',.07],
+ [46,1.80,.56,'triangle',.13],[53,1.80,.55,'sine',.10],[62,1.80,.56,'sine',.10],
+ [55,2.40,.64,'triangle',.13],[58,2.40,.64,'sine',.10],[62,2.40,.64,'sine',.08],
+ // A7 tension: C# and G resolve down/up to D and F.
+ [45,3.12,1.12,'triangle',.16],[49,3.12,1.12,'sine',.13],
+ [55,3.12,1.12,'triangle',.12],[64,3.56,.64,'sine',.08],
+ // Final tonic: sustained D minor, root in three registers; no major lift.
+ [50,4.34,1.42,'triangle',.19],[57,4.34,1.42,'sine',.13],
+ [65,4.34,1.42,'triangle',.12],[74,4.34,1.20,'sine',.055]
 ];
 const STARTUP_NOTES=STARTUP_SCORE.map(([m,offset,duration,wave,gain])=>[hz(m),hz(m),duration,offset,wave,gain]);
 const STARTUP_DURATION=Math.max(...STARTUP_NOTES.map(n=>n[2]+n[3]));
@@ -160,7 +167,7 @@ function renderWav(p,event,sr=24000,pitches=null){
  const layers=!pitches&&!diagnostic&&p.palette==='industrial'?NOISE[event]||[]:[];
  const length=Math.ceil((Math.max(...notes.map(n=>n[2]+n[3]),...layers.map(n=>n[0]+n[1]))+.025)*sr),samples=new Float32Array(length);
  const envelope=(t,d,a)=>Math.min(1,t/a)*Math.pow(Math.max(0,1-t/d),2);
- const musicEnvelope=(t,d)=>Math.min(1,t/Math.min(.018,d/5))*Math.min(1,Math.max(0,(d-t)/Math.min(.24,d*.55)))*(1-.22*t/d);
+ const musicEnvelope=(t,d)=>Math.min(1,t/Math.min(.018,d/5))*Math.min(1,Math.max(0,(d-t)/Math.min(.62,d*.55)))*(1-.22*t/d);
  for(const [from,to,d,offset,wave,gain] of notes){
   let phase=0;const start=Math.round(offset*sr);
   for(let i=0;i<Math.ceil(d*sr)&&start+i<length;i++){
@@ -289,7 +296,7 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
     o.type=wave;o.frequency.setValueAtTime(from,t);o.frequency.exponentialRampToValueAtTime(to,end);
     const amp=Math.max(.00011,p.volume/100*(event==='startup'?.28:p.palette==='electronic'?.20:.22)*level);
     g.gain.setValueAtTime(.0001,t);
-    if(event==='startup'){g.gain.exponentialRampToValueAtTime(amp,t+Math.min(.018,length/5));g.gain.exponentialRampToValueAtTime(Math.max(.00011,amp*.78),end-Math.min(.24,length*.55));}
+    if(event==='startup'){g.gain.exponentialRampToValueAtTime(amp,t+Math.min(.018,length/5));g.gain.exponentialRampToValueAtTime(Math.max(.00011,amp*.78),end-Math.min(.62,length*.55));}
     else g.gain.exponentialRampToValueAtTime(amp,t+Math.min(.008,length/4));
     g.gain.exponentialRampToValueAtTime(.0001,end);
     o.connect(g);g.connect(context.destination);voices.push(o);
