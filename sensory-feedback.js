@@ -3,11 +3,11 @@
 'use strict';
 const KEY='nauvis-sensory-v1';
 const CATEGORIES=['controls','inputs','construction','achievements','sync'];
-const DEFAULTS={enabled:false,volume:35,palette:'industrial',backend:'auto',motion:'full',haptics:false,categories:Object.fromEntries(CATEGORIES.map(k=>[k,true]))};
+const DEFAULTS={enabled:false,startupMusic:true,volume:35,palette:'industrial',backend:'auto',motion:'full',haptics:false,categories:Object.fromEntries(CATEGORIES.map(k=>[k,true]))};
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 function normalize(v){
  const x=v&&typeof v==='object'?v:{};
- return {enabled:x.enabled===true,volume:Number.isFinite(x.volume)?clamp(Math.round(x.volume),0,100):35,palette:x.palette==='electronic'?'electronic':'industrial',backend:['auto','web','media'].includes(x.backend)?x.backend:'auto',motion:['full','subtle','off'].includes(x.motion)?x.motion:'full',haptics:x.haptics===true,categories:Object.fromEntries(CATEGORIES.map(k=>[k,x.categories?.[k]!==false]))};
+ return {enabled:x.enabled===true,startupMusic:x.startupMusic!==false,volume:Number.isFinite(x.volume)?clamp(Math.round(x.volume),0,100):35,palette:x.palette==='electronic'?'electronic':'industrial',backend:['auto','web','media'].includes(x.backend)?x.backend:'auto',motion:['full','subtle','off'].includes(x.motion)?x.motion:'full',haptics:x.haptics===true,categories:Object.fromEntries(CATEGORIES.map(k=>[k,x.categories?.[k]!==false]))};
 }
 // [frequency, end frequency, duration sec, offset sec, oscillator, relative gain]
 const ELECTRONIC={
@@ -91,9 +91,27 @@ const NOISE={
  sync:[[.028,0,1600,.8,.08,'white','impact']],
  warning:[[.07,0,480,1.2,.13,'white','impact']]
 };
+// Original Nauvis boot motif: D minor/add9, rising through the title reveals,
+ // resolving into a suspended D-major color as the interface comes online.
+ // MIDI pitch, offset, duration, wave, relative gain. Shared by both backends.
+const hz=m=>440*Math.pow(2,(m-69)/12);
+const STARTUP_SCORE=[
+ [38,0,1.14,'triangle',.39],[50,0,.48,'sine',.24],[57,.08,.40,'triangle',.19],
+ [62,.13,.16,'triangle',.28],[65,.30,.19,'triangle',.31],
+ [69,.55,.24,'square',.16],[72,.80,.18,'triangle',.33],[74,.99,.27,'square',.14],
+ [46,.55,.68,'triangle',.30],[53,.55,.66,'sine',.19],
+ [38,1.15,1.07,'triangle',.30],[57,1.15,.68,'sine',.17],
+ [76,1.15,.23,'triangle',.38],[74,1.40,.19,'square',.13],[69,1.60,.23,'triangle',.35],[65,1.85,.28,'triangle',.30],
+ [43,2.10,.90,'triangle',.27],[55,2.10,.72,'sine',.18],
+ [67,2.10,.20,'triangle',.31],[69,2.33,.19,'square',.12],[73,2.55,.25,'triangle',.33],
+ [38,2.85,1.18,'triangle',.32],[50,2.85,1.12,'sine',.20],[57,2.85,1.09,'triangle',.18],
+ [66,2.85,1.02,'sine',.21],[76,2.85,.90,'triangle',.29],[81,3.07,.71,'sine',.14],[86,3.29,.55,'sine',.08]
+];
+const STARTUP_NOTES=STARTUP_SCORE.map(([m,offset,duration,wave,gain])=>[hz(m),hz(m),duration,offset,wave,gain]);
+const STARTUP_DURATION=Math.max(...STARTUP_NOTES.map(n=>n[2]+n[3]));
 const ALIASES={key:'tick',ratchet:'tick',countUp:'tick',countDown:'edit',check:'on',uncheck:'off',route:'saved'};
-function soundDefinition(p,event){return p.palette==='electronic'?(ELECTRONIC[event]||ELECTRONIC[ALIASES[event]]||SOUNDS[event]):SOUNDS[event]}
-function canPlay(p,event){const def=SOUNDS[event];return !!def&&p.enabled&&p.volume>0&&p.categories[def[0]]===true}
+function soundDefinition(p,event){if(event==='startup')return ['startup',STARTUP_NOTES];return p.palette==='electronic'?(ELECTRONIC[event]||ELECTRONIC[ALIASES[event]]||SOUNDS[event]):SOUNDS[event]}
+function canPlay(p,event){if(event==='startup')return p.enabled&&p.startupMusic&&p.volume>0;const def=SOUNDS[event];return !!def&&p.enabled&&p.volume>0&&p.categories[def[0]]===true}
 function cloudCue(before,after){if(before===after)return null;if(after==='saved'&&before==='syncing')return 'sync';if(['error','conflict','offline'].includes(after)&&!['error','conflict','offline'].includes(before))return 'warning';return null}
 function gained(before,after){const old=new Set(before||[]);return [...new Set(after||[])].filter(x=>!old.has(x))}
 // Only committed construction actions can generate construction rewards.
@@ -133,12 +151,13 @@ function renderWav(p,event,sr=24000,pitches=null){
  const layers=!pitches&&!diagnostic&&p.palette==='industrial'?NOISE[event]||[]:[];
  const length=Math.ceil((Math.max(...notes.map(n=>n[2]+n[3]),...layers.map(n=>n[0]+n[1]))+.025)*sr),samples=new Float32Array(length);
  const envelope=(t,d,a)=>Math.min(1,t/a)*Math.pow(Math.max(0,1-t/d),2);
+ const musicEnvelope=(t,d)=>Math.min(1,t/Math.min(.018,d/5))*Math.min(1,Math.max(0,(d-t)/Math.min(.24,d*.55)))*(1-.22*t/d);
  for(const [from,to,d,offset,wave,gain] of notes){
   let phase=0;const start=Math.round(offset*sr);
   for(let i=0;i<Math.ceil(d*sr)&&start+i<length;i++){
    const t=i/sr;phase+=2*Math.PI*from*Math.pow(to/from,t/d)/sr;
-   const v=wave==='triangle'?2/Math.PI*Math.asin(Math.sin(phase)):wave==='sawtooth'?2*(phase/(2*Math.PI)-Math.floor(phase/(2*Math.PI)+.5)):Math.sin(phase);
-   samples[start+i]+=v*gain*envelope(t,d,Math.min(.008,d/4));
+   const v=wave==='triangle'?2/Math.PI*Math.asin(Math.sin(phase)):wave==='sawtooth'?2*(phase/(2*Math.PI)-Math.floor(phase/(2*Math.PI)+.5)):wave==='square'?Math.sign(Math.sin(phase)):Math.sin(phase);
+   samples[start+i]+=v*gain*(event==='startup'?musicEnvelope(t,d):envelope(t,d,Math.min(.008,d/4)));
   }
  }
  let seed=0x6e617576;
@@ -155,7 +174,7 @@ function renderWav(p,event,sr=24000,pitches=null){
  const str=(offset,s)=>{for(let i=0;i<s.length;i++)v.setUint8(offset+i,s.charCodeAt(i))};
  str(0,'RIFF');v.setUint32(4,36+length*2,true);str(8,'WAVE');str(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,sr,true);v.setUint32(28,sr*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);str(36,'data');v.setUint32(40,length*2,true);
  // iOS may ignore HTMLMediaElement.volume, so encode the master volume in PCM.
- const amp=clamp(p.volume,0,100)/100*(diagnostic?.65:.48);
+ const amp=clamp(p.volume,0,100)/100*(diagnostic?.65:event==='startup'?.28:.48);
  for(let i=0;i<length;i++)v.setInt16(44+i*2,Math.round(clamp(samples[i]*amp,-1,1)*32767),true);
  return new Uint8Array(buf);
 }
@@ -259,8 +278,11 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
    for(const [from,to,length,offset,wave,level] of soundDefinition(p,event)[1]){
     const o=context.createOscillator(),g=context.createGain(),t=start+offset,end=t+length;
     o.type=wave;o.frequency.setValueAtTime(from,t);o.frequency.exponentialRampToValueAtTime(to,end);
-    const amp=Math.max(.00011,p.volume/100*(p.palette==='electronic'?.20:.22)*level);
-    g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(amp,t+Math.min(.008,length/4));g.gain.exponentialRampToValueAtTime(.0001,end);
+    const amp=Math.max(.00011,p.volume/100*(event==='startup'?.28:p.palette==='electronic'?.20:.22)*level);
+    g.gain.setValueAtTime(.0001,t);
+    if(event==='startup'){g.gain.exponentialRampToValueAtTime(amp,t+Math.min(.018,length/5));g.gain.exponentialRampToValueAtTime(Math.max(.00011,amp*.78),end-Math.min(.24,length*.55));}
+    else g.gain.exponentialRampToValueAtTime(amp,t+Math.min(.008,length/4));
+    g.gain.exponentialRampToValueAtTime(.0001,end);
     o.connect(g);g.connect(context.destination);voices.push(o);
     o.onended=()=>{voices=voices.filter(v=>v!==o);try{o.disconnect();g.disconnect()}catch{}};
     o.start(t);o.stop(end+.01);
@@ -287,7 +309,7 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
  }
  return {unlock,play,playSlider,sliderDelay:()=>context?Math.max(0,tickTail-context.currentTime)*1000:0,stop,reset,testTone,error:()=>lastError,state:()=>context?.state||'locked'};
 }
-if(typeof module==='object'&&module.exports)module.exports={normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine,renderWav,makeMediaEngine,makeCueGate,makeAwardTracker,sliderPitches,sliderNotes};
+if(typeof module==='object'&&module.exports)module.exports={STARTUP_NOTES,STARTUP_DURATION,normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine,renderWav,makeMediaEngine,makeCueGate,makeAwardTracker,sliderPitches,sliderNotes};
 if(typeof document==='undefined')return;
 let prefs=normalize(null);try{prefs=normalize(JSON.parse(localStorage.getItem(KEY)||'null'))}catch{}
 const $=id=>document.getElementById(id),dialog=$('sensoryDialog'),launcher=$('sensoryLaunch');
@@ -296,13 +318,14 @@ const media=makeMediaEngine($('sensoryMediaAudio'),()=>prefs,()=>!document.hidde
 const appleMobile=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const useMedia=()=>prefs.backend==='media'||prefs.backend==='auto'&&(appleMobile||!root.AudioContext&&!root.webkitAudioContext);
 const reduce=root.matchMedia?.('(prefers-reduced-motion: reduce)');
-let lastGesture=-Infinity,lastSemantic=-Infinity,localChange=null,lastRange=new WeakMap();
+let lastGesture=-Infinity,lastSemantic=-Infinity,localChange=null,lastRange=new WeakMap(),startupSerial=0,startupTimer=null,startupActive=false;
 const gate=makeCueGate(()=>performance.now()),awards=makeAwardTracker();
 const status=text=>{const node=$('sensoryStatus');if(node)node.textContent=text};
 function paint(){
  document.body.dataset.sensoryMotion=reduce?.matches?'off':prefs.motion;
  if(launcher){launcher.dataset.enabled=String(prefs.enabled);launcher.setAttribute('aria-label','Sensory settings · sound '+(prefs.enabled?'on':'off'))}
  if($('sensoryEnabled'))$('sensoryEnabled').checked=prefs.enabled;
+ if($('startupMusicEnabled'))$('startupMusicEnabled').checked=prefs.startupMusic;
  if($('sensoryPalette'))$('sensoryPalette').value=prefs.palette;
  if($('sensoryBackend'))$('sensoryBackend').value=prefs.backend;
  audioState();
@@ -313,10 +336,32 @@ function paint(){
  if($('sensoryMotionNote'))$('sensoryMotionNote').textContent=reduce?.matches?'System reduced motion is active. Animations are disabled.':'Visual feedback is independent of sound.';
  if($('sensoryHapticNote'))$('sensoryHapticNote').textContent=typeof navigator.vibrate==='function'?'Short vibration pulses on supported devices.':'Haptics are unavailable in this browser (including iPhone Safari).';
 }
-function setPrefs(patch){const previousBackend=useMedia();prefs=normalize({...prefs,...patch});if(previousBackend!==useMedia()){engine.stop();media.stop();gate.reset()}try{localStorage.setItem(KEY,JSON.stringify(prefs))}catch{}if(!prefs.enabled||!prefs.volume){engine.stop();media.stop();gate.reset()}paint();return {...prefs,categories:{...prefs.categories}}}
+function setPrefs(patch){const previousBackend=useMedia();prefs=normalize({...prefs,...patch});if(startupActive&&(!canPlay(prefs,'startup')||previousBackend!==useMedia()||patch.volume!==undefined))stopStartup();if(previousBackend!==useMedia()){engine.stop();media.stop();gate.reset()}try{localStorage.setItem(KEY,JSON.stringify(prefs))}catch{}if(!prefs.enabled||!prefs.volume){engine.stop();media.stop();gate.reset()}paint();return {...prefs,categories:{...prefs.categories}}}
+// Best-effort autoplay: never delay or restart the visual introduction if
+// the browser requires a gesture. Preview is invoked in the trusted click.
+function stopStartup(){
+ startupSerial++;clearTimeout(startupTimer);startupTimer=null;
+ if(startupActive){startupActive=false;engine.stop();media.stop();gate.reset()}
+}
+function startStartup(){
+ stopStartup();if(!canPlay(prefs,'startup')||document.hidden)return Promise.resolve(false);
+ const id=++startupSerial,started=performance.now();
+ startupActive=true;engine.stop();media.stop();gate.reset();
+ startupTimer=setTimeout(()=>{if(id===startupSerial)stopStartup()},(STARTUP_DURATION+.10)*1000);
+ if(useMedia()){
+  const sent=media.play('startup',true);
+  return Promise.resolve(sent?media.result():false).then(ok=>{if(id!==startupSerial)return false;if(!ok)stopStartup();return ok});
+ }
+ return unlock(true).then(ok=>{
+  if(id!==startupSerial)return false;
+  if(!ok||performance.now()-started>250||document.hidden||!canPlay(prefs,'startup')){stopStartup();return false}
+  const played=engine.play('startup',true);if(!played)stopStartup();return played;
+ });
+}
 function audioState(){const node=$('sensoryAudioState');if(node)node.textContent=!prefs.enabled?'Sound off':useMedia()?'Media audio: '+media.state():!root.AudioContext&&!root.webkitAudioContext?'Web Audio unavailable':'Audio engine: '+engine.state()}
 function unlock(retry=false){if(useMedia()){audioState();return Promise.resolve(true)}return engine.unlock(retry).then(ok=>{audioState();return ok})}
 async function testAudio(restart=false){
+ stopStartup();
  if(!prefs.enabled){status('Turn on Enable sound first.');return}
  if(!prefs.volume){status('Raise the volume above zero.');return}
  if(useMedia()){if(restart)media.reset();const sent=media.testTone();audioState();status('Testing media audio…');const played=sent&&await media.result();audioState();status(played?'Media test tone sent. Did you hear it?':'Media playback failed: '+media.error());return}
@@ -335,6 +380,7 @@ function pulse(el,cls='sensory-pulse'){
 function vibrate(event){if(!prefs.haptics||document.hidden||!prefs.categories[SOUNDS[event]?.[0]]||typeof navigator.vibrate!=='function')return;
  try{navigator.vibrate(['complete','achievement'].includes(event)?[16,35,20]:event==='build'?12:7)}catch{}}
 function cue(event,el,{semantic=false,haptic=true,preview=false}={}){
+ if(startupActive)return false;
  if(!SOUNDS[event]||(!preview&&document.hidden))return false;
  if(semantic)lastSemantic=performance.now();
  if(!gate.allow(event,preview))return false;
@@ -349,7 +395,7 @@ function markLocalChange(){
  // milestones, sync, and non-construction edits must not compete with them.
  if(!root.NauvisCloudApplying&&document.body.dataset.appMode==='full'&&workspace!=='factory'&&performance.now()-lastGesture<1500)localChange=workspace;
 }
-function resetBaseline(){localChange=null;awards.reset();lastRange=new WeakMap();engine.stop();media.stop();gate.reset()}
+function resetBaseline(){localChange=null;awards.reset();lastRange=new WeakMap();if(!startupActive){engine.stop();media.stop()}gate.reset()}
 function updateAwards(keys){
  const eligible=!!localChange&&localChange===document.body.dataset.workspace&&document.body.dataset.appMode==='full'&&!root.NauvisCloudApplying&&!document.hidden&&performance.now()-lastGesture<1500;
  localChange=null;
@@ -361,7 +407,7 @@ function updateAwards(keys){
  if(performance.now()-lastSemantic>=250)cue('achievement',null,{semantic:true,haptic:false});
  return earned;
 }
-function isUiSetting(el){return !!el.closest('#sensoryDialog,#sensoryLaunch')}
+function isUiSetting(el){return !!el.closest('#sensoryDialog,#sensoryLaunch,#nauvisIntro')}
 function interactive(e){return e.target?.closest?.('button,summary,a[href],input,select,textarea,[role="button"]')}
 function gesture(e){if(!e.isTrusted)return;localChange=null;lastGesture=performance.now();if(prefs.enabled&&!useMedia()&&engine.state()!=='running'&&!e.target?.closest?.('#sensoryDialog,#sensoryLaunch'))unlock(true)}
 document.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')gesture(e)},true);
@@ -403,10 +449,13 @@ document.addEventListener('input',e=>{
  if(prev&&now-prev.time<85)return;lastRange.set(el,{time:now});cue(el.matches('[type="range"]')?'ratchet':el.matches('[type="number"]')?'tick':'key',null,{haptic:false});
 },false);
 document.addEventListener('invalid',e=>{if(e.isTrusted&&!isUiSetting(e.target))semantic('warning',e.target)},true);
-document.addEventListener('visibilitychange',()=>{if(document.hidden){engine.stop();media.stop();gate.reset();localChange=null;lastRange=new WeakMap()}audioState()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){stopStartup();engine.stop();media.stop();gate.reset();localChange=null;lastRange=new WeakMap()}audioState()});
 window.addEventListener('pageshow',audioState);
 reduce?.addEventListener?.('change',paint);
 launcher?.addEventListener('click',()=>{paint();status(prefs.enabled?'Tap Test sound to check audio output.':'Sound is off. Enable it when you want tactile feedback.');dialog?.showModal();if(prefs.enabled)unlock(true)});
+$('startupMusicEnabled')?.addEventListener('change',e=>setPrefs({startupMusic:e.target.checked}));
+$('previewStartupMusic')?.addEventListener('click',async()=>{if(!canPlay(prefs,'startup')){status('Enable sound and startup music, with volume above zero.');return}const ok=await startStartup();status(ok?'Playing original Nauvis startup theme.':'Startup music could not play or was stopped. Tap again to retry.')});
+dialog?.addEventListener('close',()=>{if(startupActive&&!root.NauvisIntro?.active())stopStartup()});
 $('sensoryTestSound')?.addEventListener('click',()=>testAudio(false));
 $('sensoryRestartAudio')?.addEventListener('click',()=>testAudio(true));
 $('sensoryClose')?.addEventListener('click',()=>dialog.close());
@@ -418,9 +467,9 @@ $('sensoryMotion')?.addEventListener('change',e=>setPrefs({motion:e.target.value
 $('sensoryHaptics')?.addEventListener('change',e=>{setPrefs({haptics:e.target.checked});vibrate('click')});
 for(const k of CATEGORIES)$('sensoryCat-'+k)?.addEventListener('change',e=>setPrefs({categories:{...prefs.categories,[k]:e.target.checked}}));
 $('sensoryReset')?.addEventListener('click',()=>{setPrefs(DEFAULTS);status('Default sensory preferences restored.')});
-dialog?.addEventListener('click',async e=>{const event=e.target.closest('[data-sensory-test]')?.dataset.sensoryTest;if(!event)return;if(!prefs.enabled||!prefs.volume){status('Enable sound and set volume above zero first.');return}if(!prefs.categories[SOUNDS[event]?.[0]]){status('Enable this sound category first.');return}if(useMedia()){const sent=cue(event,e.target,{haptic:false,preview:true});const ok=sent&&await media.result();audioState();status(ok?'Played '+event+' preview.':'Media playback failed: '+media.error());return}if(await unlock(true)){const played=cue(event,e.target,{haptic:false,preview:true});status(played?'Played '+event+' preview.':'Sound could not play. '+engine.error())}else status('Audio did not start. Tap Restart audio.')});
+dialog?.addEventListener('click',async e=>{const event=e.target.closest('[data-sensory-test]')?.dataset.sensoryTest;if(!event)return;stopStartup();if(!prefs.enabled||!prefs.volume){status('Enable sound and set volume above zero first.');return}if(!prefs.categories[SOUNDS[event]?.[0]]){status('Enable this sound category first.');return}if(useMedia()){const sent=cue(event,e.target,{haptic:false,preview:true});const ok=sent&&await media.result();audioState();status(ok?'Played '+event+' preview.':'Media playback failed: '+media.error());return}if(await unlock(true)){const played=cue(event,e.target,{haptic:false,preview:true});status(played?'Played '+event+' preview.':'Sound could not play. '+engine.error())}else status('Audio did not start. Tap Restart audio.')});
 let cloudBefore=$('cloudStatus')?.dataset.state;
 if($('cloudStatus')&&typeof MutationObserver!=='undefined')new MutationObserver(()=>{const after=$('cloudStatus').dataset.state,event=cloudCue(cloudBefore,after);cloudBefore=after;if(event)cue(event,null,{haptic:false})}).observe($('cloudStatus'),{attributes:true,attributeFilter:['data-state']});
-root.NauvisSensory={getPrefs:()=>normalize(prefs),setPrefs,unlock,semantic,markLocalChange,resetBaseline,updateAwards,state:()=>useMedia()?media.state():engine.state()};
+root.NauvisSensory={startStartup,stopStartup,startupActive:()=>startupActive,getPrefs:()=>normalize(prefs),setPrefs,unlock,semantic,markLocalChange,resetBaseline,updateAwards,state:()=>useMedia()?media.state():engine.state()};
 paint();
 })(typeof window==='undefined'?globalThis:window);

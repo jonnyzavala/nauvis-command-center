@@ -67,3 +67,31 @@ test('slider clicks are crisp, higher pitched and separated by silence without f
  const wav=renderWav(normalize({enabled:true,volume:60}),'ratchet',24000,pitches),v=new DataView(wav.buffer);
  for(let i=0;i<4;i++){const midpoint=Math.round((notes[i][3]+.025)*24000);assert.equal(v.getInt16(44+midpoint*2,true),0)}
 });
+
+test('startup music is an original timed score with a separate opt-out and master volume gating',()=>{
+ const {STARTUP_NOTES,STARTUP_DURATION}=require('../sensory-feedback.js'),p=normalize({enabled:true});
+ assert.equal(p.startupMusic,true);assert.equal(canPlay(p,'startup'),true);
+ assert.equal(canPlay(normalize({enabled:true,startupMusic:false}),'startup'),false);
+ assert.equal(canPlay(normalize({enabled:true,volume:0}),'startup'),false);
+ assert.equal(canPlay(normalize(null),'startup'),false);
+ assert.ok(STARTUP_DURATION>=3.5&&STARTUP_DURATION<4.5);
+ for(const reveal of [0,.55,1.15])assert.ok(STARTUP_NOTES.some(n=>n[3]===reveal));
+ assert.ok(STARTUP_NOTES.some(n=>n[4]==='square'));
+ assert.deepEqual(soundDefinition(p,'startup'),soundDefinition(normalize({enabled:true,palette:'electronic'}),'startup'));
+ const wav=renderWav(p,'startup'),view=new DataView(wav.buffer);
+ assert.ok(Math.abs((wav.length-44)/48000-STARTUP_DURATION)<.04);
+ let peak=0;for(let i=44;i<wav.length;i+=2)peak=Math.max(peak,Math.abs(view.getInt16(i,true)));assert.ok(peak>500&&peak<32767);
+ assert.ok(renderWav(normalize({volume:0}),'startup').slice(44).every(b=>b===0));
+});
+test('Web Audio schedules all startup voices and stops future notes on skip',async()=>{
+ const {STARTUP_NOTES}=require('../sensory-feedback.js');let started=[],stopped=0;
+ const param=()=>({setValueAtTime(){},exponentialRampToValueAtTime(){}});
+ class Audio{constructor(){this.state='running';this.currentTime=0;this.destination={}}createOscillator(){return{frequency:param(),connect(){},disconnect(){},start(t){started.push(t)},stop(t){if(t===undefined)stopped++}}}createGain(){return{gain:param(),connect(){},disconnect(){}}}}
+ const e=makeEngine(Audio,()=>normalize({enabled:true}));assert.equal(await e.unlock(),true);assert.equal(e.play('startup',true),true);assert.equal(started.length,STARTUP_NOTES.length);assert.ok(started.some(t=>t>=3));e.stop();assert.equal(stopped,STARTUP_NOTES.length);
+});
+test('media startup playback is cancellable and shares the ordinary master mute',async()=>{
+ let paused=0,played=0,p=normalize({enabled:true});const audio={src:'',pause(){paused++},getAttribute(){return this.src},play(){played++;return Promise.resolve()},addEventListener(){}};
+ const e=makeMediaEngine(audio,()=>p,()=>true,()=>0,bytes=>'wav:'+bytes.length);
+ assert.ok(e.play('startup',true));assert.ok(await e.result());e.stop();assert.ok(paused>=2);assert.equal(e.state(),'ready');
+ p=normalize({enabled:true,startupMusic:false});assert.equal(e.play('startup',true),false);assert.equal(played,1);
+});
