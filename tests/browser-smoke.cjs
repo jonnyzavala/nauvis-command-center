@@ -17,7 +17,7 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,25));const d=frame.contentDocument;if(d?.documentElement?.hasAttribute('data-intro-boot')&&d.querySelector('.shell')){sawCurtain=frame.contentWindow.getComputedStyle(d.querySelector('.shell')).visibility==='hidden';break}}
   let w=prep(await loading);
   assert(sawCurtain,'First paint hides app shell while intro script is still loading');
-  w=await load('&nauvis-update=1.1.21');
+  w=await load('&nauvis-update=1.1.22');
   assert(!w.NauvisIntro.active()&&!w.document.documentElement.hasAttribute('data-intro-boot'),'Update navigation skips intro and leaves no curtain');prep(w);
   w=await load('&recover=1');
   assert(!w.NauvisIntro.active()&&!w.document.documentElement.hasAttribute('data-intro-boot'),'Recovery navigation skips intro and leaves no curtain');prep(w);
@@ -39,6 +39,20 @@ const harness=String.raw`<!doctype html><html><meta charset="utf-8"><title>NAUVI
   await new Promise(r=>setTimeout(r,1750));
   assert(!w.NauvisIntro.active()&&w.getComputedStyle(headerWelcome).visibility==='visible','Intro completes and restores real header');
   assert(JSON.stringify(snap(w))===initial,'Intro does not change factory data');
+  // Stub only media output, so real click wiring can be checked without relying on autoplay policy.
+  const audio=w.document.querySelector('#sensoryMediaAudio'),oldPlay=audio.play,oldPause=audio.pause;
+  let musicPlays=0,musicPauses=0;
+  audio.play=()=>{musicPlays++;return Promise.resolve()};audio.pause=()=>{musicPauses++};
+  const oldPrefs=w.NauvisSensory.getPrefs();w.NauvisSensory.setPrefs({enabled:true,volume:35,backend:'media',startupMusic:true});
+  click(w,'#sensoryLaunch');click(w,'#previewStartupMusic');await Promise.resolve();
+  assert(musicPlays===1&&w.NauvisSensory.startupActive(),'Standalone startup music preview uses the existing media backend');
+  click(w,'#startupMusicEnabled');assert(!w.NauvisSensory.startupActive()&&musicPauses>=2,'Startup music opt-out cancels active preview');
+  click(w,'#previewIntro');assert(w.NauvisIntro.active()&&musicPlays===1,'Disabled music leaves visual intro functional');click(w,'#skipIntro');
+  w.NauvisSensory.setPrefs({startupMusic:true});click(w,'#sensoryLaunch');click(w,'#previewIntro');await Promise.resolve();
+  assert(w.NauvisIntro.active()&&w.NauvisSensory.startupActive()&&musicPlays===2,'Startup animation begins with the music');
+  click(w,'#skipIntro');assert(!w.NauvisIntro.active()&&!w.NauvisSensory.startupActive(),'Skip cancels scheduled startup sound');
+  w.NauvisSensory.setPrefs(oldPrefs);audio.play=oldPlay;audio.pause=oldPause;
+
   click(w,'#versionHistory');assert(w.document.querySelector('#versionDialog').open&&w.document.querySelector('#checkRelease')&&w.document.querySelector('#versionDialog details').open,'Version menu exposes manual updates and latest changelog');click(w,'#versionClose');
   click(w,'#cloudStatus');assert(w.document.querySelector('#cloudDialog').open&&!w.document.querySelector('#cloudConnectForm').hidden&&w.document.querySelector('#cloudPairedControls').hidden,'Unpaired sync menu shows pairing only');click(w,'#cloudClose');
   w.activateWorkspace('flow',true);
