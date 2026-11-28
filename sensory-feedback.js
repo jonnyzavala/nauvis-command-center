@@ -123,7 +123,18 @@ const STARTUP_SCORE=[
  [50,4.34,1.42,'triangle',.19],[57,4.34,1.42,'sine',.13],
  [65,4.34,1.42,'triangle',.12],[74,4.34,1.20,'sine',.055]
 ];
-const STARTUP_NOTES=STARTUP_SCORE.map(([m,offset,duration,wave,gain])=>[hz(m),hz(m),duration,offset,wave,gain]);
+// Original percussion arrangement: low kick-like pitch drops, muted metallic
+// snare textures and short offbeat hats. No sampled or transcribed soundtrack.
+const STARTUP_DRUMS=[
+ ...[0,.60,1.34,1.80,2.40,2.94,3.12,3.69,3.98,4.34].map(t=>[.18,t,105,39,'sine',.48]),
+ ...[.89,1.61,2.23,3.32,4.13].map(t=>[.10,t,174,68,'triangle',.16]),
+ ...[.43,1.09,1.49,1.97,2.70,3.49,3.84].map(t=>[.038,t,4100,1.2,.10,'white','impact']),
+ ...[.89,1.61,2.23,3.32,4.13].map(t=>[.12,t,1350,.85,.26,'white','impact']),
+ [.28,4.34,680,.85,.24,'white','impact']
+];
+const STARTUP_PERCUSSION_TONES=STARTUP_DRUMS.filter(n=>n.length===6).map(([d,t,f,to,w,g])=>[f,to,d,t,w,g]);
+const STARTUP_PERCUSSION_NOISE=STARTUP_DRUMS.filter(n=>n.length===7);
+const STARTUP_NOTES=[...STARTUP_SCORE.map(([m,offset,duration,wave,gain])=>[hz(m),hz(m),duration,offset,wave,gain]),...STARTUP_PERCUSSION_TONES];
 const STARTUP_DURATION=Math.max(...STARTUP_NOTES.map(n=>n[2]+n[3]));
 const ALIASES={key:'tick',ratchet:'tick',countUp:'tick',countDown:'edit',check:'on',uncheck:'off',route:'saved'};
 function soundDefinition(p,event){if(event==='startup')return ['startup',STARTUP_NOTES];return p.palette==='electronic'?(ELECTRONIC[event]||ELECTRONIC[ALIASES[event]]||SOUNDS[event]):SOUNDS[event]}
@@ -164,7 +175,7 @@ function sliderNotes(pitches){return pitches.map((hz,i)=>[hz,hz,.011,i*SLIDER_SP
 function renderWav(p,event,sr=24000,pitches=null){
  const diagnostic=event==='test';
  const notes=pitches?.length?sliderNotes(pitches):diagnostic?[[660,660,.16,0,'sine',.65],[880,880,.24,.18,'sine',.65]]:soundDefinition(p,event)[1];
- const layers=!pitches&&!diagnostic&&p.palette==='industrial'?NOISE[event]||[]:[];
+ const layers=event==='startup'?STARTUP_PERCUSSION_NOISE:!pitches&&!diagnostic&&p.palette==='industrial'?NOISE[event]||[]:[];
  const length=Math.ceil((Math.max(...notes.map(n=>n[2]+n[3]),...layers.map(n=>n[0]+n[1]))+.025)*sr),samples=new Float32Array(length);
  const envelope=(t,d,a)=>Math.min(1,t/a)*Math.pow(Math.max(0,1-t/d),2);
  const musicEnvelope=(t,d)=>Math.min(1,t/Math.min(.018,d/5))*Math.min(1,Math.max(0,(d-t)/Math.min(.62,d*.55)))*(1-.22*t/d);
@@ -173,7 +184,7 @@ function renderWav(p,event,sr=24000,pitches=null){
   for(let i=0;i<Math.ceil(d*sr)&&start+i<length;i++){
    const t=i/sr;phase+=2*Math.PI*from*Math.pow(to/from,t/d)/sr;
    const v=wave==='triangle'?2/Math.PI*Math.asin(Math.sin(phase)):wave==='sawtooth'?2*(phase/(2*Math.PI)-Math.floor(phase/(2*Math.PI)+.5)):wave==='square'?Math.sign(Math.sin(phase)):Math.sin(phase);
-   samples[start+i]+=v*gain*(event==='startup'?musicEnvelope(t,d):envelope(t,d,Math.min(.008,d/4)));
+   samples[start+i]+=v*gain*(event==='startup'&&from===to?musicEnvelope(t,d):envelope(t,d,Math.min(.008,d/4)));
   }
  }
  let seed=0x6e617576;
@@ -296,14 +307,14 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
     o.type=wave;o.frequency.setValueAtTime(from,t);o.frequency.exponentialRampToValueAtTime(to,end);
     const amp=Math.max(.00011,p.volume/100*(event==='startup'?.28:p.palette==='electronic'?.20:.22)*level);
     g.gain.setValueAtTime(.0001,t);
-    if(event==='startup'){g.gain.exponentialRampToValueAtTime(amp,t+Math.min(.018,length/5));g.gain.exponentialRampToValueAtTime(Math.max(.00011,amp*.78),end-Math.min(.62,length*.55));}
+    if(event==='startup'&&from===to){g.gain.exponentialRampToValueAtTime(amp,t+Math.min(.018,length/5));g.gain.exponentialRampToValueAtTime(Math.max(.00011,amp*.78),end-Math.min(.62,length*.55));}
     else g.gain.exponentialRampToValueAtTime(amp,t+Math.min(.008,length/4));
     g.gain.exponentialRampToValueAtTime(.0001,end);
     o.connect(g);g.connect(context.destination);voices.push(o);
     o.onended=()=>{voices=voices.filter(v=>v!==o);try{o.disconnect();g.disconnect()}catch{}};
     o.start(t);o.stop(end+.01);
    }
-   if(p.palette==='industrial')for(const layer of NOISE[event]||[])noise(layer,start,p);
+   if(event==='startup')for(const layer of STARTUP_PERCUSSION_NOISE)noise(layer,start,p);else if(p.palette==='industrial')for(const layer of NOISE[event]||[])noise(layer,start,p);
    return true;
   }catch(err){lastError=err?.message||'Sound synthesis failed';stop();return false}
  }
@@ -325,7 +336,7 @@ function makeEngine(AudioContext,getPrefs,visible=()=>true,clock=()=>Date.now())
  }
  return {unlock,play,playSlider,sliderDelay:()=>context?Math.max(0,tickTail-context.currentTime)*1000:0,stop,reset,testTone,error:()=>lastError,state:()=>context?.state||'locked'};
 }
-if(typeof module==='object'&&module.exports)module.exports={STARTUP_NOTES,STARTUP_DURATION,normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine,renderWav,makeMediaEngine,makeCueGate,makeAwardTracker,sliderPitches,sliderNotes};
+if(typeof module==='object'&&module.exports)module.exports={STARTUP_NOTES,STARTUP_DURATION,STARTUP_PERCUSSION_NOISE,normalize,DEFAULTS,CATEGORIES,SOUNDS,ELECTRONIC,NOISE,soundDefinition,canPlay,cloudCue,gained,makeEngine,renderWav,makeMediaEngine,makeCueGate,makeAwardTracker,sliderPitches,sliderNotes};
 if(typeof document==='undefined')return;
 let prefs=normalize(null);try{prefs=normalize(JSON.parse(localStorage.getItem(KEY)||'null'))}catch{}
 const $=id=>document.getElementById(id),dialog=$('sensoryDialog'),launcher=$('sensoryLaunch');
