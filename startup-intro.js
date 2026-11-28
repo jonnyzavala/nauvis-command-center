@@ -7,7 +7,7 @@ const typeProps=['fontFamily','fontWeight','fontStyle','fontSize','lineHeight','
 let timer,safety,animations=[],running=false;
 function releaseBoot(){clearTimeout(root.NauvisIntroBootTimer);document.documentElement.removeAttribute('data-intro-boot')}
 function enabled(){try{return localStorage.getItem(key)!=='off'}catch{return true}}
-function finish(){releaseBoot();if(!running){if(dialog.open)dialog.close();return;}running=false;clearTimeout(timer);clearTimeout(safety);const old=animations;animations=[];for(const {line,target} of pairs){target.style.visibility='';line.removeAttribute('style')}if(dialog.open)dialog.close();for(const a of old)a.cancel()}
+function finish(){root.NauvisSensory?.stopStartup?.();releaseBoot();if(!running){if(dialog.open)dialog.close();return;}running=false;clearTimeout(timer);clearTimeout(safety);const old=animations;animations=[];for(const {line,target} of pairs){target.style.visibility='';line.removeAttribute('style')}if(dialog.open)dialog.close();for(const a of old)a.cancel()}
 function typography(el){const s=getComputedStyle(el),out={};for(const prop of typeProps)out[prop]=s[prop];return out}
 function prepare(){
  for(let i=0;i<pairs.length;i++){const {line,target}=pairs[i],style=typography(target);line.textContent=target.textContent.trim();Object.assign(line.style,style);if(i!==2){const normal=parseFloat(style.fontSize),size=i===0?Math.min(58,innerWidth*.135):Math.min(43,innerWidth*.09);const ratio=size/normal;line.style.fontSize=size+'px';line.style.lineHeight=(parseFloat(style.lineHeight)||normal*1.2)*ratio+'px';line.style.letterSpacing=(parseFloat(style.letterSpacing)||0)*ratio+'px'}else{line.style.color=getComputedStyle(document.documentElement).getPropertyValue('--gold').trim()||'#ebbf79'}target.style.visibility='hidden'}
@@ -31,7 +31,7 @@ function settle(){
 }
 function start(preview=false){
  if(running||(!preview&&(root.NauvisSkipStartupIntro||!enabled()))||matchMedia('(prefers-reduced-motion: reduce)').matches||root.NauvisSensory?.getPrefs?.().motion==='off'){releaseBoot();return;}
- running=true;try{prepare();dialog.showModal();releaseBoot();timer=setTimeout(settle,3000);safety=setTimeout(finish,5100)}catch{finish()}
+ running=true;try{prepare();dialog.showModal();releaseBoot();root.NauvisSensory?.startStartup?.();timer=setTimeout(settle,3000);safety=setTimeout(finish,5100)}catch{finish()}
 }
 $('introEnabled').checked=enabled();$('introEnabled').addEventListener('change',e=>{try{localStorage.setItem(key,e.target.checked?'on':'off')}catch{}});
 $('previewIntro').addEventListener('click',()=>{$('sensoryDialog').close();root.scrollTo({top:0,behavior:'instant'});start(true)});
