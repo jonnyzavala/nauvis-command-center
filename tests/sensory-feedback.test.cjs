@@ -74,9 +74,11 @@ test('startup music is an original timed score with a separate opt-out and maste
  assert.equal(canPlay(normalize({enabled:true,startupMusic:false}),'startup'),false);
  assert.equal(canPlay(normalize({enabled:true,volume:0}),'startup'),false);
  assert.equal(canPlay(normalize(null),'startup'),false);
- assert.ok(STARTUP_DURATION>=3.5&&STARTUP_DURATION<4.5);
- for(const reveal of [0,.55,1.15])assert.ok(STARTUP_NOTES.some(n=>Math.abs(n[3]-reveal)<.06));
- const melody=STARTUP_NOTES.filter(n=>n[4]==='triangle'&&n[5]===.57);assert.equal(melody.length,12);assert.ok(melody.every((n,i)=>!i||n[3]>melody[i-1][3]));assert.equal(melody[0][0],melody.at(-1)[0]);
+ assert.ok(STARTUP_DURATION>=5.6&&STARTUP_DURATION<6);
+ for(const reveal of [0,.94,1.84])assert.ok(STARTUP_NOTES.some(n=>Math.abs(n[3]-reveal)<.07));
+ const melody=STARTUP_NOTES.filter(n=>n[4]==='triangle'&&n[5]===.62);assert.equal(melody.length,11);assert.ok(melody.every((n,i)=>!i||n[3]>melody[i-1][3]));assert.equal(melody[0][0],melody.at(-1)[0]);
+ assert.ok(new Set(melody.map(n=>n[2])).size>=8);assert.ok(melody.at(-1)[2]>=1.4);assert.ok(melody.some((n,i)=>i>0&&n[3]-melody[i-1][3]-melody[i-1][2]>.09));
+ const midi=f=>Math.round(69+12*Math.log2(f/440));assert.deepEqual(melody.slice(-2).map(n=>midi(n[0])),[61,62]);const chord=STARTUP_NOTES.filter(n=>n[3]===4.34).map(n=>midi(n[0])%12);assert.ok([2,5,9].every(n=>chord.includes(n)));assert.ok(!chord.includes(6));
  assert.ok(STARTUP_NOTES.some(n=>n[4]==='square'));
  assert.deepEqual(soundDefinition(p,'startup'),soundDefinition(normalize({enabled:true,palette:'electronic'}),'startup'));
  const wav=renderWav(p,'startup'),view=new DataView(wav.buffer);
